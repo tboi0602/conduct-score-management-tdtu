@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Sơ Đồ Kiến Trúc Nginx Load Balancer & Failover (Green Flow)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f8fafc; color: #0f172a; padding: 40px 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+        /* CANVAS ARCHITECTURE */
+        .architecture-canvas {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 16px;
+            padding: 32px;
+            width: 1120px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 16px;
+        }
+        .header h2 { font-size: 20px; color: #0284c7; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 800; }
+        .header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+        /* GRID BỐ CỤC 4 GIAI ĐOẠN */
+        .diagram-grid {
+            display: grid;
+            grid-template-columns: 210px 55px 280px 55px 230px 55px 170px;
+            align-items: stretch;
+            position: relative;
+        }
+
+        /* KHỐI CÁC GIAI ĐOẠN (STAGE STACK) */
+        .stage-card {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 310px;
+            justify-content: flex-start;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        /* STAGE 4 FIT HEIGHT & ALIGN CENTER */
+        .stage-broker {
+            height: auto !important;
+            align-self: center;
+            background: #f0f9ff;
+            border-color: #7dd3fc;
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #475569;
+            border-bottom: 1.5px dashed #e2e8f0;
+            padding-bottom: 8px;
+            height: 30px;
+        }
+        .stage-header svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; flex-shrink: 0; }
+
+        /* NODES NỘI DUNG */
+        .node {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            height: 68px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .node-title { font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+        .node-desc { font-size: 9.5px; color: #64748b; line-height: 1.3; }
+
+        /* STYLE NỀN & TRẠNG THÁI */
+        .status-valid   { border-color: #10b981; background: #ecfdf5; color: #065f46; }
+        .status-invalid { border-color: #f87171; background: #fef2f2; color: #991b1b; }
+        .status-active  { border-color: #34d399; background: #f0fdf4; color: #14532d; }
+        .status-dead    { border-color: #cbd5e1; background: #f8fafc; color: #64748b; border-style: dashed; }
+        .status-mq      { border-color: #0284c7; background: #ffffff; color: #0369a1; }
+
+        /* BADGES */
+        .badge {
+            font-size: 8.5px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-green { background: #d1fae5; color: #047857; }
+        .badge-red   { background: #fee2e2; color: #b91c1c; }
+        .badge-gray  { background: #e2e8f0; color: #475569; }
+        .badge-blue  { background: #e0f2fe; color: #0369a1; }
+
+        /* FEATURE BOX TRONG NGINX */
+        .feature-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 9.5px;
+            line-height: 1.3;
+            height: 68px;
+            box-sizing: border-box;
+        }
+        .feature-box svg { width: 14px; height: 14px; stroke-width: 2; flex-shrink: 0; }
+
+        /* SVG CONNECTORS CONTAINER */
+        .arrow-connector {
+            width: 100%;
+            height: 310px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .arrow-connector svg { width: 100%; height: 100%; overflow: visible; }
+
+        /* BANNER FAILOVER AUTO */
+        .failover-banner {
+            background: #fff1f2;
+            border: 1.5px dashed #fda4af;
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 11.5px;
+            color: #9f1239;
+            line-height: 1.4;
+        }
+        .failover-banner svg { width: 20px; height: 20px; stroke: #e11d48; fill: none; flex-shrink: 0; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .architecture-canvas { border: 1px solid #000; box-shadow: none; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="architecture-canvas">
+
+        <!-- DIAGRAM GRID NGANG -->
+        <div class="diagram-grid">
+            
+            <!-- STAGE 1: CLIENT REQUESTS -->
+            <div class="stage-card">
+                <div class="stage-header">
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>1. Clients Ingress</span>
+                </div>
+
+                <div class="node status-invalid">
+                    <div class="node-title">
+                        <span>Request B (Spam)</span>
+                        <span class="badge badge-red">10 req/s</span>
+                    </div>
+                    <div class="node-desc">Exceeding the allowed rate limit.</div>
+                </div>
+
+                <div class="node status-valid" style="margin-top: auto;">
+                    <div class="node-title">
+                        <span>Request A (Hợp lệ)</span>
+                        <span class="badge badge-green">1 req/s</span>
+                    </div>
+                    <div class="node-desc">Normal access frequency</div>
+                </div>
+            </div>
+
+            <!-- ARROW 1: CLIENT TO NGINX -->
+            <div class="arrow-connector">
+                <svg viewBox="0 0 55 310">
+                    <defs>
+                        <marker id="arr-red" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L6,3 Z" fill="#ef4444" />
+                        </marker>
+                        <marker id="arr-green" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L6,3 Z" fill="#10b981" />
+                        </marker>
+                    </defs>
+                    <path d="M 0 92 L 49 92" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr-red)"/>
+                    <path d="M 0 252 L 49 252" stroke="#10b981" stroke-width="2.5" marker-end="url(#arr-green)"/>
+                </svg>
+            </div>
+
+            <!-- STAGE 2: NGINX GATEKEEPER -->
+            <div class="stage-card" style="background: #f0f9ff; border-color: #bae6fd;">
+                <div class="stage-header" style="color: #0369a1;">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                    <span>2. Nginx Gatekeeper</span>
+                </div>
+
+                <div class="feature-box" style="color: #991b1b; border-color: #fca5a5; background: #fff5f5;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <div>
+                        <strong>Rate Limiting:</strong> Rate limiting (Max 5 req/s). Block violations.
+                    </div>
+                </div>
+
+                <div class="feature-box" style="color: #0369a1; border-color: #7dd3fc; background: #ffffff;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <div>
+                        <strong>SSL Termination:</strong> Offload CPU by decrypting HTTPS (443) to internal HTTP.
+                    </div>
+                </div>
+
+                <div class="feature-box" style="color: #047857; border-color: #6ee7b7; background: #f0fdf4;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 3 21 3 21 8"></polyline><line x1="10" y1="14" x2="21" y2="3"></line><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>
+                    <div>
+                        <strong>Upstream Balancing:</strong> Weighted Round-Robin & Active Health Check.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARROW 2: NGINX TO BACKEND -->
+            <div class="arrow-connector">
+                <svg viewBox="0 0 55 310">
+                    <defs>
+                        <marker id="arr-gray-dash" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L6,3 Z" fill="#94a3b8" />
+                        </marker>
+                    </defs>
+                    <path d="M 0 92 L 49 92" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr-red)"/>
+                    <path d="M 0 252 L 49 252" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arr-green)"/>
+                    <path d="M 0 242 C 20 242, 25 172, 49 172" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arr-gray-dash)"/>
+                </svg>
+            </div>
+
+            <!-- STAGE 3: UPSTREAM CLUSTER -->
+            <div class="stage-card">
+                <div class="stage-header">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                    <span>3. Upstream Cluster</span>
+                </div>
+
+                <div class="node status-invalid">
+                    <div class="node-title">
+                        <span>HTTP 429 REJECTED</span>
+                        <span class="badge badge-red">CHẶN TẠI BIÊN</span>
+                    </div>
+                    <div class="node-desc">Respond directly to the client, do not access the Backend.</div>
+                </div>
+
+                <div class="node status-dead">
+                    <div class="node-title">
+                        <span>Server 1 (:3001)</span>
+                        <span class="badge badge-gray">OFFLINE</span>
+                    </div>
+                    <div class="node-desc">Mark as down / Remove after 3 failures (max_fails=3)</div>
+                </div>
+
+                <div class="node status-active">
+                    <div class="node-title">
+                        <span>Server 2 (:3002)</span>
+                        <span class="badge badge-green">ONLINE (100% TẢI)</span>
+                    </div>
+                    <div class="node-desc">Receive all valid requests from the failover</div>
+                </div>
+            </div>
+
+            <!-- ARROW 3: BACKEND TO RABBITMQ (ĐÃ ĐỔI SANG MÀU GREEN) -->
+            <div class="arrow-connector">
+                <svg viewBox="0 0 55 310">
+                    <defs>
+                        <marker id="arr-green-broker" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L6,3 Z" fill="#10b981" />
+                        </marker>
+                    </defs>
+                    <!-- Đường nối xanh lá uốn cong lên checkin.queue ở giữa -->
+                    <path d="M 0 252 C 25 245, 10 176, 49 180" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arr-green-broker)"/>
+                </svg>
+            </div>
+
+            <!-- STAGE 4: EVENT BROKER -->
+            <div class="stage-card stage-broker">
+                <div class="stage-header" style="color: #0369a1; border-color: #bae6fd;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span>4. Broker</span>
+                </div>
+
+                <div class="node status-mq">
+                    <div class="node-title">
+                        <span>checkin.queue</span>
+                        <span class="badge badge-blue">RABBITMQ</span>
+                    </div>
+                    <div class="node-desc">Queue for asynchronous processing</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BANNER FAILOVER AUTO -->
+        <div class="failover-banner">
+            <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div>
+                <strong>Failover and Zero-Downtime Mechanism:</strong> Nginx automatically detects that <code>Server 1</code> is unresponsive (<code>max_fails=3</code>) and immediately redirects all <strong>Request A (green)</strong> traffic to <code>Server 2</code>. The system maintains continuous operation without interruption.
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

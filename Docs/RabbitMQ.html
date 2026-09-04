@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RabbitMQ Architecture - Competing Consumers & Load Balancing</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Consolas', sans-serif; }
+        body { background-color: #f8fafc; color: #0f172a; padding: 10px; display: flex; justify-content: center; }
+
+        /* Full-width container optimized for Word A4 Portrait */
+        .rmq-container {
+            width: 100%;
+            max-width: 880px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .header { 
+            border-bottom: 2px solid #e2e8f0; 
+            padding-bottom: 8px; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-icon { width: 22px; height: 22px; fill: #ea580c; flex-shrink: 0; }
+        .header h1 { font-size: 13.5px; color: #ea580c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800; }
+        .header p { font-size: 10.5px; color: #64748b; margin-top: 1px; }
+
+        /* 5-Column Layout: Layer 2 slimmed (220px), Layer 3 widened (240px) for Multi-Workers */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 180px 60px 220px 70px 240px;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        .section-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sec-title {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding-bottom: 5px;
+            border-bottom: 1.5px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .sec-producer { color: #0284c7; }
+        .sec-broker { color: #ea580c; }
+        .sec-consumer { color: #059669; }
+        .sec-title svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 9.5px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .card-header { 
+            font-weight: 700; 
+            font-size: 10px; 
+            color: #0f172a; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap;
+            gap: 2px;
+        }
+        
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 8.5px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+            width: fit-content;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .badge-orange { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+        .badge-blue { background: #f0f9ff; color: #0369a1; border: 1px solid #e0f2fe; }
+        .badge-green { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
+        .badge-red { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+        .badge-purple { background: #faf5ff; color: #6b21a8; border: 1px solid #f3e8ff; }
+
+        /* Inner Broker Layout */
+        .broker-subgrid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .exchange-group, .queue-group {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px;
+            background: #ffffff;
+        }
+        .sub-label { 
+            font-size: 8.5px; 
+            color: #64748b; 
+            font-weight: 700; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            display: flex; 
+            align-items: center;
+            gap: 4px;
+        }
+        .sub-label svg { width: 11px; height: 11px; fill: #64748b; flex-shrink: 0; }
+
+        .code-inline { color: #d97706; font-family: 'Consolas', monospace; font-weight: 700; font-size: 9px; word-break: break-all; }
+        .desc-text { color: #475569; font-size: 9px; line-height: 1.3; }
+
+        /* Connector Columns */
+        .connector-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            padding: 0 2px;
+        }
+        .arrow-line {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            width: 100%;
+        }
+        .arrow-line svg { width: 18px; height: 18px; stroke: #94a3b8; }
+        
+        .arrow-label {
+            font-size: 7.5px;
+            font-weight: 700;
+            color: #475569;
+            text-align: center;
+            text-transform: uppercase;
+            background: #ffffff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #cbd5e1;
+            line-height: 1.15;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            z-index: 2;
+        }
+
+        .internal-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2px 0;
+            gap: 4px;
+        }
+        .internal-arrow svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+        /* Multi-Worker Grid Styling */
+        .worker-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+        .worker-card {
+            background: #ffffff;
+            border: 1px solid #a7f3d0;
+            border-radius: 5px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="rmq-container">
+        <!-- HEADER -->
+        <div class="header">
+            <svg class="header-icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+            <div>
+                <h1>Figure 3.Z: RabbitMQ Architecture & Multi-Worker Load Balancing</h1>
+                <p>AMQP Routing, Persistent Queues, Competing Consumers Pattern, QoS Flow Control & ACK/NACK Handling</p>
+            </div>
+        </div>
+
+        <div class="grid-layout">
+            
+            <!-- 1. PUBLISHER LAYER -->
+            <div class="section-box" style="border-top: 3.5px solid #0284c7;">
+                <div class="sec-title sec-producer">
+                    <svg viewBox="0 0 24 24"><path d="M4 1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/></svg>
+                    <span>1. AMQP Publisher</span>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span>Node.js Backend</span>
+                        <span class="badge badge-blue">Producer</span>
+                    </div>
+                    <div class="desc-text">Encapsulates check-in payload & durability settings.</div>
+                    <div style="margin-top: 1px;">
+                        <span class="badge badge-orange">delivery_mode = 2</span>
+                        <span class="desc-text" style="display:block; margin-top:2px; font-weight:600;">(Persistent to disk)</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Routing Keys</div>
+                    <div style="display:flex; flex-direction:column; gap:3px; margin-top:2px;">
+                        <span class="code-inline" style="background:#fffbe6; padding:2px 4px; border-radius:3px; border:1px solid #fef08a;">checkin.direct</span>
+                        <span class="code-inline" style="background:#fffbe6; padding:2px 4px; border-radius:3px; border:1px solid #fef08a;">event.checkin.gps</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONNECTOR 1 -->
+            <div class="connector-col">
+                <div class="arrow-line">
+                    <span class="arrow-label">Publish</span>
+                    <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div style="height: 10px;"></div>
+                <div class="arrow-line">
+                    <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6" stroke="#0284c7" stroke-width="1.8" stroke-dasharray="3,3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="arrow-label" style="color:#0369a1; border-color:#bae6fd;">Confirm ACK</span>
+                </div>
+            </div>
+
+            <!-- 2. RABBITMQ BROKER CORE (Narrow Width) -->
+            <div class="section-box" style="border-top: 3.5px solid #ea580c;">
+                <div class="sec-title sec-broker">
+                    <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2z"/></svg>
+                    <span>2. RabbitMQ Broker Core</span>
+                </div>
+
+                <div class="broker-subgrid">
+                    
+                    <!-- Exchanges -->
+                    <div class="exchange-group">
+                        <div class="sub-label">
+                            <svg viewBox="0 0 24 24"><path d="M14 20l7-7-7-7-1.41 1.41L16.17 11H3v2h13.17l-3.58 3.59L14 20z"/></svg>
+                            Exchanges (Routing)
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div class="card">
+                                <span class="badge badge-orange">Direct Exchange</span>
+                                <span class="code-inline">checkin.direct</span>
+                            </div>
+                            <div class="card">
+                                <span class="badge badge-orange">Topic Exchange</span>
+                                <span class="code-inline">event.*.gps</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Internal Arrow -->
+                    <div class="internal-arrow">
+                        <svg viewBox="0 0 24 24" style="stroke:#ea580c"><path d="M12 4v12m-6-6l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <span class="arrow-label">Match Binding</span>
+                    </div>
+
+                    <!-- Queues Storage -->
+                    <div class="queue-group">
+                        <div class="sub-label">
+                            <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                            Queues Storage
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            
+                            <!-- Main Queue -->
+                            <div class="card" style="border-color: #ea580c; background: #fff7ed;">
+                                <div class="card-header">
+                                    <span style="color:#c2410c;">checkin_queue</span>
+                                    <span class="badge badge-orange">durable=true</span>
+                                </div>
+                                <div class="desc-text">Disk-backed FIFO Queue. Protects data payload.</div>
+                            </div>
+
+                            <!-- DLX Internal Arrow -->
+                            <div class="internal-arrow">
+                                <svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M12 4v12m-6-6l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span class="arrow-label" style="color:#dc2626; border-color:#fecaca; background:#fef2f2;">nack / Expired TTL</span>
+                            </div>
+
+                            <!-- Dead Letter Queue -->
+                            <div class="card" style="border-color: #fca5a5; background: #fff5f5;">
+                                <div class="card-header">
+                                    <span style="color: #dc2626;">DLX: checkin.dlx</span>
+                                    <span class="badge badge-red">Dead Letter</span>
+                                </div>
+                                <div class="code-inline" style="color:#b91c1c;">checkin.dlq (TTL: 86400s)</div>
+                                <div class="desc-text">Isolates poison messages.</div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- CONNECTOR 2 -->
+            <div class="connector-col">
+                <div class="arrow-line">
+                    <span class="arrow-label">Round-Robin<br>PUSH</span>
+                    <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div style="height: 18px;"></div>
+                <div class="arrow-line">
+                    <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="arrow-label" style="color:#059669; border-color:#a7f3d0;">ACK / NACK</span>
+                </div>
+            </div>
+
+            <!-- 3. WORKERS & COMPETING CONSUMERS LAYER -->
+            <div class="section-box" style="border-top: 3.5px solid #059669;">
+                <div class="sec-title sec-consumer">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                    <span>3. Multi-Worker Fleet</span>
+                </div>
+
+                <!-- QoS Control -->
+                <div class="card" style="border-color: #a7f3d0; background: #f0fdf4;">
+                    <div class="card-header">
+                        <span style="color:#047857;">Flow Control (QoS)</span>
+                        <span class="badge badge-green">basicQos</span>
+                    </div>
+                    <div class="code-inline" style="color:#047857;">prefetchCount = 10</div>
+                    <div class="desc-text">Limits max 10 unacked messages per active worker.</div>
+                </div>
+
+                <!-- COMPETING CONSUMERS (MULTI-WORKER CARDS) -->
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div class="sub-label" style="margin-bottom:2px; justify-content:space-between;">
+                        <span>Competing Consumers Pattern</span>
+                        <span class="badge badge-purple">autoAck = false</span>
+                    </div>
+
+                    <div class="worker-grid">
+                        <div class="worker-card">
+                            <div class="card-header" style="font-size:9px; color:#047857;">
+                                <span>Worker #1</span>
+                                <span class="badge badge-green" style="font-size:7.5px; padding:0 3px;">Active</span>
+                            </div>
+                            <div class="desc-text" style="font-size:8px;">Processes Batch A (Parallel DB Write)</div>
+                        </div>
+                        <div class="worker-card">
+                            <div class="card-header" style="font-size:9px; color:#047857;">
+                                <span>Worker #2</span>
+                                <span class="badge badge-green" style="font-size:7.5px; padding:0 3px;">Active</span>
+                            </div>
+                            <div class="desc-text" style="font-size:8px;">Processes Batch B (Parallel DB Write)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Protocol Actions -->
+                <div class="card" style="margin-top:2px;">
+                    <div class="card-header" style="font-size:9.5px;">Protocol Handshake</div>
+                    <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+                        <div style="background: #f0fdf4; padding: 4px; border-radius:4px; border-left: 3px solid #10b981; border: 1px solid #bbf7d0; border-left-width: 3px;">
+                            <span class="badge badge-green">basic.ack</span>
+                            <span class="desc-text" style="display:block; color:#334155; margin-top:1px; font-size:8.5px;">
+                                DB <strong>COMMIT</strong> ok &rarr; Delete item from Queue.
+                            </span>
+                        </div>
+                        <div style="background: #fef2f2; padding: 4px; border-radius:4px; border-left: 3px solid #ef4444; border: 1px solid #fecaca; border-left-width: 3px;">
+                            <span class="badge badge-red">basic.nack / reject</span>
+                            <span class="desc-text" style="display:block; color:#334155; margin-top:1px; font-size:8.5px;">
+                                • Soft error: <strong>requeue=true</strong><br>
+                                • Hard error: <strong>requeue=false (DLX)</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

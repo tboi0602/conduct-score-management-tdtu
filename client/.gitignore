@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+.next/
+out/
+
+# Environment - never commit real secrets (.env.example is the template)
+.env
+.env.local
+.env.*.local
+
+# Logs & temp
+*.log
+tmp/
+.DS_Store
+
+# Misc
+coverage/
+*.tsbuildinfo

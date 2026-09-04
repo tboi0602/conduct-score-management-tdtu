@@ -18,16 +18,16 @@ Hệ thống quản lý và gợi ý điểm rèn luyện sinh viên được th
   * **Luồng Ban tổ chức:** Sử dụng đầu đọc mã vạch hoặc ứng dụng di động để quét MSSV trực tiếp tại cổng sự kiện.
   * **Luồng Sinh viên tự quét:** Quét mã QR sự kiện qua ứng dụng. Hệ thống tự động tính toán khoảng cách giữa tọa độ GPS của sinh viên và vị trí hội trường bằng thuật toán Haversine (Geofencing) để chặn điểm danh hộ.
 * **Bộ gợi ý sự kiện (Smart Advisor):** Tự động phân tích danh mục tiêu chí điểm rèn luyện sinh viên còn thiếu, đối chiếu với các khung giờ không có lịch học trong tuần để đề xuất sự kiện phù hợp nhất.
-* **Thu thập dữ liệu tự động:** Tiến trình ngầm định kỳ quét bài viết từ Fanpage Facebook chính thức của trường/khoa để bóc tách thông tin hoạt động và đồng bộ vào hệ thống.
 * **Gửi và duyệt minh chứng trực tuyến:** Tiếp nhận phản hồi kèm ảnh chụp minh chứng cho các sự cố kỹ thuật. Cán bộ quản lý có thể đối soát và phê duyệt trực tiếp trên giao diện web.
 * **Bảng theo dõi tiến độ:** Cung cấp biểu đồ trực quan hóa tiến độ tích lũy điểm theo từng mốc xếp loại (Khá, Giỏi, Xuất sắc) và tự động đồng bộ thời gian thực.
 
 ### Kiến trúc & Công nghệ
 * **Frontend:** Next.js 14 (App Router), Tailwind CSS, PWA.
 * **Backend:** Node.js (TypeScript), Express, RESTful API, WebSocket.
-* **Cân bằng tải:** Nginx (Reverse Proxy, thuật toán Round-Robin).
-* **Hàng đợi & Cache:** RabbitMQ (Xử lý bất đồng bộ luồng check-in), Redis (Cache phiên làm việc và danh sách sự kiện).
-* **Cơ sở dữ liệu:** PostgreSQL 16.
+* **Cân bằng tải:** Nginx (Reverse Proxy, thuật toán Round-Robin, TLS termination).
+* **Hàng đợi & Cache:** RabbitMQ (Xử lý bất đồng bộ luồng check-in, retry TTL + DLQ), Redis (Cache phiên làm việc, idempotency lock và Pub/Sub fan-out cho SSE).
+* **Cơ sở dữ liệu:** PostgreSQL 16 (schema quản lý bằng Prisma migrations).
+* **Quan sát (Observability):** Prometheus + Grafana, endpoint /metrics trên API và Worker.
 
 ### Sơ đồ luồng xử lý hệ thống
 
@@ -88,7 +88,6 @@ An event-driven conduct score management platform built to optimize student acti
 
 
 * **Smart Advisor Engine:** Evaluates missing conduct criteria against student class schedules to suggest personalized, actionable event recommendations.
-* **Automated Event Scraper:** Background worker that periodically fetches activity announcements from official university Facebook Fanpages.
 * **Digital Proof & Dispute Resolution:** Online portal allowing students to submit image proof for unrecorded attendance or reading errors, with an administrative review interface.
 * **Progress Dashboard:** Real-time visual progress tracking against evaluation tiers (Good, Very Good, Excellent).
 
@@ -96,9 +95,10 @@ An event-driven conduct score management platform built to optimize student acti
 
 * **Frontend:** Next.js 14 (App Router), Tailwind CSS, PWA.
 * **Backend:** Node.js (TypeScript), Express, RESTful APIs, WebSockets.
-* **Load Balancer:** Nginx (Reverse Proxy, Round-Robin algorithm).
-* **Queue & Caching:** RabbitMQ (Asynchronous check-in queue), Redis (Session & Event caching).
-* **Database:** PostgreSQL 16.
+* **Load Balancer:** Nginx (Reverse Proxy, Round-Robin algorithm, TLS termination).
+* **Queue & Caching:** RabbitMQ (Asynchronous check-in queue with TTL retries + DLQ), Redis (Session caching, idempotency locks, Pub/Sub fan-out for SSE).
+* **Database:** PostgreSQL 16 (schema managed via Prisma migrations).
+* **Observability:** Prometheus + Grafana, /metrics endpoints on API and Worker.
 
 ### System Architecture Diagram
 

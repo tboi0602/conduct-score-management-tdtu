@@ -1,0 +1,178 @@
+// ============================================================
+// Barcode Attendance System - Prisma Schema
+// Scale: ~1,000 students / high-frequency barcode scan events.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// Student
+// ------------------------------------------------------------
+model Student {
+  id            String          @id @default(uuid()) @db.Uuid
+  studentCode   String          @unique @db.VarChar(20)
+  fullName      String          @db.VarChar(100)
+  dateOfBirth   DateTime?       @db.Date
+  gender        Gender?
+  className     String          @db.VarChar(50)
+  faculty       String          @db.VarChar(100)
+  email         String?         @unique @db.VarChar(120)
+  phone         String?         @db.VarChar(15)
+  status        StudentStatus   @default(ACTIVE)
+  baseScore     Int             @default(0) // starting conduct score
+  currentScore  Int             @default(0) // live conduct score
+
+  events        EventEnrollment[]
+  attendanceLogs AttendanceLog[]
+  warnings      Warning[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([className])
+  @@index([faculty])
+  @@map("students")
+}
+
+// ------------------------------------------------------------
+// Event - class/school activity requiring attendance check-in
+// ------------------------------------------------------------
+model Event {
+  id            String          @id @default(uuid()) @db.Uuid
+  code          String          @unique @db.VarChar(40)
+  name          String          @db.VarChar(200)
+  description   String?         @db.Text
+  locationName  String          @db.VarChar(120)
+  lat           Float           // geofence center latitude
+  lng           Float           // geofence center longitude
+  radiusMeters  Int             @default(200)
+  startAt       DateTime
+  endAt         DateTime
+  status        EventStatus     @default(DRAFT)
+  maxScoreDeduction Int         @default(0) // conduct penalty ceiling
+
+  enrollments   EventEnrollment[]
+  attendanceLogs AttendanceLog[]
+  warnings      Warning[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([startAt, endAt])
+  @@index([status])
+  @@map("events")
+}
+
+// ------------------------------------------------------------
+// EventEnrollment - which students must attend which event
+// ------------------------------------------------------------
+model EventEnrollment {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  studentId String   @db.Uuid
+  requiredMandatory Boolean @default(false)
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, studentId])
+  @@index([studentId])
+  @@map("event_enrollments")
+}
+
+// ------------------------------------------------------------
+// AttendanceLog - one row per check-in event (worker persisted)
+// ------------------------------------------------------------
+model AttendanceLog {
+  id             String        @id @default(uuid()) @db.Uuid
+  eventId        String        @db.Uuid
+  studentId      String        @db.Uuid
+  status         AttendanceStatus @default(PRESENT)
+  scanCode       String        @db.VarChar(40) // raw barcode payload
+  lat            Float           // scan GPS latitude
+  lng            Float           // scan GPS longitude
+  gpsVerified    Boolean       @default(false) // passed geofence check
+  distanceMeters Float?          // haversine distance from event center
+  ipAddress      String?       @db.VarChar(45)
+  deviceId       String?       @db.VarChar(80)
+  metadata       Json?
+  scannedAt      DateTime      @default(now())
+  processedAt    DateTime      @default(now())
+  idempotencyKey String        @unique @db.VarChar(80) // SETNX dedupe key
+
+  event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, studentId])
+  @@index([scannedAt])
+  @@index([status])
+  @@map("attendance_logs")
+}
+
+// ------------------------------------------------------------
+// Warning - output of the rule-based recommendation engine
+// ------------------------------------------------------------
+model Warning {
+  id          String       @id @default(uuid()) @db.Uuid
+  studentId   String       @db.Uuid
+  eventId     String?      @db.Uuid
+  ruleCode    String       @db.VarChar(60)   // e.g. ABSENT_3_IN_ROW
+  severity    WarningSeverity @default(MEDIUM)
+  reason      String       @db.Text
+  action      String       @db.Text          // recommended action text
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  student     Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event       Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([ruleCode])
+  @@map("warnings")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum StudentStatus {
+  ACTIVE
+  GRADUATED
+  SUSPENDED
+  DROPPED_OUT
+}
+
+enum EventStatus {
+  DRAFT
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+  FAILED_GPS
+}
+
+enum WarningSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
