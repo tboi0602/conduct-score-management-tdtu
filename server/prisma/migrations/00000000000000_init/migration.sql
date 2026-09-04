@@ -1,52 +1,141 @@
 -- CreateEnum
-CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER');
+CREATE TYPE "AttendanceStatus" AS ENUM ('ATTENDED', 'ABSENT', 'LATE');
 
 -- CreateEnum
-CREATE TYPE "StudentStatus" AS ENUM ('ACTIVE', 'GRADUATED', 'SUSPENDED', 'DROPPED_OUT');
+CREATE TYPE "AttendanceDirection" AS ENUM ('CHECK_IN', 'CHECK_OUT');
 
 -- CreateEnum
-CREATE TYPE "EventStatus" AS ENUM ('DRAFT', 'SCHEDULED', 'ONGOING', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "EventType" AS ENUM ('UNIVERSITY', 'FACULTY', 'CLASS', 'CLUB');
 
 -- CreateEnum
-CREATE TYPE "AttendanceStatus" AS ENUM ('PRESENT', 'LATE', 'ABSENT', 'EXCUSED', 'FAILED_GPS');
+CREATE TYPE "CheckInMode" AS ENUM ('ONE_WAY', 'TWO_WAY');
 
 -- CreateEnum
-CREATE TYPE "WarningSeverity" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+CREATE TYPE "SemesterType" AS ENUM ('HK1', 'HK2', 'HK3');
+
+-- CreateEnum
+CREATE TYPE "Ranking" AS ENUM ('EXCELLENT', 'GOOD', 'FAIR', 'AVERAGE', 'POOR');
+
+-- CreateEnum
+CREATE TYPE "TrainingPointStatus" AS ENUM ('DRAFT', 'FINAL');
 
 -- CreateTable
-CREATE TABLE "students" (
+CREATE TABLE "faculties" (
     "id" UUID NOT NULL,
-    "studentCode" VARCHAR(20) NOT NULL,
-    "fullName" VARCHAR(100) NOT NULL,
-    "dateOfBirth" DATE,
-    "gender" "Gender",
-    "className" VARCHAR(50) NOT NULL,
-    "faculty" VARCHAR(100) NOT NULL,
-    "email" VARCHAR(120),
-    "phone" VARCHAR(15),
-    "status" "StudentStatus" NOT NULL DEFAULT 'ACTIVE',
-    "baseScore" INTEGER NOT NULL DEFAULT 0,
-    "currentScore" INTEGER NOT NULL DEFAULT 0,
+    "name" VARCHAR(150) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "students_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "faculties_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "majors" (
+    "id" UUID NOT NULL,
+    "name" VARCHAR(150) NOT NULL,
+    "facultyId" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "majors_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "classes" (
+    "id" UUID NOT NULL,
+    "name" VARCHAR(100) NOT NULL,
+    "majorId" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "classes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "attendance_records" (
+    "id" UUID NOT NULL,
+    "studentId" UUID NOT NULL,
+    "eventId" UUID NOT NULL,
+    "direction" "AttendanceDirection" NOT NULL DEFAULT 'CHECK_IN',
+    "timeChecking" TIMESTAMP(3),
+    "status" "AttendanceStatus" NOT NULL DEFAULT 'ATTENDED',
+    "pointsEarned" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "attendance_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "permissions" (
+    "id" UUID NOT NULL,
+    "permission" VARCHAR(100) NOT NULL,
+
+    CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "roles" (
+    "id" UUID NOT NULL,
+    "name" VARCHAR(50) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "role_permissions" (
+    "id" UUID NOT NULL,
+    "roleId" UUID NOT NULL,
+    "permissionId" UUID NOT NULL,
+
+    CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "user_roles" (
+    "userId" UUID NOT NULL,
+    "roleId" UUID NOT NULL,
+
+    CONSTRAINT "user_roles_pkey" PRIMARY KEY ("userId","roleId")
+);
+
+-- CreateTable
+CREATE TABLE "users" (
+    "id" UUID NOT NULL,
+    "email" VARCHAR(150) NOT NULL,
+    "name" VARCHAR(100) NOT NULL,
+    "password" VARCHAR(255) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "criteria" (
+    "id" UUID NOT NULL,
+    "title" VARCHAR(255) NOT NULL,
+    "maxPoints" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "criteria_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "events" (
     "id" UUID NOT NULL,
-    "code" VARCHAR(40) NOT NULL,
-    "name" VARCHAR(200) NOT NULL,
-    "description" TEXT,
-    "locationName" VARCHAR(120) NOT NULL,
-    "lat" DOUBLE PRECISION NOT NULL,
-    "lng" DOUBLE PRECISION NOT NULL,
-    "radiusMeters" INTEGER NOT NULL DEFAULT 200,
-    "startAt" TIMESTAMP(3) NOT NULL,
-    "endAt" TIMESTAMP(3) NOT NULL,
-    "status" "EventStatus" NOT NULL DEFAULT 'DRAFT',
-    "maxScoreDeduction" INTEGER NOT NULL DEFAULT 0,
+    "criteriaId" UUID NOT NULL,
+    "semesterId" UUID NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "timeStart" TIMESTAMP(3) NOT NULL,
+    "timeEnd" TIMESTAMP(3) NOT NULL,
+    "points" INTEGER NOT NULL DEFAULT 0,
+    "type" "EventType" NOT NULL DEFAULT 'UNIVERSITY',
+    "checkInMode" "CheckInMode" NOT NULL DEFAULT 'ONE_WAY',
+    "lat" DOUBLE PRECISION,
+    "lng" DOUBLE PRECISION,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -54,111 +143,202 @@ CREATE TABLE "events" (
 );
 
 -- CreateTable
-CREATE TABLE "event_enrollments" (
+CREATE TABLE "notifications" (
     "id" UUID NOT NULL,
     "eventId" UUID NOT NULL,
-    "studentId" UUID NOT NULL,
-    "requiredMandatory" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "event_enrollments_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "attendance_logs" (
-    "id" UUID NOT NULL,
-    "eventId" UUID NOT NULL,
-    "studentId" UUID NOT NULL,
-    "status" "AttendanceStatus" NOT NULL DEFAULT 'PRESENT',
-    "scanCode" VARCHAR(40) NOT NULL,
-    "lat" DOUBLE PRECISION NOT NULL,
-    "lng" DOUBLE PRECISION NOT NULL,
-    "gpsVerified" BOOLEAN NOT NULL DEFAULT false,
-    "distanceMeters" DOUBLE PRECISION,
-    "ipAddress" VARCHAR(45),
-    "deviceId" VARCHAR(80),
-    "metadata" JSONB,
-    "scannedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "idempotencyKey" VARCHAR(80) NOT NULL,
-
-    CONSTRAINT "attendance_logs_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "warnings" (
-    "id" UUID NOT NULL,
-    "studentId" UUID NOT NULL,
-    "eventId" UUID,
-    "ruleCode" VARCHAR(60) NOT NULL,
-    "severity" "WarningSeverity" NOT NULL DEFAULT 'MEDIUM',
-    "reason" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
-    "resolvedAt" TIMESTAMP(3),
+    "title" VARCHAR(255) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "warnings_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateTable
+CREATE TABLE "class_sessions" (
+    "id" UUID NOT NULL,
+    "name" VARCHAR(50) NOT NULL,
+    "startTime" TIME NOT NULL,
+    "endTime" TIME NOT NULL,
+
+    CONSTRAINT "class_sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "schedules" (
+    "id" UUID NOT NULL,
+    "classSessionId" UUID NOT NULL,
+    "studentId" UUID NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+
+    CONSTRAINT "schedules_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "free_times" (
+    "id" UUID NOT NULL,
+    "classSessionId" UUID NOT NULL,
+    "studentId" UUID NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+
+    CONSTRAINT "free_times_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "students" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "classId" UUID NOT NULL,
+    "studentCode" VARCHAR(20) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "students_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "semesters" (
+    "id" UUID NOT NULL,
+    "year" INTEGER NOT NULL,
+    "type" "SemesterType" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "semesters_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "training_points" (
+    "id" UUID NOT NULL,
+    "studentId" UUID NOT NULL,
+    "semesterId" UUID NOT NULL,
+    "totalPoint" INTEGER NOT NULL DEFAULT 0,
+    "ranking" "Ranking" NOT NULL DEFAULT 'AVERAGE',
+    "status" "TrainingPointStatus" NOT NULL DEFAULT 'DRAFT',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "training_points_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "majors_facultyId_idx" ON "majors"("facultyId");
+
+-- CreateIndex
+CREATE INDEX "classes_majorId_idx" ON "classes"("majorId");
+
+-- CreateIndex
+CREATE INDEX "attendance_records_eventId_idx" ON "attendance_records"("eventId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "attendance_records_studentId_eventId_direction_key" ON "attendance_records"("studentId", "eventId", "direction");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permissions_permission_key" ON "permissions"("permission");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "role_permissions_roleId_permissionId_key" ON "role_permissions"("roleId", "permissionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE INDEX "events_criteriaId_idx" ON "events"("criteriaId");
+
+-- CreateIndex
+CREATE INDEX "events_semesterId_idx" ON "events"("semesterId");
+
+-- CreateIndex
+CREATE INDEX "events_timeStart_timeEnd_idx" ON "events"("timeStart", "timeEnd");
+
+-- CreateIndex
+CREATE INDEX "notifications_eventId_idx" ON "notifications"("eventId");
+
+-- CreateIndex
+CREATE INDEX "schedules_studentId_idx" ON "schedules"("studentId");
+
+-- CreateIndex
+CREATE INDEX "schedules_classSessionId_idx" ON "schedules"("classSessionId");
+
+-- CreateIndex
+CREATE INDEX "free_times_studentId_idx" ON "free_times"("studentId");
+
+-- CreateIndex
+CREATE INDEX "free_times_classSessionId_idx" ON "free_times"("classSessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "students_userId_key" ON "students"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "students_studentCode_key" ON "students"("studentCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "students_email_key" ON "students"("email");
+CREATE INDEX "students_classId_idx" ON "students"("classId");
 
 -- CreateIndex
-CREATE INDEX "students_className_idx" ON "students"("className");
+CREATE UNIQUE INDEX "semesters_year_type_key" ON "semesters"("year", "type");
 
 -- CreateIndex
-CREATE INDEX "students_faculty_idx" ON "students"("faculty");
+CREATE INDEX "training_points_semesterId_idx" ON "training_points"("semesterId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "events_code_key" ON "events"("code");
-
--- CreateIndex
-CREATE INDEX "events_startAt_endAt_idx" ON "events"("startAt", "endAt");
-
--- CreateIndex
-CREATE INDEX "events_status_idx" ON "events"("status");
-
--- CreateIndex
-CREATE INDEX "event_enrollments_studentId_idx" ON "event_enrollments"("studentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "event_enrollments_eventId_studentId_key" ON "event_enrollments"("eventId", "studentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "attendance_logs_idempotencyKey_key" ON "attendance_logs"("idempotencyKey");
-
--- CreateIndex
-CREATE INDEX "attendance_logs_scannedAt_idx" ON "attendance_logs"("scannedAt");
-
--- CreateIndex
-CREATE INDEX "attendance_logs_status_idx" ON "attendance_logs"("status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "attendance_logs_eventId_studentId_key" ON "attendance_logs"("eventId", "studentId");
-
--- CreateIndex
-CREATE INDEX "warnings_studentId_createdAt_idx" ON "warnings"("studentId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "warnings_ruleCode_idx" ON "warnings"("ruleCode");
+CREATE UNIQUE INDEX "training_points_studentId_semesterId_key" ON "training_points"("studentId", "semesterId");
 
 -- AddForeignKey
-ALTER TABLE "event_enrollments" ADD CONSTRAINT "event_enrollments_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "majors" ADD CONSTRAINT "majors_facultyId_fkey" FOREIGN KEY ("facultyId") REFERENCES "faculties"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "event_enrollments" ADD CONSTRAINT "event_enrollments_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "classes" ADD CONSTRAINT "classes_majorId_fkey" FOREIGN KEY ("majorId") REFERENCES "majors"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "attendance_logs" ADD CONSTRAINT "attendance_logs_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "attendance_records" ADD CONSTRAINT "attendance_records_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "attendance_logs" ADD CONSTRAINT "attendance_logs_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "attendance_records" ADD CONSTRAINT "attendance_records_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "warnings" ADD CONSTRAINT "warnings_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "warnings" ADD CONSTRAINT "warnings_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "events" ADD CONSTRAINT "events_criteriaId_fkey" FOREIGN KEY ("criteriaId") REFERENCES "criteria"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "events" ADD CONSTRAINT "events_semesterId_fkey" FOREIGN KEY ("semesterId") REFERENCES "semesters"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "schedules" ADD CONSTRAINT "schedules_classSessionId_fkey" FOREIGN KEY ("classSessionId") REFERENCES "class_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "schedules" ADD CONSTRAINT "schedules_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "free_times" ADD CONSTRAINT "free_times_classSessionId_fkey" FOREIGN KEY ("classSessionId") REFERENCES "class_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "free_times" ADD CONSTRAINT "free_times_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "students" ADD CONSTRAINT "students_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "students" ADD CONSTRAINT "students_classId_fkey" FOREIGN KEY ("classId") REFERENCES "classes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "training_points" ADD CONSTRAINT "training_points_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "training_points" ADD CONSTRAINT "training_points_semesterId_fkey" FOREIGN KEY ("semesterId") REFERENCES "semesters"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

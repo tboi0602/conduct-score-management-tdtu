@@ -1,0 +1,14 @@
+---
+description: Canonical project instructions and context
+alwaysApply: true
+---
+
+Before editing this repository, read:
+
+- `AGENTS.md`
+- the nearest nested `AGENTS.md` under `client/` or `server/`
+- `Docs/AI_PROJECT_CONTEXT.md`
+
+These files are canonical. Follow their architecture, security, UI, cache, formatting, and
+verification requirements. Update the context document when a stable project decision changes.
+

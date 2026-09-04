@@ -1,9 +1,11 @@
 import jwt from "jsonwebtoken";
-import { logger } from "./logger";
+import { randomUUID } from "crypto";
+import { logger } from "@config/logger";
 
 const SECRET = (() => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
+    // Production bắt buộc có secret, không cho dùng default không an toàn.
     if (process.env.NODE_ENV === "production") {
       throw new Error("[auth] JWT_SECRET is required in production");
     }
@@ -12,37 +14,45 @@ const SECRET = (() => {
   }
   return secret;
 })();
-const ACCESS_EXPIRES = (process.env.JWT_EXPIRES_IN ?? "8h") as NonNullable<
+const ACCESS_EXPIRES = (process.env.JWT_EXPIRES_IN ?? "15m") as NonNullable<
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
-const REFRESH_EXPIRES = "30d";
+const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES_IN ?? "30d") as NonNullable<
+  import("jsonwebtoken").SignOptions["expiresIn"]
+>;
+
+export type AppRole = "ADMIN" | "STUDENT" | "LECTURER";
 
 export interface JwtPayload {
-  sub: string;      // user/admin id
-  role: "admin" | "counselor";
+  sub: string;
+  role: AppRole;
+  tokenType: "access" | "refresh";
   iat?: number;
   exp?: number;
 }
 
-export function signAccessToken(payload: Omit<JwtPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, SECRET, { expiresIn: ACCESS_EXPIRES });
+type TokenIdentity = Pick<JwtPayload, "sub" | "role">;
+
+export function signAccessToken(payload: TokenIdentity): string {
+  return jwt.sign({ ...payload, tokenType: "access" }, SECRET, { expiresIn: ACCESS_EXPIRES });
 }
 
-export function signRefreshToken(payload: Pick<JwtPayload, "sub" | "role">): string {
-  return jwt.sign(payload, SECRET, { expiresIn: REFRESH_EXPIRES });
+export function signRefreshToken(payload: TokenIdentity): string {
+  return jwt.sign(
+    { ...payload, tokenType: "refresh" },
+    SECRET,
+    { expiresIn: REFRESH_EXPIRES, jwtid: randomUUID() },
+  );
 }
 
-export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, SECRET) as JwtPayload;
+function verifyTokenType(token: string, expected: JwtPayload["tokenType"]): JwtPayload {
+  const payload = jwt.verify(token, SECRET) as JwtPayload;
+  if (payload.tokenType !== expected) throw new Error(`Expected ${expected} token`);
+  return payload;
 }
 
-export function decodeToken(token: string): JwtPayload | null {
-  try {
-    return verifyToken(token);
-  } catch {
-    return null;
-  }
-}
+export const verifyAccessToken = (token: string) => verifyTokenType(token, "access");
+export const verifyRefreshToken = (token: string) => verifyTokenType(token, "refresh");
 
 export function extractBearerToken(header?: string): string | null {
   if (!header || !header.startsWith("Bearer ")) return null;

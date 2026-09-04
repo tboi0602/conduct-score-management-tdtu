@@ -1,25 +1,19 @@
-import { Router, Request, Response } from "express";
-import { sseHub } from "../realtime/sse";
-import { extractBearerToken, decodeToken } from "../config/auth";
+import { Router } from "express";
+import { router as authRoutes } from "@routes/auth.routes";
+import { rbacRoutes } from "@routes/rbac.routes";
+import { userRoutes } from "@routes/user.routes";
+import { academicRoutes } from "@routes/academic.routes";
 
 const router = Router();
+router.use("/auth", authRoutes);
+router.use("/rbac", rbacRoutes);
+router.use("/users", userRoutes);
+router.use("/academic", academicRoutes);
 
-/**
- * Server-Sent Events stream for real-time recommendations.
- *
- * Channel selection: authenticated JWT -> per-user channel `sse:<sub>`;
- * anonymous clients fall back to the shared `sse:broadcast` channel.
- * Delivery is fanned out through Redis Pub/Sub so any API instance can
- * serve the stream regardless of which instance produced the event.
- */
-router.get("/recommendations/stream", (req: Request, res: Response) => {
-  const token = extractBearerToken(req.headers.authorization);
-  const payload = token ? decodeToken(token) : null;
-  const studentId =
-    typeof req.query.studentId === "string" ? req.query.studentId : undefined;
-
-  const scope = payload?.sub ?? studentId ?? "broadcast";
-  sseHub.addClient(res, [`sse:${scope}`]);
-});
+// TODO: khai báo các endpoint nghiệp vụ tại đây, ví dụ:
+//   router.use("/attendance", attendanceRoutes);
+//   router.use("/events", eventRoutes);
+//   router.use("/students", studentRoutes);
+// Flow: route -> controller (@controllers/*) -> service (@services/*)
 
 export { router };

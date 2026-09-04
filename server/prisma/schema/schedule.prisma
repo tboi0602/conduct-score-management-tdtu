@@ -1,0 +1,43 @@
+
+model ClassSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(50) // Ca 1, Ca 2...
+  startTime DateTime @db.Time
+  endTime   DateTime @db.Time
+
+  schedules Schedule[]
+  freeTimes FreeTime[]
+
+  @@map("class_sessions")
+}
+
+// Lịch học: sinh viên học ca nào vào thứ mấy
+// day_of_week: 2..8, trong đó 8 = Chủ nhật (theo DDL)
+model Schedule {
+  id             String @id @default(uuid()) @db.Uuid
+  classSessionId String @db.Uuid
+  studentId      String @db.Uuid
+  dayOfWeek      Int
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([classSessionId])
+  @@map("schedules")
+}
+
+// Lịch rảnh: sinh viên rảnh ca nào vào thứ mấy
+model FreeTime {
+  id             String @id @default(uuid()) @db.Uuid
+  classSessionId String @db.Uuid
+  studentId      String @db.Uuid
+  dayOfWeek      Int
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([classSessionId])
+  @@map("free_times")
+}

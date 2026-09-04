@@ -1,7 +1,7 @@
--- Barcode Attendance System - Postgres bootstrap.
--- Runs once on first container start via docker-entrypoint-initdb.d.
--- NOTE: this file must NOT create tables - the schema is owned by
--- Prisma migrations, applied by the `db-migrate` compose service.
+-- TDTU Training Point Management System - Postgres bootstrap.
+-- Chạy một lần lúc khởi động container đầu tiên qua docker-entrypoint-initdb.d.
+-- LƯU Ý: file này KHÔNG được tạo bảng - schema thuộc về Prisma
+-- migrations, được áp dụng bởi service `db-migrate` trong compose.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

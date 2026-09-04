@@ -1,0 +1,68 @@
+// ============================================================
+// Nhóm: phân quyền - Permission <-> Role (n-n) -> User
+// ============================================================
+
+// Một quyền cụ thể theo dạng resource.action, ví dụ: user.create, event.read.
+model Permission {
+  id              String           @id @default(uuid()) @db.Uuid
+  permission      String           @unique @db.VarChar(100) // mã quyền
+  description     String?          @db.VarChar(255) // mô tả quyền
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+// Vai trò, vd: ADMIN, STUDENT, CLUB_LEADER...
+model Role {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String           @unique @db.VarChar(50)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+// Bảng trung gian Role - Permission (n-n)
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// Bảng trung gian User - Role (n-n), khóa chính kết hợp
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Tài khoản đăng nhập. Sinh viên có thêm bản ghi Student liên kết 1-1.
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(150)
+  googleSubject String?    @unique @db.VarChar(255)
+  name          String     @db.VarChar(100)
+  password      String?    @db.VarChar(255)
+  userRoles     UserRole[]
+
+  student   Student?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

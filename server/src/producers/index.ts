@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { logger } from "../config/logger";
-import { rabbitClient } from "../config/rabbitmq";
+import { logger } from "@config/logger";
+import { rabbitClient } from "@rabbitmq";
 
 async function bootstrap(): Promise<void> {
   await rabbitClient.connect();

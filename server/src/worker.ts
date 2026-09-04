@@ -1,9 +1,9 @@
 import "dotenv/config";
-import { logger } from "./config/logger";
+import { logger } from "@config/logger";
 
-// Worker entrypoint (Dockerfile target `worker` -> dist/worker.js).
-// All bootstrap, consume, health and shutdown logic lives in workers/.
-import("./workers").catch((err) => {
+// Entrypoint của worker (Dockerfile target `worker` -> dist/worker.js).
+// Toàn bộ logic bootstrap, consume, health và shutdown nằm trong workers/.
+import("@workers").catch((err) => {
   logger.error(`failed to load worker: ${(err as Error).message}`);
   process.exit(1);
 });

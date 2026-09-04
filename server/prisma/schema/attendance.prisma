@@ -1,0 +1,39 @@
+// ============================================================
+// Nhóm: điểm danh
+// ============================================================
+
+enum AttendanceStatus {
+  ATTENDED // đã tham gia
+  ABSENT // vắng
+  LATE // đi muộn
+}
+
+// Chiều điểm danh: sự kiện check-in 2 chiều
+enum AttendanceDirection {
+  CHECK_IN // quét ở đầu sự kiện
+  CHECK_OUT // quét ở cuối sự kiện
+}
+
+// Nhật ký điểm danh: MỖI LƯỢT QUÉT là một bản ghi, phân biệt chiều
+// bằng `direction`. Một sinh viên chỉ quét 1 lần mỗi chiều mỗi sự kiện
+// (unique gồm cả direction). Giờ check-out thực tế = timeChecking của
+// bản ghi có direction = CHECK_OUT.
+// points_earned ghi nhận số điểm thực nhận được (có thể bị trừ khi đi muộn...).
+model AttendanceRecord {
+  id           String              @id @default(uuid()) @db.Uuid
+  studentId    String              @db.Uuid
+  eventId      String              @db.Uuid
+  direction    AttendanceDirection @default(CHECK_IN)
+  timeChecking DateTime?
+  status       AttendanceStatus    @default(ATTENDED)
+  pointsEarned Int                 @default(0)
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  // Chặn quét trùng cùng chiều: vào 1 lần, ra 1 lần
+  @@unique([studentId, eventId, direction])
+  @@index([eventId])
+  @@map("attendance_records")
+}

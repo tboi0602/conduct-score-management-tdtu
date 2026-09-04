@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
-import { httpRequestsTotal, httpRequestDuration } from "../metrics";
+import { httpRequestsTotal, httpRequestDuration } from "@metrics";
 
 /**
- * Prometheus instrumentation for every request. Route label uses the
- * Express route template (e.g. /api/v1/events/:id) to avoid unbounded
- * cardinality from raw paths containing ids.
+ * Đo lường Prometheus cho mọi request. Label route dùng template của
+ * Express (vd: /api/v1/events/:id) thay vì path thật để tránh sinh ra
+ * vô hạn label từ các path chứa id.
  */
 export function metricsMiddleware(
   req: Request,

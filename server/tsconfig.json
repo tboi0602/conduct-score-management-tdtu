@@ -6,6 +6,11 @@
     "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
+    // Alias để import ngắn gọn: @config/auth thay vì ../config/auth
+    "baseUrl": "./src",
+    "paths": {
+      "@*": ["*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

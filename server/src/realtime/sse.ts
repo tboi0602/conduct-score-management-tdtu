@@ -1,8 +1,8 @@
 import Redis from "ioredis";
 import type { Response } from "express";
-import { logger } from "../config/logger";
-import { REDIS_CONFIG } from "../config/redis";
-import { sseClientsConnected } from "../metrics";
+import { logger } from "@config/logger";
+import { REDIS_CONFIG } from "@redis";
+import { sseClientsConnected } from "@metrics";
 
 /**
  * SSE hub dựa trên Redis Pub/Sub.

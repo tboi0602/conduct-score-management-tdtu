@@ -1,4 +1,4 @@
-// The canonical RabbitMQ client lives in config/rabbitmq.ts so that the
-// API and Worker share one topology definition. This module re-exports it
-// as the producer entry point.
-export { rabbitClient } from "../config/rabbitmq";
+// Client RabbitMQ chuẩn nằm ở config/rabbitmq.ts để API và Worker dùng
+// chung một định nghĩa topology. Module này chỉ re-export lại làm điểm
+// vào cho phía producer.
+export { rabbitClient } from "@rabbitmq";

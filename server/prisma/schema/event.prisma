@@ -1,0 +1,75 @@
+// ============================================================
+// Nhóm: sự kiện & tiêu chí điểm rèn luyện
+// ============================================================
+
+// Loại sự kiện theo đơn vị tổ chức
+enum EventType {
+  UNIVERSITY // trường
+  FACULTY // khoa
+  CLASS // lớp
+  CLUB // câu lạc bộ / đoàn hội
+}
+
+// Chế độ điểm danh của sự kiện: quét 1 chiều hay 2 chiều
+enum CheckInMode {
+  ONE_WAY // chỉ quét lúc bắt đầu
+  TWO_WAY // quét cả lúc bắt đầu và lúc kết thúc
+}
+
+// Tiêu chí đánh giá, vd: "Ý thức tham gia hoạt động"
+model Criteria {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String   @db.VarChar(255)
+  maxPoints Int      @default(0)
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("criteria")
+}
+
+// Sự kiện/hoạt động tích lũy điểm
+model Event {
+  id          String      @id @default(uuid()) @db.Uuid
+  criteriaId  String      @db.Uuid
+  semesterId  String      @db.Uuid
+  name        String      @db.VarChar(255)
+  timeStart   DateTime
+  timeEnd     DateTime
+  points      Int         @default(0)
+  type        EventType   @default(UNIVERSITY)
+  // Đặt lúc tạo sự kiện. Nghiệp vụ đọc trường này để biết:
+  // ONE_WAY  -> chỉ cần 1 bản ghi CHECK_IN là tính điểm đủ
+  // TWO_WAY  -> cần cả CHECK_IN + CHECK_OUT mới tính đủ
+  checkInMode CheckInMode @default(ONE_WAY)
+
+  // ON DELETE RESTRICT = mặc định của Prisma với quan hệ bắt buộc
+  criteria Criteria @relation(fields: [criteriaId], references: [id])
+  semester Semester @relation(fields: [semesterId], references: [id])
+
+  // Tọa độ hội trường cho geofence check-in (QR), bỏ qua nếu không dùng
+  lat Float?
+  lng Float?
+
+  attendanceRecords AttendanceRecord[]
+  notifications     Notification[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([criteriaId])
+  @@index([semesterId])
+  @@index([timeStart, timeEnd])
+  @@map("events")
+}
+
+// Thông báo về một sự kiện
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  title     String   @db.VarChar(255)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("notifications")
+}

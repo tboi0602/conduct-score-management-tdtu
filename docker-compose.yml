@@ -1,16 +1,19 @@
-name: barcode-attendance-system
+name: training-point-management-system
 
-# Shared config for every API producer instance. Add instances with
-# `docker compose up -d --scale`-style blocks or duplicate the service;
-# Nginx upstream must list each container name.
+# Config chung cho mọi instance API producer. Muốn thêm instance thì
+# nhân bản service kiểu này hoặc dùng --scale; upstream Nginx phải liệt
+# kê tên container tương ứng.
 x-api-base: &api-base
-  image: attendance-api:latest
+  image: training-point-api:latest
   restart: unless-stopped
   env_file:
-    - .env
+    - .env.docker
   environment:
     NODE_ENV: production
     PORT: ${API_PORT}
+    DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672${RABBITMQ_VHOST:-/}
   depends_on:
     db-migrate:
       condition: service_completed_successfully
@@ -26,17 +29,17 @@ x-api-base: &api-base
     timeout: 5s
     retries: 5
   networks:
-    - attendance-net
+    - training-point-net
 
 services:
   # ============================================================
-  # PostgreSQL - Primary datastore.
-  # Schema is owned by Prisma migrations (db-migrate service below);
-  # init.sql only applies runtime tuning, no tables.
+  # PostgreSQL - kho dữ liệu chính.
+  # Schema thuộc về Prisma migrations (service db-migrate bên dưới);
+  # init.sql chỉ cấu hình runtime, không tạo bảng.
   # ============================================================
   postgres:
     image: postgres:16-alpine
-    container_name: attendance-postgres
+    container_name: training-point-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -51,33 +54,36 @@ services:
       timeout: 5s
       retries: 10
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # One-shot schema migration before any API/worker starts.
+  # Service chạy migration schema một lần trước khi API/worker start.
   # ============================================================
   db-migrate:
-    image: attendance-api:latest
-    container_name: attendance-db-migrate
+    image: training-point-api:latest
+    container_name: training-point-db-migrate
     restart: "no"
     env_file:
-      - .env
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
     command: ["sh", "-c", "npx prisma migrate deploy"]
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # Redis - Idempotency locks, dynamic rate limits, cache, SSE
-  # pub/sub. Password enforced; AOF for lock durability.
+  # Redis - khóa idempotency, rate limit động, cache, pub/sub cho SSE.
+  # Chỉ bind vào localhost để server chạy local có thể kết nối an toàn.
+  # Bắt buộc mật khẩu; bật AOF để khóa SETNX không mất khi restart.
   # ============================================================
   redis:
     image: redis:7-alpine
-    container_name: attendance-redis
+    container_name: training-point-redis
     restart: unless-stopped
     command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
@@ -91,18 +97,18 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # RabbitMQ - Event-driven backbone with management UI.
-  # Topology (queues, DLX, retry queues) is asserted by the app on
-  # boot - see server/src/config/rabbitmq.ts.
+  # RabbitMQ - xương sống event-driven, có management UI.
+  # Topology (queue, DLX, retry queue) được app assert khi khởi động -
+  # xem server/src/config/rabbitmq.ts.
   # ============================================================
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: attendance-rabbitmq
+    container_name: training-point-rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
@@ -117,37 +123,37 @@ services:
       timeout: 10s
       retries: 6
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # Client - Next.js UI. Nginx proxies to this container directly.
+  # Client - giao diện Next.js. Nginx proxy thẳng vào container này.
   # ============================================================
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
       target: runner
-    image: attendance-client:latest
-    container_name: attendance-client
+    image: training-point-client:latest
+    container_name: training-point-client
     restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # Nginx - Reverse proxy, load balancer, rate limiter, TLS
-  # termination (self-signed dev cert in docker/nginx/certs).
+  # Nginx - reverse proxy, load balancer, rate limiter, TLS
+  # termination (cert self-signed cho dev nằm ở docker/nginx/certs).
   # ============================================================
   nginx:
     build:
       context: ./docker/nginx
-    container_name: attendance-nginx
+    container_name: training-point-nginx
     restart: unless-stopped
     depends_on:
       api:
@@ -162,11 +168,11 @@ services:
       - ./docker/nginx/snippets:/etc/nginx/snippets:ro
       - ./docker/nginx/certs:/etc/nginx/certs:ro
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # API Producer fleet - Express REST API, publishes events to
-  # RabbitMQ. Nginx load-balances across the instances below.
+  # Fleet API Producer - Express REST API, publish event sang RabbitMQ.
+  # Nginx load-balance giữa các instance bên dưới.
   # ============================================================
   api:
     <<: *api-base
@@ -174,26 +180,26 @@ services:
       context: ./server
       dockerfile: Dockerfile
       target: api
-    container_name: attendance-api-1
+    container_name: training-point-api-1
 
   api-2:
     <<: *api-base
-    container_name: attendance-api-2
+    container_name: training-point-api-2
 
   # ============================================================
-  # Worker Consumer - Consumes attendance events, applies
-  # geofencing + rule engine, persists to Postgres. Exposes a
-  # health/metrics endpoint on WORKER_HEALTH_PORT.
+  # Worker Consumer - tiêu thụ event điểm danh, chạy geofencing +
+  # rule engine, ghi vào Postgres. Expose health/metrics trên
+  # WORKER_HEALTH_PORT.
   # ============================================================
   worker:
     build:
       context: ./server
       dockerfile: Dockerfile
       target: worker
-    image: attendance-worker:latest
+    image: training-point-worker:latest
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.docker
     environment:
       NODE_ENV: production
       WORKER_HEALTH_PORT: ${WORKER_HEALTH_PORT:-9101}
@@ -215,16 +221,16 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
-      - attendance-net
+      - training-point-net
 
   # ============================================================
-  # Observability: Prometheus scrapes /metrics from api, api-2 and
-  # worker; Grafana (http://localhost:${GRAFANA_PORT}) ships with
-  # the datasource pre-provisioned.
+  # Quan sát: Prometheus scrape /metrics từ api, api-2 và worker;
+  # Grafana (http://localhost:${GRAFANA_PORT}) có sẵn datasource
+  # được provision từ đầu.
   # ============================================================
   prometheus:
     image: prom/prometheus:v2.53.0
-    container_name: attendance-prometheus
+    container_name: training-point-prometheus
     restart: unless-stopped
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -232,11 +238,11 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     networks:
-      - attendance-net
+      - training-point-net
 
   grafana:
     image: grafana/grafana:11.1.0
-    container_name: attendance-grafana
+    container_name: training-point-grafana
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -247,10 +253,10 @@ services:
     ports:
       - "${GRAFANA_PORT:-3001}:3000"
     networks:
-      - attendance-net
+      - training-point-net
 
 networks:
-  attendance-net:
+  training-point-net:
     driver: bridge
 
 volumes:

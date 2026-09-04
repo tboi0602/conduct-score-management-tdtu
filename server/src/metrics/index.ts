@@ -1,14 +1,10 @@
 import client from "prom-client";
 
-// Registry chung - cả API và Worker đều expose qua /metrics.
 export const registry = new client.Registry();
 // Thu thập sẵn các metric mặc định của Node (CPU, RAM, event loop...).
 client.collectDefaultMetrics({ register: registry });
 
-// ============================================================
 // Metric cho API
-// ============================================================
-
 // Đếm tổng số request HTTP, phân theo method/route/status.
 export const httpRequestsTotal = new client.Counter({
   name: "http_requests_total",

@@ -8,6 +8,7 @@ out/
 
 # Environment - never commit real secrets (.env.example is the template)
 .env
+.env.docker
 .env.local
 .env.*.local
 

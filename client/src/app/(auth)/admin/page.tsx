@@ -1,0 +1,80 @@
+"use client";
+
+import Link from "next/link";
+
+import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useAdminLogin } from "@/hooks/useAdminLogin";
+
+export default function AdminLoginPage() {
+  const { message } = useLanguage();
+  const { error, handleSubmit, isSubmitting } = useAdminLogin();
+
+  return (
+    <AuthSplitShell
+      eyebrow={message.admin.eyebrow}
+      title={message.admin.title}
+      description={message.admin.description}
+    >
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="email" className="mb-2 block text-sm font-medium text-[#263b58]">
+            {message.admin.username}
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="text"
+            autoComplete="username"
+            required
+            placeholder={message.admin.usernamePlaceholder}
+            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-white px-4 text-sm text-[#102a50] outline-none transition-colors placeholder:text-[#98a4b5] focus:border-[#154a9b]"
+          />
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-4">
+            <label htmlFor="password" className="text-sm font-medium text-[#263b58]">
+              {message.admin.password}
+            </label>
+            <span className="text-xs text-[#7a8799]">{message.admin.passwordHint}</span>
+          </div>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            placeholder={message.admin.passwordPlaceholder}
+            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-white px-4 text-sm text-[#102a50] outline-none transition-colors placeholder:text-[#98a4b5] focus:border-[#154a9b]"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="min-h-12 w-full rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#103f85] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-65"
+        >
+          {isSubmitting ? (
+            <LoadingSpinner label={message.admin.submitting} />
+          ) : (
+            message.admin.submit
+          )}
+        </button>
+
+        {error ? (
+          <p role="alert" className="text-sm leading-5 text-red-600">
+            {error}
+          </p>
+        ) : null}
+      </form>
+
+      <div className="mt-10 border-t border-[#e1e8f2] pt-6 text-center">
+        <Link href="/login" className="text-sm font-medium text-[#154a9b] hover:underline">
+          {message.admin.back}
+        </Link>
+      </div>
+    </AuthSplitShell>
+  );
+}

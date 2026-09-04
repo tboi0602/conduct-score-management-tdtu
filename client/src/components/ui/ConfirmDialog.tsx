@@ -1,0 +1,50 @@
+"use client";
+
+import { AlertTriangle } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  subject,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  subject: string;
+}) {
+  const { t } = useAdminTranslations();
+  return (
+    <Modal open={open} onClose={onClose} title={title} size="md">
+      <div className="flex gap-4">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#fff0f1] text-[#bd3343]">
+          <AlertTriangle size={21} />
+        </div>
+        <div>
+          <p className="font-semibold text-[#102a50]">{subject}</p>
+          <p className="mt-1 text-sm text-[#66758a]">{t.cannotUndo}</p>
+        </div>
+      </div>
+      <div className="mt-7 flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl border border-[#d4deeb] px-4 py-2.5 text-sm font-semibold text-[#52647d] transition hover:bg-[#f4f7fa] active:scale-[.98]"
+        >
+          {t.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="rounded-xl bg-[#bd3343] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#a72a38] active:scale-[.98]"
+        >
+          {t.confirm}
+        </button>
+      </div>
+    </Modal>
+  );
+}

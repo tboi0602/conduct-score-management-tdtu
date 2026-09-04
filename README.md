@@ -68,6 +68,92 @@ Kết quả đo lường hệ thống bằng công cụ k6 với kịch bản m�
 * **Độ trễ trung bình (Avg Latency):** 185 ms
 * **Tỷ lệ lỗi (Error Rate):** 0.00% (nhờ cơ chế xếp hàng của RabbitMQ)
 
+### Chạy dự án trên máy local
+
+#### Yêu cầu
+
+* Node.js 20 trở lên.
+* Docker Desktop đang hoạt động.
+* PostgreSQL 16 cài trực tiếp trên máy, hoặc chạy PostgreSQL bằng Docker.
+
+#### Cấu hình môi trường
+
+Dự án sử dụng các file môi trường riêng:
+
+* `server/.env`: cấu hình server chạy local, kết nối qua `127.0.0.1`.
+* `.env.docker`: cấu hình container, sử dụng hostname `postgres`, `redis` và `rabbitmq`.
+* `client/.env.local`: cấu hình Next.js local, gọi API tại `http://localhost:3000`.
+
+Không commit `.env`, `.env.docker` hoặc `client/.env.local` vì các file này có thể chứa thông tin nhạy cảm.
+
+#### 1. Khởi động Redis và RabbitMQ
+
+Tại thư mục gốc của dự án:
+
+```powershell
+docker compose --env-file .env.docker up -d redis rabbitmq
+```
+
+Nếu chưa cài PostgreSQL trên máy và muốn chạy database bằng Docker:
+
+```powershell
+docker compose --env-file .env.docker up -d postgres redis rabbitmq
+```
+
+Kiểm tra trạng thái:
+
+```powershell
+docker compose --env-file .env.docker ps
+```
+
+#### 2. Chuẩn bị database lần đầu
+
+Mở PowerShell tại thư mục `server`:
+
+```powershell
+cd server
+npm.cmd install
+npm.cmd run prisma:generate
+npm.cmd run prisma:migrate:local
+npm.cmd run seed:local
+```
+
+Lệnh seed tạo role, permission và tài khoản quản trị mặc định `admin` / `admin`.
+
+#### 3. Chạy server
+
+Trong thư mục `server`:
+
+```powershell
+npm.cmd run dev
+```
+
+Server chạy tại `http://localhost:3000`. Có thể kiểm tra bằng `http://localhost:3000/health`. Server sử dụng watch mode và tự khởi động lại khi mã nguồn thay đổi.
+
+#### 4. Chạy client
+
+Mở terminal khác:
+
+```powershell
+cd client
+npm.cmd install
+npm.cmd run dev
+```
+
+Client chạy tại `http://localhost:3001`; trang đăng nhập quản trị nằm tại `http://localhost:3001/admin`. Next.js tự cập nhật giao diện khi mã nguồn thay đổi.
+
+#### 5. Dừng hạ tầng Docker
+
+```powershell
+docker compose --env-file .env.docker stop redis rabbitmq
+```
+
+Nếu PostgreSQL cũng chạy bằng Docker:
+
+```powershell
+docker compose --env-file .env.docker stop postgres redis rabbitmq
+```
+
 ---
 
 ## 🇬🇧 English
@@ -138,3 +224,89 @@ Load testing results executed via k6 simulating 1,000 concurrent student check-i
 * **Throughput:** ~632 RPS (Requests/second)
 * **Average Latency:** 185 ms
 * **Error Rate:** 0.00% (buffered asynchronously by RabbitMQ)
+
+### Running the project locally
+
+#### Requirements
+
+* Node.js 20 or newer.
+* Docker Desktop running.
+* PostgreSQL 16 installed locally, or PostgreSQL running in Docker.
+
+#### Environment configuration
+
+The project uses separate environment files:
+
+* `server/.env`: configuration for the locally running server; services are reached through `127.0.0.1`.
+* `.env.docker`: container configuration using the `postgres`, `redis`, and `rabbitmq` hostnames.
+* `client/.env.local`: local Next.js configuration pointing to `http://localhost:3000`.
+
+Do not commit `.env`, `.env.docker`, or `client/.env.local`, as they may contain sensitive values.
+
+#### 1. Start Redis and RabbitMQ
+
+From the project root directory:
+
+```powershell
+docker compose --env-file .env.docker up -d redis rabbitmq
+```
+
+If PostgreSQL is not installed locally and should also run in Docker:
+
+```powershell
+docker compose --env-file .env.docker up -d postgres redis rabbitmq
+```
+
+Check the service status:
+
+```powershell
+docker compose --env-file .env.docker ps
+```
+
+#### 2. Prepare the database for the first run
+
+Open PowerShell in the `server` directory:
+
+```powershell
+cd server
+npm.cmd install
+npm.cmd run prisma:generate
+npm.cmd run prisma:migrate:local
+npm.cmd run seed:local
+```
+
+The seed command creates the roles, permissions, and the default `admin` / `admin` administrator account.
+
+#### 3. Start the server
+
+From the `server` directory:
+
+```powershell
+npm.cmd run dev
+```
+
+The server runs at `http://localhost:3000`. Use `http://localhost:3000/health` to verify it. Watch mode automatically restarts the server when source files change.
+
+#### 4. Start the client
+
+Open another terminal:
+
+```powershell
+cd client
+npm.cmd install
+npm.cmd run dev
+```
+
+The client runs at `http://localhost:3001`, and the administrator sign-in page is available at `http://localhost:3001/admin`. Next.js refreshes the interface automatically when source files change.
+
+#### 5. Stop the Docker infrastructure
+
+```powershell
+docker compose --env-file .env.docker stop redis rabbitmq
+```
+
+If PostgreSQL is also running in Docker:
+
+```powershell
+docker compose --env-file .env.docker stop postgres redis rabbitmq
+```
