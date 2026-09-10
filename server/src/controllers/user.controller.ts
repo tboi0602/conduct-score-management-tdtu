@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 
+import type { AuthContext } from "@middleware/auth.middleware";
 import * as userService from "@services/user.service";
 import { ApiError } from "@utils/ApiError";
 import { parsePagination } from "@utils/pagination";
@@ -12,6 +13,7 @@ function parseInput(req: Request): userService.UserInput {
     roleIds = [],
     studentCode,
     classId,
+    primaryFacultyId,
   } = req.body ?? {};
   if (
     typeof email !== "string" ||
@@ -24,11 +26,12 @@ function parseInput(req: Request): userService.UserInput {
     (studentCode !== undefined &&
       studentCode !== null &&
       typeof studentCode !== "string") ||
-    (classId !== undefined && classId !== null && typeof classId !== "string")
+    (classId !== undefined && classId !== null && typeof classId !== "string") ||
+    (primaryFacultyId !== undefined && primaryFacultyId !== null && typeof primaryFacultyId !== "string")
   ) {
     throw new ApiError(400, "Invalid user data");
   }
-  return { email, name, password, roleIds, studentCode, classId };
+  return { email, name, password, roleIds, studentCode, classId, primaryFacultyId };
 }
 
 export async function listUsers(req: Request, res: Response): Promise<void> {
@@ -62,6 +65,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 }
 
 export async function deleteUser(req: Request, res: Response): Promise<void> {
-  await userService.deleteUser(req.params.id);
+  const auth = res.locals.auth as AuthContext;
+  await userService.deleteUser(auth.sub, req.params.id);
   res.status(204).end();
 }

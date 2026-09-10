@@ -12,20 +12,31 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { adminService } from "@/services/admin";
 import type { AdminUser, Faculty, Role, UserFilters, UserPayload } from "@/types/admin";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useToast } from "@/components/ui/ToastProvider";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 export function useUsersManagement() {
+  const access = useAdminAccess();
+  const scoped = !access.can("user.read") && access.can("student.read");
+  const { locale } = useLanguage();
+  const { showToast } = useToast();
   const [filters, setFilters] = useState<UserFilters>({});
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const fetchUsers = useCallback(
-    (page: number, limit: number) => adminService.listUsers(page, limit, filters),
-    [filters],
+    (page: number, limit: number) =>
+      scoped
+        ? adminService.listFacultyUsers(page, limit, filters)
+        : adminService.listUsers(page, limit, filters),
+    [filters, scoped],
   );
   const list = usePaginatedData(queryKeys.users.list(filters), fetchUsers);
   const queryClient = useQueryClient();
   const rolesQuery = useQuery({
     queryKey: [...queryKeys.roles.all, "options"],
     queryFn: () => adminService.listRoles(1, 100),
+    enabled: !scoped,
     staleTime: 10 * 60 * 1000,
   });
   const academicQuery = useQuery({
@@ -33,7 +44,14 @@ export function useUsersManagement() {
     queryFn: () => adminService.getAcademicOptions(),
     staleTime: 60 * 60 * 1000,
   });
-  const roles: Role[] = rolesQuery.data?.data ?? [];
+  const roles: Role[] = scoped
+    ? ["STUDENT", "EVENT_ORGANIZER"].map((name) => ({
+        id: name,
+        name,
+        rolePermissions: [],
+        _count: { userRoles: 0 },
+      }))
+    : (rolesQuery.data?.data ?? []);
   const faculties: Faculty[] = academicQuery.data?.data ?? [];
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
@@ -77,34 +95,67 @@ export function useUsersManagement() {
         roleIds: form.getAll("roleIds").map(String),
         studentCode: String(form.get("studentCode") ?? "") || null,
         classId: String(form.get("classId") ?? "") || null,
+        primaryFacultyId: String(form.get("primaryFacultyId") ?? "") || null,
         ...(password ? { password } : {}),
       };
       try {
         const response = editing
-          ? await adminService.updateUser(editing.id, payload)
-          : await adminService.createUser(payload);
+          ? await (scoped
+              ? adminService.updateFacultyUser(editing.id, payload)
+              : adminService.updateUser(editing.id, payload))
+          : await (scoped
+              ? adminService.createFacultyUser(payload)
+              : adminService.createUser(payload));
         if (editing) updateCachedEntity(queryClient, queryKeys.users.all, response.data);
         else prependCachedEntity(queryClient, queryKeys.users.all, response.data);
         setModalOpen(false);
         setEditing(null);
+        showToast(
+          locale === "vi"
+            ? editing
+              ? "Cập nhật người dùng thành công."
+              : "Thêm người dùng thành công."
+            : editing
+              ? "User updated successfully."
+              : "User added successfully.",
+        );
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Unable to save user");
+        showToast(locale === "vi" ? "Không thể lưu người dùng." : "Unable to save user.", "error");
       } finally {
         setIsSaving(false);
       }
     },
-    [editing, queryClient],
+    [editing, locale, queryClient, scoped, showToast],
   );
   const confirmDelete = useCallback(async () => {
     if (!deleting) return;
-    try {
-      await adminService.deleteUser(deleting.id);
-      removeCachedEntity(queryClient, queryKeys.users.all, deleting.id);
+    if (deleting.id === access.profile?.id) {
+      showToast(
+        locale === "vi"
+          ? "Bạn không thể tự xóa tài khoản của mình."
+          : "You cannot delete your own account.",
+        "error",
+      );
       setDeleting(null);
+      return;
+    }
+    try {
+      const result = await (scoped
+        ? adminService.deleteFacultyUser(deleting)
+        : adminService.deleteUser(deleting.id));
+      if (scoped && !deleting.student && result && "data" in result)
+        updateCachedEntity(queryClient, queryKeys.users.all, result.data);
+      else removeCachedEntity(queryClient, queryKeys.users.all, deleting.id);
+      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
+        list.setPage(list.page - 1);
+      setDeleting(null);
+      showToast(locale === "vi" ? "Xóa người dùng thành công." : "User deleted successfully.");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to delete user");
+      showToast(locale === "vi" ? "Không thể xóa người dùng." : "Unable to delete user.", "error");
     }
-  }, [deleting, queryClient]);
+  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast]);
   const applyFilters = (next: UserFilters) => {
     list.setPage(1);
     setFilters(next);
@@ -121,6 +172,7 @@ export function useUsersManagement() {
     filters,
     isModalOpen,
     isSaving,
+    currentUserId: access.profile?.id,
     openCreate,
     openEdit,
     roles,

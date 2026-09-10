@@ -18,6 +18,7 @@ export function usePaginatedData<T>(
   baseQueryKey: readonly unknown[],
   fetcher: (page: number, limit: number) => Promise<PaginatedResponse<T>>,
   limit = 20,
+  options: { refetchOnMount?: boolean } = {},
 ) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -25,6 +26,7 @@ export function usePaginatedData<T>(
     queryKey: [...baseQueryKey, page, limit],
     queryFn: () => fetcher(page, limit),
     placeholderData: keepPreviousData,
+    ...options,
   });
 
   if (
@@ -42,6 +44,7 @@ export function usePaginatedData<T>(
 
   return {
     error: query.error instanceof Error ? query.error.message : null,
+    requestError: query.error,
     isLoading: query.isPending,
     isFetching: query.isFetching,
     items: query.data?.data ?? [],

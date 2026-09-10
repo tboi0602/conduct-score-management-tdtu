@@ -1,4 +1,4 @@
-export type AppRole = "ADMIN" | "STUDENT" | "LECTURER";
+export type AppRole = "ADMIN" | "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
 
 export type AuthUser = {
   id: string;

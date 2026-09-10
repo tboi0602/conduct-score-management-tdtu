@@ -8,10 +8,10 @@ export type QueueConfig = {
   bindings: { routingKey: string; exchange: string }[];
 };
 
-export const DLX_EXCHANGE = "training-point.dlx";
-export const RETRY_EXCHANGE = "training-point.retry";
-export const DLQ_ROUTING_KEY = "attendance.scan.dead";
-const MAIN_EXCHANGE = process.env.RABBITMQ_EXCHANGE ?? "training-point.events";
+export const DLX_EXCHANGE = "conduct-score.dlx";
+export const RETRY_EXCHANGE = "conduct-score.retry";
+export const DLQ_ROUTING_KEY = "attendance.scan.dead.v1";
+const MAIN_EXCHANGE = process.env.RABBITMQ_EXCHANGE ?? "conduct-score.events";
 
 export const RABBITMQ_CONFIG = {
   url: (() => {
@@ -40,7 +40,7 @@ export const RABBITMQ_CONFIG = {
         deadLetterExchange: DLX_EXCHANGE,
         deadLetterRoutingKey: DLQ_ROUTING_KEY,
       },
-      bindings: [{ routingKey: "attendance.scanned", exchange: MAIN_EXCHANGE }],
+      bindings: [{ routingKey: "attendance.scan.requested.v1", exchange: MAIN_EXCHANGE }],
     },
     retry5s: {
       name: "attendance.scan.retry.5s",
@@ -48,7 +48,7 @@ export const RABBITMQ_CONFIG = {
         durable: true,
         messageTtl: 5_000,
         deadLetterExchange: MAIN_EXCHANGE,
-        deadLetterRoutingKey: "attendance.scanned",
+        deadLetterRoutingKey: "attendance.scan.requested.v1",
       },
       bindings: [{ routingKey: "retry.5s", exchange: RETRY_EXCHANGE }],
     },
@@ -58,7 +58,7 @@ export const RABBITMQ_CONFIG = {
         durable: true,
         messageTtl: 30_000,
         deadLetterExchange: MAIN_EXCHANGE,
-        deadLetterRoutingKey: "attendance.scanned",
+        deadLetterRoutingKey: "attendance.scan.requested.v1",
       },
       bindings: [{ routingKey: "retry.30s", exchange: RETRY_EXCHANGE }],
     },

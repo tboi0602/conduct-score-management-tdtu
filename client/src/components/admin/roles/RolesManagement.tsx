@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Pencil, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
+import { Eye, ShieldCheck, Users } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
@@ -23,16 +23,6 @@ export function RolesManagement() {
         eyebrow={t.roleEyebrow}
         title={t.roleTitle}
         description={t.roleDescription}
-        action={
-          <button
-            type="button"
-            onClick={state.openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#154a9b] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(21,74,155,.7)] transition hover:-translate-y-0.5 hover:bg-[#103f86] active:translate-y-0 active:scale-[.98]"
-          >
-            <Plus size={17} />
-            {t.addRole}
-          </button>
-        }
       />
       {state.actionError && !state.isModalOpen ? (
         <p role="alert" className="mt-5 rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
@@ -44,6 +34,7 @@ export function RolesManagement() {
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
               <tr>
+                <th className="w-20 px-5 py-4 text-center">{t.ordinal}</th>
                 <th className="px-5 py-4">{t.roleName}</th>
                 <th className="px-5 py-4">{t.permissionCount}</th>
                 <th className="px-5 py-4">{t.assignedUsers}</th>
@@ -51,11 +42,14 @@ export function RolesManagement() {
               </tr>
             </thead>
             {state.isLoading ? (
-              <TableSkeleton columns={4} />
+              <TableSkeleton columns={5} />
             ) : (
               <tbody className="divide-y divide-[#e7ecf3]">
-                {state.items.map((role) => (
+                {state.items.map((role, index) => (
                   <tr key={role.id} className="transition-colors hover:bg-[#f9fbfd]">
+                    <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
+                      {(state.pagination.page - 1) * state.pagination.limit + index + 1}
+                    </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eaf2fb] text-[#154a9b]">
@@ -83,23 +77,6 @@ export function RolesManagement() {
                       <div className="flex justify-end gap-2">
                         <IconButton label={t.view} onClick={() => state.setViewing(role)}>
                           <Eye size={16} />
-                        </IconButton>
-                        {role.name !== "ADMIN" ? (
-                          <IconButton
-                            label={t.edit}
-                            tone="brand"
-                            onClick={() => state.openEdit(role)}
-                          >
-                            <Pencil size={16} />
-                          </IconButton>
-                        ) : null}
-                        <IconButton
-                          label={t.delete}
-                          tone="danger"
-                          onClick={() => state.setDeleting(role)}
-                          disabled={role.name === "ADMIN" || role._count.userRoles > 0}
-                        >
-                          <Trash2 size={16} />
                         </IconButton>
                       </div>
                     </td>

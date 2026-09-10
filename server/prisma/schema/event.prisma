@@ -1,6 +1,3 @@
-// ============================================================
-// Nhóm: sự kiện & tiêu chí điểm rèn luyện
-// ============================================================
 
 // Loại sự kiện theo đơn vị tổ chức
 enum EventType {
@@ -10,10 +7,41 @@ enum EventType {
   CLUB // câu lạc bộ / đoàn hội
 }
 
+enum OrganizingUnitType {
+  UNIVERSITY
+  FACULTY
+  CLASS
+  CLUB
+}
+
+model OrganizingUnit {
+  id        String             @id @default(uuid()) @db.Uuid
+  type      OrganizingUnitType
+  code      String             @unique @db.VarChar(50)
+  name      String?            @db.VarChar(150)
+  facultyId String?            @db.Uuid
+  classId   String?            @unique @db.Uuid
+  faculty   Faculty?           @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  class     Class?             @relation(fields: [classId], references: [id], onDelete: Restrict)
+  events    Event[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([type, createdAt, id])
+  @@index([facultyId, type, createdAt, id])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "organizing_units_name_trgm_idx")
+  @@map("organizing_units")
+}
+
 // Chế độ điểm danh của sự kiện: quét 1 chiều hay 2 chiều
 enum CheckInMode {
   ONE_WAY // chỉ quét lúc bắt đầu
   TWO_WAY // quét cả lúc bắt đầu và lúc kết thúc
+}
+
+enum EventRegistrationStatus {
+  REGISTERED
+  CANCELLED
 }
 
 // Tiêu chí đánh giá, vd: "Ý thức tham gia hoạt động"
@@ -22,9 +50,14 @@ model Criteria {
   title     String   @db.VarChar(255)
   maxPoints Int      @default(0)
   events    Event[]
+  conductScoreEntries ConductScoreEntry[]
+  conductScoreTotals ConductScoreCriterionTotal[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([createdAt, id])
+  @@index([maxPoints])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "criteria_title_trgm_idx")
   @@map("criteria")
 }
 
@@ -33,7 +66,11 @@ model Event {
   id          String      @id @default(uuid()) @db.Uuid
   criteriaId  String      @db.Uuid
   semesterId  String      @db.Uuid
-  name        String      @db.VarChar(255)
+  name               String  @db.VarChar(255)
+  description        String  @default("") @db.Text
+  descriptionPreview String  @default("") @db.VarChar(500)
+  location           String  @default("") @db.VarChar(255)
+  organizerId        String? @db.Uuid
   timeStart   DateTime
   timeEnd     DateTime
   points      Int         @default(0)
@@ -42,16 +79,22 @@ model Event {
   // ONE_WAY  -> chỉ cần 1 bản ghi CHECK_IN là tính điểm đủ
   // TWO_WAY  -> cần cả CHECK_IN + CHECK_OUT mới tính đủ
   checkInMode CheckInMode @default(ONE_WAY)
+  attendanceRadiusMeters Int @default(100)
+  capacity          Int?
+  registeredCount   Int       @default(0)
+  registrationStart DateTime
+  registrationEnd   DateTime
 
   // ON DELETE RESTRICT = mặc định của Prisma với quan hệ bắt buộc
   criteria Criteria @relation(fields: [criteriaId], references: [id])
   semester Semester @relation(fields: [semesterId], references: [id])
-
-  // Tọa độ hội trường cho geofence check-in (QR), bỏ qua nếu không dùng
-  lat Float?
-  lng Float?
+  organizer OrganizingUnit? @relation(fields: [organizerId], references: [id], onDelete: Restrict)
 
   attendanceRecords AttendanceRecord[]
+  attendanceSessions AttendanceSession[]
+  attendanceScanRequests AttendanceScanRequest[]
+  registrations     EventRegistration[]
+  conductScoreEntries ConductScoreEntry[]
   notifications     Notification[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -59,7 +102,38 @@ model Event {
   @@index([criteriaId])
   @@index([semesterId])
   @@index([timeStart, timeEnd])
+  @@index([createdAt, id])
+  @@index([criteriaId, createdAt, id])
+  @@index([semesterId, createdAt, id])
+  @@index([type, createdAt, id])
+  @@index([checkInMode, createdAt, id])
+  @@index([organizerId, createdAt, id])
+  @@index([registrationStart, registrationEnd])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "events_name_trgm_idx")
   @@map("events")
+}
+
+model EventRegistration {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  eventId             String                  @db.Uuid
+  studentId           String                  @db.Uuid
+  status              EventRegistrationStatus @default(REGISTERED)
+  registeredAt        DateTime                @default(now())
+  cancelledAt         DateTime?
+  registeredByUserId  String?                 @db.Uuid
+  cancelledByUserId   String?                 @db.Uuid
+  event               Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student             Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  registeredByUser    User?                   @relation("RegistrationCreatedBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
+  cancelledByUser     User?                   @relation("RegistrationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([eventId, studentId])
+  @@index([eventId, status, registeredAt, id])
+  @@index([studentId, status, registeredAt, id])
+  @@index([status, eventId])
+  @@map("event_registrations")
 }
 
 // Thông báo về một sự kiện

@@ -12,10 +12,14 @@ import {
   updateCachedEntity,
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const fetchRoles = (page: number, limit: number) => adminService.listRoles(page, limit);
 
 export function useRolesManagement() {
+  const { locale } = useLanguage();
+  const { showToast } = useToast();
   const list = usePaginatedData(queryKeys.roles.all, fetchRoles);
   const queryClient = useQueryClient();
   const permissionsQuery = useQuery({
@@ -49,13 +53,15 @@ export function useRolesManagement() {
         else prependCachedEntity(queryClient, queryKeys.roles.all, response.data);
         setModalOpen(false);
         setEditing(null);
+        showToast(locale === "vi" ? "Lưu vai trò thành công." : "Role saved successfully.");
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Không thể lưu vai trò");
+        showToast(locale === "vi" ? "Không thể lưu vai trò." : "Unable to save role.", "error");
       } finally {
         setIsSaving(false);
       }
     },
-    [editing, queryClient],
+    [editing, locale, queryClient, showToast],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -63,11 +69,15 @@ export function useRolesManagement() {
     try {
       await adminService.deleteRole(deleting.id);
       removeCachedEntity(queryClient, queryKeys.roles.all, deleting.id);
+      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
+        list.setPage(list.page - 1);
       setDeleting(null);
+      showToast(locale === "vi" ? "Xóa vai trò thành công." : "Role deleted successfully.");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Không thể xóa vai trò");
+      showToast(locale === "vi" ? "Không thể xóa vai trò." : "Unable to delete role.", "error");
     }
-  }, [deleting, queryClient]);
+  }, [deleting, list, locale, queryClient, showToast]);
 
   const openCreate = () => {
     setEditing(null);

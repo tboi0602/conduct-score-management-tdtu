@@ -5,11 +5,13 @@ import { useCallback, useState } from "react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { saveAuthSession } from "@/lib/auth-storage";
-import { loginWithGoogle } from "@/services/auth";
+import { loginWithGoogle, type LoginMode } from "@/services/auth";
+import { useToast } from "@/components/ui/ToastProvider";
 
-export function useGoogleLogin() {
+export function useGoogleLogin(mode: LoginMode) {
   const router = useRouter();
-  const { message } = useLanguage();
+  const { message, locale } = useLanguage();
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +23,10 @@ export function useGoogleLogin() {
       setIsSubmitting(true);
 
       try {
-        const session = await loginWithGoogle(response.credential);
+        const session = await loginWithGoogle(response.credential, mode);
         saveAuthSession(session);
-        router.replace(session.user.role === "STUDENT" ? "/dashboard" : "/admin/dashboard");
+        showToast(locale === "vi" ? "Đăng nhập thành công." : "Signed in successfully.");
+        router.replace(mode === "STUDENT" ? "/dashboard" : "/admin/dashboard");
       } catch (requestError) {
         const apiMessage = requestError instanceof Error ? requestError.message : "";
         setError(
@@ -31,11 +34,23 @@ export function useGoogleLogin() {
             ? message.login.tdtuEmailOnly
             : message.login.googleLoginError,
         );
+        showToast(
+          locale === "vi" ? "Đăng nhập Google thất bại." : "Google sign-in failed.",
+          "error",
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, message.login.googleLoginError, message.login.tdtuEmailOnly, router],
+    [
+      isSubmitting,
+      locale,
+      message.login.googleLoginError,
+      message.login.tdtuEmailOnly,
+      mode,
+      router,
+      showToast,
+    ],
   );
 
   return { error, handleCredential, isSubmitting };

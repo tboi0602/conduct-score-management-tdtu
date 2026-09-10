@@ -13,6 +13,7 @@ export type UserInput = {
   roleIds: string[];
   studentCode?: string | null;
   classId?: string | null;
+  primaryFacultyId?: string | null;
 };
 
 export type UserFilters = {
@@ -27,8 +28,11 @@ const publicUserSelect = {
   id: true,
   email: true,
   name: true,
+  status: true,
   createdAt: true,
   updatedAt: true,
+  primaryFacultyId: true,
+  primaryFaculty: { select: { id: true, code: true, name: true } },
   userRoles: { select: { role: { select: { id: true, name: true } } } },
   student: {
     select: {
@@ -150,11 +154,15 @@ export async function createUser(input: UserInput) {
   const password = input.password
     ? await bcrypt.hash(input.password, 12)
     : null;
+  if (!isStudent && input.primaryFacultyId) {
+    const faculty = await prisma.faculty.findUnique({ where: { id: input.primaryFacultyId }, select: { id: true } });
+    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
+  }
 
   try {
     const userId = await prisma.$transaction(async (transaction) => {
       const user = await transaction.user.create({
-        data: { email, name, password },
+        data: { email, name, password, primaryFacultyId: isStudent ? null : input.primaryFacultyId ?? null },
       });
       if (roles.length) {
         await transaction.userRole.createMany({
@@ -202,12 +210,16 @@ export async function updateUser(id: string, input: UserInput) {
   const password = input.password
     ? await bcrypt.hash(input.password, 12)
     : undefined;
+  if (!isStudent && input.primaryFacultyId) {
+    const faculty = await prisma.faculty.findUnique({ where: { id: input.primaryFacultyId }, select: { id: true } });
+    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
+  }
 
   try {
     await prisma.$transaction(async (transaction) => {
       await transaction.user.update({
         where: { id },
-        data: { email, name, ...(password ? { password } : {}) },
+        data: { email, name, primaryFacultyId: isStudent ? null : input.primaryFacultyId ?? null, ...(password ? { password } : {}) },
       });
       await transaction.userRole.deleteMany({ where: { userId: id } });
       if (roles.length) {
@@ -234,7 +246,10 @@ export async function updateUser(id: string, input: UserInput) {
   }
 }
 
-export async function deleteUser(id: string) {
+export async function deleteUser(actorUserId: string, id: string) {
+  if (actorUserId === id) {
+    throw new ApiError(409, "You cannot delete your own account");
+  }
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new ApiError(404, "User not found");
   if (user.email === "admin")

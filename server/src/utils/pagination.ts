@@ -21,7 +21,11 @@ export type PaginationMeta = {
   hasPreviousPage: boolean;
 };
 
-function parsePositiveInteger(value: unknown, fallback: number, field: string): number {
+function parsePositiveInteger(
+  value: unknown,
+  fallback: number,
+  field: string,
+): number {
   if (value === undefined) return fallback;
   if (typeof value !== "string" || !/^\d+$/.test(value)) {
     throw new ApiError(400, `${field} must be a positive integer`);
@@ -34,7 +38,10 @@ function parsePositiveInteger(value: unknown, fallback: number, field: string): 
   return parsed;
 }
 
-export function parsePagination(query: Request["query"]): PaginationParams {
+export function parsePagination(
+  query: Request["query"],
+  options: { maxOffset?: number } = {},
+): PaginationParams {
   const page = parsePositiveInteger(query.page, DEFAULT_PAGE, "page");
   const limit = parsePositiveInteger(query.limit, DEFAULT_LIMIT, "limit");
 
@@ -42,7 +49,17 @@ export function parsePagination(query: Request["query"]): PaginationParams {
     throw new ApiError(400, `limit cannot exceed ${MAX_LIMIT}`);
   }
 
-  return { page, limit, skip: (page - 1) * limit };
+  const skip = (page - 1) * limit;
+  if (!Number.isSafeInteger(skip) || skip > 2147483647) {
+    throw new ApiError(400, "Pagination offset is too large");
+  }
+  if (options.maxOffset !== undefined && skip > options.maxOffset) {
+    throw new ApiError(
+      400,
+      "Pagination offset is too large; narrow the search or filters",
+    );
+  }
+  return { page, limit, skip };
 }
 
 export function createPaginationMeta(

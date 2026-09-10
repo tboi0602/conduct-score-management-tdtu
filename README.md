@@ -1,4 +1,4 @@
-# Hệ thống Quản lý Điểm Rèn luyện Thông minh ( Smart Training Point Management System )
+# Hệ thống Quản lý Điểm Rèn luyện ( Conduct Score Management System )
 
 [🇻🇳 Tiếng Việt](#-tiếng-việt) | [🇬🇧 English](#-english)
 

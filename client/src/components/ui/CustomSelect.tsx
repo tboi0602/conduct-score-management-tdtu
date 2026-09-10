@@ -16,6 +16,7 @@ export function CustomSelect({
   name,
   disabled = false,
   className = "",
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -24,6 +25,7 @@ export function CustomSelect({
   name?: string;
   disabled?: boolean;
   className?: string;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,13 @@ export function CustomSelect({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={ariaLabel ?? placeholder}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            setOpen(false);
+          }
+        }}
         onClick={() => setOpen((current) => !current)}
         className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 text-left text-sm outline-none transition ${
           open

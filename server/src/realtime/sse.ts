@@ -2,7 +2,7 @@ import Redis from "ioredis";
 import type { Response } from "express";
 import { logger } from "@config/logger";
 import { REDIS_CONFIG } from "@redis";
-import { sseClientsConnected } from "@metrics";
+import { attendanceSseConnections, sseClientsConnected } from "@metrics";
 
 /**
  * SSE hub dựa trên Redis Pub/Sub.
@@ -31,6 +31,21 @@ class SSEHub {
   private subscriber: Redis | null = null;
   private heartbeat: NodeJS.Timeout | null = null;
   private seq = 0;
+
+  private updateConnectionMetrics(): void {
+    sseClientsConnected.set(this.clients.size);
+    let student = 0;
+    let event = 0;
+    let dashboard = 0;
+    for (const client of this.clients.values()) {
+      if ([...client.channels].some((channel) => channel.startsWith("sse:student:"))) student += 1;
+      if ([...client.channels].some((channel) => channel.startsWith("sse:event:"))) event += 1;
+      if ([...client.channels].some((channel) => channel.startsWith("sse:dashboard:"))) dashboard += 1;
+    }
+    attendanceSseConnections.set({ scope: "student" }, student);
+    attendanceSseConnections.set({ scope: "event" }, event);
+    attendanceSseConnections.set({ scope: "dashboard" }, dashboard);
+  }
 
   // Tạo kết nối Redis dùng riêng cho việc publish (lazy).
   private ensurePublisher(): Redis {
@@ -94,13 +109,13 @@ class SSEHub {
     res.write(`event: connected\ndata: {"id":"${id}"}\n\n`);
 
     this.clients.set(id, { id, res, channels: new Set(channels) });
-    sseClientsConnected.set(this.clients.size);
+    this.updateConnectionMetrics();
     logger.debug(`[sse] client ${id} connected on ${channels.join(",")}`);
 
     // Dọn dẹp khi client ngắt kết nối.
     res.on("close", () => {
       this.clients.delete(id);
-      sseClientsConnected.set(this.clients.size);
+      this.updateConnectionMetrics();
       logger.debug(`[sse] client ${id} disconnected`);
     });
   }
@@ -110,7 +125,7 @@ class SSEHub {
     if (this.heartbeat) clearInterval(this.heartbeat);
     for (const client of this.clients.values()) client.res.end();
     this.clients.clear();
-    sseClientsConnected.set(0);
+    this.updateConnectionMetrics();
     await Promise.all([
       this.publisher?.quit(),
       this.subscriber?.quit(),

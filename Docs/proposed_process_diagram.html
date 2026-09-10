@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sơ đồ Quy trình Điểm danh - Fixed Overflow</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --border-color: #cbd5e1;
+      --line-color: #475569;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      
+      --blue: #2563eb;
+      --green: #059669;
+      --purple: #7c3aed;
+      --red: #dc2626;
+      --orange: #ea580c;
+      --indigo: #4f46e5;
+      --slate: #334155;
+      --teal: #0d9488;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 2rem 1rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Container mở rộng Lề Trái/Phải 50px */
+    .diagram-wrapper {
+      position: relative;
+      width: 1080px;
+      padding: 20px 50px;
+      display: flex;
+      flex-direction: column;
+      gap: 42px;
+    }
+
+    /* SVG Overlay phủ toàn bộ diagram */
+    .svg-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: 380px 220px 380px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Tăng height lên 125px & chỉnh padding để chứa đủ 4 dòng text */
+    .card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      height: 125px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 0.15rem;
+    }
+
+    .icon-header {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .card-subtitle {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+      font-weight: 500;
+    }
+
+    .card-list {
+      list-style: none;
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    .card-list li {
+      position: relative;
+      padding-left: 0.7rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .card-list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--text-muted);
+    }
+
+    .inner-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+
+    .inner-box {
+      border: 1px dashed var(--border-color);
+      border-radius: 4px;
+      padding: 0.3rem 0.4rem;
+      background: #f8fafc;
+      font-size: 0.67rem;
+    }
+
+    /* Lớp màu */
+    .client-layer { border-color: var(--blue); } .client-layer .card-header { color: var(--blue); }
+    .edge-layer { border-color: var(--green); } .edge-layer .card-header { color: var(--green); }
+    .app-layer { border-color: var(--purple); } .app-layer .card-header { color: var(--purple); }
+    .redis-layer { border-color: var(--red); } .redis-layer .card-header { color: var(--red); }
+    .queue-layer { border-color: var(--orange); } .queue-layer .card-header { color: var(--orange); }
+    .worker-layer { border-color: var(--indigo); } .worker-layer .card-header { color: var(--indigo); }
+    .db-layer { border-color: var(--slate); } .db-layer .card-header { color: var(--slate); }
+    .dashboard-layer { border-color: var(--teal); } .dashboard-layer .card-header { color: var(--teal); }
+
+    /* Connectors & Tags */
+    .step-tag {
+      background: #ffffff;
+      border: 1px solid var(--line-color);
+      color: var(--slate);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      z-index: 3;
+    }
+
+    .conn-h-right, .conn-h-left {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 100%;
+    }
+    .conn-h-right::before, .conn-h-left::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--line-color);
+      z-index: 1;
+    }
+    .conn-h-right::after {
+      content: ''; position: absolute; right: 0;
+      border-width: 5px 0 5px 8px; border-style: solid;
+      border-color: transparent transparent transparent var(--line-color);
+      z-index: 2;
+    }
+    .conn-h-left::after {
+      content: ''; position: absolute; left: 0;
+      border-width: 5px 8px 5px 0; border-style: solid;
+      border-color: transparent var(--line-color) transparent transparent;
+      z-index: 2;
+    }
+
+    /* Vertical Down Arrow */
+    .conn-v-down {
+      position: absolute;
+      bottom: -42px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 42px;
+      width: 380px;
+      z-index: 5;
+    }
+    .conn-v-down.right-side { left: 600px; }
+    .conn-v-down.left-side { left: 0px; }
+
+    .conn-v-down .line {
+      width: 2px;
+      height: 100%;
+      background: var(--line-color);
+      position: relative;
+    }
+    .conn-v-down .line::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: -4px;
+      border-width: 8px 5px 0 5px;
+      border-style: solid;
+      border-color: var(--line-color) transparent transparent transparent;
+    }
+  </style>
+</head>
+<body>
+
+<div class="diagram-wrapper">
+
+  <!-- SVG OVERLAY CẬP NHẬT TỌA ĐỘ THEO KÍCH THƯỚC MỚI -->
+  <svg class="svg-overlay" viewBox="0 0 1080 830">
+    <defs>
+      <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+      </marker>
+      <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+      </marker>
+    </defs>
+
+    <!-- (8) WORKERS -> Lề Phải -> Khe Row 1 & 2 -> Đỉnh REDIS -->
+    <path d="M 1030 583 L 1055 583 L 1055 166 L 240 166 L 240 185" 
+          fill="none" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrow-red)"/>
+    
+    <!-- Tag đính kèm cho bước 8 đặt gọn ở khe trống Row 1 & 2 -->
+    <g transform="translate(560, 155)">
+      <rect x="0" y="0" width="180" height="22" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="90" y="15" text-anchor="middle" fill="#dc2626" font-size="10" font-weight="bold">(8) Incr Counter & Pub Event</text>
+    </g>
+
+    <!-- (9) REDIS -> Lề Trái -> Dọc xuống -> SSE HANDLER -->
+    <path d="M 50 249 L 20 249 L 20 750 L 48 750" 
+          fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrow-purple)"/>
+    
+    <!-- Tag đính kèm cho bước 9 ở lề bên trái -->
+    <g transform="translate(2, 485)">
+      <rect x="0" y="0" width="125" height="22" rx="4" fill="#f3e8ff" stroke="#7c3aed" stroke-width="1"/>
+      <text x="62" y="15" text-anchor="middle" fill="#7c3aed" font-size="10" font-weight="bold">(9) Redis Pub/Sub Event</text>
+    </g>
+  </svg>
+
+  <!-- ROW 1 -->
+  <div class="grid-row">
+    <div class="card client-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        Student / Mobile Device
+      </div>
+      <div class="card-subtitle">Client Interface</div>
+      <ul class="card-list">
+        <li>Scan QR Code & Submit Request</li>
+        <li>POST { studentId, eventId, GPS, timestamp }</li>
+      </ul>
+    </div>
+
+    <div class="conn-h-right">
+      <span class="step-tag">(1) Submit Request</span>
+    </div>
+
+    <div class="card edge-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        EDGE LAYER
+      </div>
+      <div class="card-subtitle">Nginx Reverse Proxy</div>
+      <ul class="card-list">
+        <li>HTTPS & SSL Termination</li>
+        <li>Rate Limiting (5 req/s)</li>
+      </ul>
+    </div>
+
+    <div class="conn-v-down right-side">
+      <span class="step-tag" style="margin-bottom: 2px;">(2) Forward Request</span>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="grid-row">
+    <div class="card redis-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        REDIS (CENTRAL CACHE & PUB/SUB)
+      </div>
+      <div class="card-subtitle">In-Memory Cache, Lock & Event Broker</div>
+      <ul class="card-list">
+        <li>Idempotency Lock (SET NX EX 10)</li>
+        <li>Event Boundaries & Geofence Cache</li>
+        <li>Attendance Counter (INCRBY)</li>
+        <li>Pub/Sub Channel: attendance_events</li>
+      </ul>
+    </div>
+
+    <div class="conn-h-left">
+      <span class="step-tag">(3) Check Lock & Read Cache</span>
+    </div>
+
+    <div class="card app-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        APPLICATION LAYER
+      </div>
+      <div class="card-subtitle">Node.js API Server Cluster</div>
+      <div class="inner-grid">
+        <div class="inner-box"><strong>HTTP API</strong><br>Process Check-in</div>
+        <div class="inner-box"><strong>SSE Handler</strong><br>/sse/events/{eventId}</div>
+      </div>
+    </div>
+
+    <div class="conn-v-down left-side">
+      <span class="step-tag" style="margin-bottom: 2px;">(4) Return Cached Data</span>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="grid-row">
+    <div class="card app-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        HTTP API CONTROLLERS
+      </div>
+      <div class="card-subtitle">Application Layer (Validation)</div>
+      <ul class="card-list">
+        <li>Validate QR Code, Event & Student</li>
+        <li>Check GPS Geofence (Haversine Formula)</li>
+      </ul>
+    </div>
+
+    <div class="conn-h-right">
+      <span class="step-tag">(5) Publish Message</span>
+    </div>
+
+    <div class="card queue-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        RABBITMQ
+      </div>
+      <div class="card-subtitle">Message Broker</div>
+      <ul class="card-list">
+        <li>Queue: checkin_queue</li>
+        <li>Durable AMQP Messaging</li>
+      </ul>
+    </div>
+
+    <div class="conn-v-down right-side">
+      <span class="step-tag" style="margin-bottom: 2px;">(6) Consume Message</span>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- ROW 4 -->
+  <div class="grid-row">
+    <div class="card db-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        POSTGRESQL
+      </div>
+      <div class="card-subtitle">Persistent Database</div>
+      <ul class="card-list">
+        <li>Persistent Attendance Records</li>
+        <li>Conduct Score Updates</li>
+      </ul>
+    </div>
+
+    <div class="conn-h-left">
+      <span class="step-tag">(7) Store Attendance Record</span>
+    </div>
+
+    <div class="card worker-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/><circle cx="12" cy="12" r="4"/></svg>
+        BACKGROUND WORKERS
+      </div>
+      <div class="card-subtitle">Node.js Worker Fleet</div>
+      <ul class="card-list">
+        <li>QoS Prefetch Limit = 10</li>
+        <li>Process Async Tasks</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ROW 5 -->
+  <div class="grid-row">
+    <div class="card app-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        SSE REAL-TIME HANDLER
+      </div>
+      <div class="card-subtitle">Node.js Cluster (Subscribed to Redis)</div>
+      <ul class="card-list">
+        <li>Listent Channel from REDIS</li>
+        <li>Endpoint: /sse/events/{eventId}</li>
+      </ul>
+    </div>
+
+    <div class="conn-h-right">
+      <span class="step-tag">(10) Push Real-Time SSE Data</span>
+    </div>
+
+    <div class="card dashboard-layer">
+      <div class="card-header">
+        <svg class="icon-header" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        INSTRUCTOR WEB DASHBOARD
+      </div>
+      <div class="card-subtitle">Next.js Real-Time UI</div>
+      <ul class="card-list">
+        <li>Real-Time Attendance Monitoring</li>
+        <li>Live Metrics Updates</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

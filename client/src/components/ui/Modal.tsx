@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { IconButton } from "@/components/ui/IconButton";
+import { useAdminTranslations } from "@/hooks/useAdminTranslations";
 
 export function Modal({
   open,
@@ -19,6 +20,7 @@ export function Modal({
   children: ReactNode;
   size?: "md" | "lg" | "xl";
 }) {
+  const { t } = useAdminTranslations();
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
@@ -56,7 +58,7 @@ export function Modal({
               <p className="mt-1.5 text-sm leading-6 text-[#66758a]">{description}</p>
             ) : null}
           </div>
-          <IconButton label="Close" onClick={onClose}>
+          <IconButton label={t.close} onClick={onClose}>
             <X size={17} strokeWidth={2} />
           </IconButton>
         </header>

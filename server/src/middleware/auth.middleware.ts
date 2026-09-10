@@ -28,6 +28,7 @@ export function requirePermission(permission: string) {
       const matched = await prisma.userRole.findFirst({
         where: {
           userId: auth.sub,
+          user: { status: "ACTIVE" },
           role: {
             rolePermissions: {
               some: { permission: { permission: { in: [permission, "*"] } } },

@@ -6,10 +6,12 @@ import { useState, type FormEvent } from "react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { saveAuthSession } from "@/lib/auth-storage";
 import { loginAdmin } from "@/services/auth";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export function useAdminLogin() {
   const router = useRouter();
-  const { message } = useLanguage();
+  const { message, locale } = useLanguage();
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +29,7 @@ export function useAdminLogin() {
     try {
       const session = await loginAdmin(email, password);
       saveAuthSession(session);
+      showToast(locale === "vi" ? "Đăng nhập thành công." : "Signed in successfully.");
       router.replace("/admin/dashboard");
     } catch (requestError) {
       const apiMessage = requestError instanceof Error ? requestError.message : "";
@@ -34,6 +37,12 @@ export function useAdminLogin() {
         apiMessage === "Invalid email or password"
           ? message.admin.invalidCredentials
           : message.admin.loginError,
+      );
+      showToast(
+        locale === "vi"
+          ? "Đăng nhập thất bại. Vui lòng kiểm tra thông tin."
+          : "Sign-in failed. Please check your credentials.",
+        "error",
       );
     } finally {
       setIsSubmitting(false);

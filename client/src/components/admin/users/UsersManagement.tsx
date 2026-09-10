@@ -36,9 +36,10 @@ function UserForm({
   const [facultyId, setFacultyId] = useState(initialClass?.major.faculty.id ?? "");
   const [majorId, setMajorId] = useState(initialClass?.major.id ?? "");
   const [classId, setClassId] = useState(user?.student?.classId ?? "");
+  const [primaryFacultyId, setPrimaryFacultyId] = useState(user?.primaryFacultyId ?? "");
   const majors = faculties.find((item) => item.id === facultyId)?.majors ?? [];
   const classes = majors.find((item) => item.id === majorId)?.classes ?? [];
-  const selectedRoles = new Set(user?.userRoles.map(({ role }) => role.id) ?? []);
+  const selectedRoles = new Set(user?.userRoles.flatMap(({ role }) => [role.id, role.name]) ?? []);
   return (
     <form key={user?.id ?? "new"} onSubmit={onSubmit} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -90,6 +91,24 @@ function UserForm({
           ))}
         </div>
       </fieldset>
+      <div className="text-sm font-semibold text-[#263b58]">
+        Khoa chính của cán bộ/giảng viên
+        <CustomSelect
+          name="primaryFacultyId"
+          value={primaryFacultyId}
+          onChange={setPrimaryFacultyId}
+          options={faculties.map((item) => ({
+            value: item.id,
+            label: `${item.code} — ${item.name}`,
+          }))}
+          placeholder="Chọn khoa chính"
+          className="mt-2"
+        />
+        <p className="mt-2 text-xs font-normal text-[#66758a]">
+          Sinh viên sử dụng khoa suy ra từ lớp; giá trị này chỉ áp dụng cho tài khoản cán bộ và
+          giảng viên.
+        </p>
+      </div>
       <fieldset className="rounded-2xl border border-[#e0e7f0] bg-[#f8fafc] p-4">
         <legend className="px-2 text-sm font-semibold text-[#263b58]">{t.academic}</legend>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -280,6 +299,7 @@ export function UsersManagement() {
           <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
               <tr>
+                <th className="w-20 px-5 py-4 text-center">{t.ordinal}</th>
                 <th className="px-5 py-4">{t.user}</th>
                 <th className="px-5 py-4">{t.role}</th>
                 <th className="px-5 py-4">{t.studentCode}</th>
@@ -291,13 +311,16 @@ export function UsersManagement() {
               </tr>
             </thead>
             {state.isLoading ? (
-              <TableSkeleton columns={8} />
+              <TableSkeleton columns={9} />
             ) : (
               <tbody className="divide-y divide-[#e7ecf3]">
-                {state.items.map((user) => {
+                {state.items.map((user, index) => {
                   const academic = user.student?.class;
                   return (
                     <tr key={user.id} className="transition-colors hover:bg-[#f9fbfd]">
+                      <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
+                        {(state.pagination.page - 1) * state.pagination.limit + index + 1}
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eaf2fb] font-bold text-[#154a9b]">
@@ -329,7 +352,7 @@ export function UsersManagement() {
                         {user.student?.studentCode ?? "—"}
                       </td>
                       <td className="px-5 py-4 text-[#52647d]">
-                        {academic?.major.faculty.code ?? "—"}
+                        {academic?.major.faculty.code ?? user.primaryFaculty?.code ?? "—"}
                       </td>
                       <td className="px-5 py-4">
                         <span className="block max-w-40 truncate text-[#52647d]">
@@ -355,7 +378,7 @@ export function UsersManagement() {
                             label={t.delete}
                             tone="danger"
                             onClick={() => state.setDeleting(user)}
-                            disabled={user.email === "admin"}
+                            disabled={user.email === "admin" || user.id === state.currentUserId}
                           >
                             <Trash2 size={16} />
                           </IconButton>

@@ -3,7 +3,9 @@ import {
   adminLogin,
   googleLogin,
   me,
+  updateMe,
   refreshToken,
+  switchMode,
 } from "@controllers/auth.controller";
 import { authenticate, rateLimit } from "@middleware";
 import { asyncHandler } from "@utils/asyncHandler";
@@ -21,4 +23,11 @@ router.post(
   asyncHandler(refreshToken),
 );
 router.get("/me", authenticate, asyncHandler(me));
+router.post(
+  "/switch-mode",
+  authenticate,
+  rateLimit("auth:switch-mode", 20, 60),
+  asyncHandler(switchMode),
+);
+router.put("/me", authenticate, asyncHandler(updateMe));
 export { router };

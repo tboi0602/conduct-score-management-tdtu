@@ -11,6 +11,7 @@ import { prisma } from "@config/prisma";
 import { registry } from "@metrics";
 import { errorHandler, metricsMiddleware } from "@middleware";
 import { router } from "@routes";
+import { sseHub } from "@realtime/sse";
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
@@ -29,8 +30,12 @@ app.get("/metrics", async (_req, res) => {
   res.end(await registry.metrics());
 });
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true, ts: new Date().toISOString() });
+app.get("/health", async (_req, res) => {
+  const database = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
+  const redis = redisClient.getClient().status === "ready";
+  const rabbit = rabbitClient.isConnected();
+  const ok = database && redis && rabbit;
+  res.status(ok ? 200 : 503).json({ ok, database, redis, rabbit, ts: new Date().toISOString() });
 });
 
 app.use("/api/v1", router);
@@ -39,6 +44,9 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 async function main(): Promise<void> {
+  redisClient.connect();
+  await prisma.$connect();
+  await rabbitClient.connect();
   server.listen(PORT, () => {
     logger.info(`[api] listening on :${PORT}`);
   });
@@ -50,6 +58,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info(`[api] ${signal} received - starting graceful shutdown`);
 
   // 1. Ngừng nhận kết nối mới và chờ các request hiện tại xử lý xong.
+  await sseHub.close();
   server.close(async () => {
     try {
       await rabbitClient.close();

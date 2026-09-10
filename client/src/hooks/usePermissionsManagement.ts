@@ -12,10 +12,14 @@ import {
   updateCachedEntity,
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const fetchPermissions = (page: number, limit: number) => adminService.listPermissions(page, limit);
 
 export function usePermissionsManagement() {
+  const { locale } = useLanguage();
+  const { showToast } = useToast();
   const list = usePaginatedData(queryKeys.permissions.all, fetchPermissions);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Permission | null>(null);
@@ -42,13 +46,15 @@ export function usePermissionsManagement() {
         else prependCachedEntity(queryClient, queryKeys.permissions.all, response.data);
         setModalOpen(false);
         setEditing(null);
+        showToast(locale === "vi" ? "Lưu quyền thành công." : "Permission saved successfully.");
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Không thể lưu quyền");
+        showToast(locale === "vi" ? "Không thể lưu quyền." : "Unable to save permission.", "error");
       } finally {
         setIsSaving(false);
       }
     },
-    [editing, queryClient],
+    [editing, locale, queryClient, showToast],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -56,11 +62,15 @@ export function usePermissionsManagement() {
     try {
       await adminService.deletePermission(deleting.id);
       removeCachedEntity(queryClient, queryKeys.permissions.all, deleting.id);
+      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
+        list.setPage(list.page - 1);
       setDeleting(null);
+      showToast(locale === "vi" ? "Xóa quyền thành công." : "Permission deleted successfully.");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Không thể xóa quyền");
+      showToast(locale === "vi" ? "Không thể xóa quyền." : "Unable to delete permission.", "error");
     }
-  }, [deleting, queryClient]);
+  }, [deleting, list, locale, queryClient, showToast]);
 
   const openCreate = () => {
     setEditing(null);

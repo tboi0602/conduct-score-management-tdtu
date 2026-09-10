@@ -5,6 +5,11 @@ import { logger } from "@config/logger";
 import { redisClient } from "@redis";
 import { rabbitClient } from "@rabbitmq";
 import { registry, rabbitConnected, redisConnected } from "@metrics";
+import { RABBITMQ_CONFIG } from "@rabbitmq";
+import { handleAttendanceMessage } from "@workers/attendance.worker";
+import { startOutboxRelay } from "@services/outbox.service";
+import { prisma } from "@config/prisma";
+import { sseHub } from "@realtime/sse";
 
 // Port cho server health/metrics của worker.
 const HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "9101", 10);
@@ -13,13 +18,14 @@ const HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "9101", 10);
 // Endpoint health cho Docker healthcheck + /metrics cho Prometheus.
 // Worker chỉ "khỏe" khi cả RabbitMQ và Redis đều đã nối.
 // ============================================================
-const healthServer = http.createServer((req, res) => {
+const healthServer = http.createServer(async (req, res) => {
   if (req.url === "/health") {
     const rabbit = rabbitClient.isConnected();
     const redis = redisClient.getClient().status === "ready";
-    const ok = rabbit && redis;
+    const database = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
+    const ok = rabbit && redis && database;
     res.writeHead(ok ? 200 : 503, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok, rabbit, redis, ts: new Date().toISOString() }));
+    res.end(JSON.stringify({ ok, rabbit, redis, database, ts: new Date().toISOString() }));
     return;
   }
   if (req.url === "/metrics") {
@@ -44,7 +50,11 @@ function trackConnectionGauges(): void {
 
 async function bootstrap(): Promise<void> {
   redisClient.connect();
+  await prisma.$connect();
   await rabbitClient.connect();
+
+  await rabbitClient.consume(RABBITMQ_CONFIG.queues.attendance.name, handleAttendanceMessage);
+  startOutboxRelay();
 
   // TODO: consume("attendance.scan.queue", handler) - logic xử lý
   // điểm danh (idempotency, geofence, ghi DB, rule engine...)
@@ -65,7 +75,9 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await rabbitClient.close();
+    await sseHub.close();
     await redisClient.close();
+    await prisma.$disconnect();
     logger.info("[worker] graceful shutdown complete");
     process.exit(0);
   } catch (err) {

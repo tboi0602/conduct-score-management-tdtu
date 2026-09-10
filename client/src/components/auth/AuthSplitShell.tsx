@@ -43,7 +43,7 @@ export function AuthSplitShell({ eyebrow, title, description, children }: AuthSp
 
       <section className="flex min-h-[100dvh] items-center justify-center px-5 py-10 sm:px-10 lg:px-12 xl:px-20">
         <div className="w-full max-w-md">
-          <div className="mb-12 flex items-start justify-between gap-6">
+          <div className="flex items-start justify-between gap-6">
             <Image
               src="/images/logo.png"
               alt="Logo Đại học Tôn Đức Thắng"

@@ -1,7 +1,11 @@
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 
 import { logger } from "@config/logger";
-import { attendanceEventsConsumed } from "@metrics";
+import {
+  attendanceDlqTotal,
+  attendanceEventsConsumed,
+  attendanceQueueRetryTotal,
+} from "@metrics";
 import { RABBITMQ_CONFIG, RETRY_EXCHANGE } from "@rabbitmq/config";
 import { rabbitConnection } from "@rabbitmq/connection";
 
@@ -49,7 +53,7 @@ class RabbitConsumer {
         const payload = JSON.parse(message.content.toString("utf-8")) as Record<string, unknown>;
         await handler(payload, message);
         channel.ack(message);
-        attendanceEventsConsumed.inc({ result: "ack" });
+        attendanceEventsConsumed.inc(labels("ack", payload));
       } catch (error) {
         logger.error(`[rabbitmq] handler failed: ${(error as Error).message}`);
         routeToRetry(channel, message, error as Error);
@@ -60,10 +64,29 @@ class RabbitConsumer {
   }
 }
 
+function labels(result: string, payload: Record<string, unknown>) {
+  return {
+    result,
+    source: typeof payload.source === "string" ? payload.source : "unknown",
+    direction: typeof payload.direction === "string" ? payload.direction : "unknown",
+  };
+}
+
+function messagePayload(message: ConsumeMessage): Record<string, unknown> {
+  try {
+    return JSON.parse(message.content.toString("utf-8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
 function routeToRetry(channel: ConfirmChannel, message: ConsumeMessage, error: Error): void {
+  const payload = messagePayload(message);
+  const reason = error.name || "unknown";
   if ((error as Error & { noRetry?: boolean }).noRetry) {
     channel.nack(message, false, false);
-    attendanceEventsConsumed.inc({ result: "dlq" });
+    attendanceEventsConsumed.inc(labels("dlq", payload));
+    attendanceDlqTotal.inc({ reason });
     return;
   }
 
@@ -71,7 +94,8 @@ function routeToRetry(channel: ConfirmChannel, message: ConsumeMessage, error: E
   if (attempt >= RABBITMQ_CONFIG.maxRetries) {
     logger.error(`[rabbitmq] message dead-lettered after ${attempt} retries`);
     channel.nack(message, false, false);
-    attendanceEventsConsumed.inc({ result: "dlq" });
+    attendanceEventsConsumed.inc(labels("dlq", payload));
+    attendanceDlqTotal.inc({ reason });
     return;
   }
 
@@ -87,7 +111,8 @@ function routeToRetry(channel: ConfirmChannel, message: ConsumeMessage, error: E
     (publishError) => {
       if (publishError) return channel.nack(message, false, true);
       channel.ack(message);
-      attendanceEventsConsumed.inc({ result: "retry" });
+      attendanceEventsConsumed.inc(labels("retry", payload));
+      attendanceQueueRetryTotal.inc({ reason });
     },
   );
 }

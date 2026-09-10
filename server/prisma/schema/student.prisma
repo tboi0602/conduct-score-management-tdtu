@@ -1,6 +1,3 @@
-// ============================================================
-// Nhóm: sinh viên
-// ============================================================
 
 // Hồ sơ sinh viên, liên kết 1-1 với tài khoản User
 model Student {
@@ -8,14 +5,19 @@ model Student {
   userId      String @unique @db.Uuid
   classId     String? @db.Uuid
   studentCode String @unique @db.VarChar(20) // MSSV
+  phone       String? @db.VarChar(20)
+  address     String? @db.VarChar(255)
+  dateOfBirth DateTime? @db.Date
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade) // ON DELETE CASCADE
   class Class? @relation(fields: [classId], references: [id]) // ON DELETE RESTRICT
 
   schedules         Schedule[]
   freeTimes         FreeTime[]
-  trainingPoints    TrainingPoint[]
+  conductScores     ConductScore[]
   attendanceRecords AttendanceRecord[]
+  attendanceScanRequests AttendanceScanRequest[]
+  eventRegistrations EventRegistration[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 

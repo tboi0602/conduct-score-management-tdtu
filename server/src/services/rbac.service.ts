@@ -103,45 +103,21 @@ async function assertPermissionIds(permissionIds: string[]): Promise<void> {
 }
 
 export async function createRole(name: string, permissionIds: string[]) {
-  const value = name.trim().toUpperCase();
-  if (!value) throw new ApiError(400, "Role name is required");
-  await assertPermissionIds(permissionIds);
-  return prisma.role.create({
-    data: {
-      name: value,
-      rolePermissions: { create: [...new Set(permissionIds)].map((permissionId) => ({ permissionId })) },
-    },
-    include: roleInclude,
-  }).catch(mapNotFoundOrConflict);
+  void name;
+  void permissionIds;
+  throw new ApiError(409, "System roles are fixed; only four seeded roles are supported");
 }
 
 export async function updateRole(id: string, name: string, permissionIds: string[]) {
-  const current = await prisma.role.findUnique({ where: { id } });
-  if (!current) throw new ApiError(404, "Role not found");
-  if (current.name === "ADMIN") throw new ApiError(400, "System ADMIN role cannot be modified");
-  const value = name.trim().toUpperCase();
-  if (!value) throw new ApiError(400, "Role name is required");
-  await assertPermissionIds(permissionIds);
-
-  return prisma.$transaction(async (tx) => {
-    await tx.rolePermission.deleteMany({ where: { roleId: id } });
-    return tx.role.update({
-      where: { id },
-      data: {
-        name: value,
-        rolePermissions: { create: [...new Set(permissionIds)].map((permissionId) => ({ permissionId })) },
-      },
-      include: roleInclude,
-    });
-  }).catch(mapNotFoundOrConflict);
+  void id;
+  void name;
+  void permissionIds;
+  throw new ApiError(409, "System role definitions are managed by the authorization seed");
 }
 
 export async function deleteRole(id: string) {
-  const role = await prisma.role.findUnique({ where: { id }, include: { _count: { select: { userRoles: true } } } });
-  if (!role) throw new ApiError(404, "Role not found");
-  if (role.name === "ADMIN") throw new ApiError(400, "System ADMIN role cannot be deleted");
-  if (role._count.userRoles > 0) throw new ApiError(409, "Role is assigned to users");
-  await prisma.role.delete({ where: { id } });
+  void id;
+  throw new ApiError(409, "System roles cannot be deleted");
 }
 
 function mapNotFoundOrConflict(error: { code?: string }): never {

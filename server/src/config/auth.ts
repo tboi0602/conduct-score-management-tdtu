@@ -21,7 +21,11 @@ const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES_IN ?? "30d") as NonNull
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
 
-export type AppRole = "ADMIN" | "STUDENT" | "LECTURER";
+export type AppRole =
+  | "ADMIN"
+  | "STUDENT"
+  | "EVENT_ORGANIZER"
+  | "STUDENT_AFFAIRS";
 
 export interface JwtPayload {
   sub: string;
