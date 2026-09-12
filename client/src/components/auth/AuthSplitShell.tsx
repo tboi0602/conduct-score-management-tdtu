@@ -17,7 +17,7 @@ export function AuthSplitShell({ eyebrow, title, description, children }: AuthSp
   const { message } = useLanguage();
 
   return (
-    <main className="min-h-[100dvh] bg-white lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
+    <main className="min-h-[100dvh] bg-[#f3f6fa] lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
       <section className="relative hidden min-h-[100dvh] overflow-hidden lg:block">
         <Image
           src="/images/tdtu-campus.png"
@@ -41,8 +41,8 @@ export function AuthSplitShell({ eyebrow, title, description, children }: AuthSp
         </div>
       </section>
 
-      <section className="flex min-h-[100dvh] items-center justify-center px-5 py-10 sm:px-10 lg:px-12 xl:px-20">
-        <div className="w-full max-w-md">
+      <section className="flex min-h-[100dvh] items-center justify-center px-5 py-8 sm:px-10 lg:px-12 xl:px-20">
+        <div className="w-full max-w-lg rounded-[28px] border border-[#dae4ef] bg-white p-6 shadow-[0_30px_70px_-48px_rgba(16,42,80,.7)] sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <div className="flex items-start justify-between gap-6">
             <Image
               src="/images/logo.png"
@@ -55,13 +55,16 @@ export function AuthSplitShell({ eyebrow, title, description, children }: AuthSp
             <LanguageSwitcher />
           </div>
 
-          <p className="text-sm font-semibold text-[#154a9b]">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#102a50] sm:text-4xl">
+          <div className="mt-9 flex items-center gap-2.5">
+            <span className="h-px w-7 bg-[#154a9b]" />
+            <p className="text-xs font-bold uppercase tracking-[.14em] text-[#154a9b]">{eyebrow}</p>
+          </div>
+          <h1 className="mt-3 text-3xl font-bold tracking-[-.035em] text-[#102a50] sm:text-4xl">
             {title}
           </h1>
           <p className="mt-4 max-w-sm text-sm leading-6 text-[#66758a]">{description}</p>
 
-          <div className="mt-9">{children}</div>
+          <div className="mt-8">{children}</div>
 
           <p className="mt-10 text-xs leading-5 text-[#7a8799]">{message.terms}</p>
         </div>

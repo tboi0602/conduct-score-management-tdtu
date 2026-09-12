@@ -10,9 +10,9 @@ import { CriteriaFilters } from "@/components/admin/criteria/CriteriaFilters";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useCriteriaManagement } from "@/hooks/useCriteriaManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useCriteriaManagement } from "@/hooks/criteria/useCriteriaManagement";
 import { formatDate, managementError } from "@/lib/event-form";
 
 export function CriteriaManagement() {
@@ -51,7 +51,14 @@ export function CriteriaManagement() {
         onClear={state.clearFilters}
       />
       <ManagementTable
-        headers={[t.criteriaName, t.maxPoints, t.createdAt, t.updatedAt, t.actions]}
+        headers={[
+          t.criteriaName,
+          t.maxPoints,
+          t.defaultPoints,
+          t.createdAt,
+          t.updatedAt,
+          t.actions,
+        ]}
         loading={state.isLoading}
         fetching={state.isFetching}
         error={state.requestError}
@@ -67,6 +74,9 @@ export function CriteriaManagement() {
             </td>
             <td className="px-5 py-4 font-semibold tabular-nums text-[#154a9b]">
               {criterion.maxPoints}
+            </td>
+            <td className="px-5 py-4 font-semibold tabular-nums text-[#52647d]">
+              {criterion.defaultPoints}
             </td>
             <td className="whitespace-nowrap px-5 py-4 text-[#52647d]">
               {formatDate(criterion.createdAt, locale)}

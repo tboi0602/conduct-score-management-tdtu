@@ -2,6 +2,16 @@ export const studentEventMessages = {
   vi: {
     brand: "Điểm rèn luyện TDTU",
     overview: "Tổng quan",
+    student: "Sinh viên",
+    dashboardGreeting: "Xin chào",
+    dashboardDescription:
+      "Theo dõi sự kiện, điểm rèn luyện và thông tin học vụ của bạn trong một không gian thống nhất.",
+    dashboardEventsDescription: "Khám phá hoạt động mới, đăng ký và theo dõi các sự kiện của bạn.",
+    dashboardConductScore: "Điểm rèn luyện",
+    dashboardScoreDescription: "Xem tổng điểm và chi tiết các hoạt động theo từng học kỳ.",
+    dashboardProfileDescription: "Cập nhật thông tin liên hệ, khoa, ngành và lớp hiện tại.",
+    dashboardAcademicInfo: "Thông tin học vụ",
+    dashboardNotUpdated: "Chưa cập nhật",
     events: "Sự kiện",
     title: "Sự kiện dành cho sinh viên",
     description: "Khám phá và đăng ký các hoạt động đang diễn ra.",
@@ -87,6 +97,16 @@ export const studentEventMessages = {
   en: {
     brand: "TDTU Conduct Score",
     overview: "Overview",
+    student: "Student",
+    dashboardGreeting: "Welcome",
+    dashboardDescription:
+      "Track your events, conduct score, and academic profile in one organized workspace.",
+    dashboardEventsDescription: "Discover activities, register, and keep track of your events.",
+    dashboardConductScore: "Conduct Score",
+    dashboardScoreDescription: "Review your total and activity details for each semester.",
+    dashboardProfileDescription: "Update your contact details, faculty, major, and current class.",
+    dashboardAcademicInfo: "Academic profile",
+    dashboardNotUpdated: "Not updated",
     events: "Events",
     title: "Student events",
     description: "Discover and register for available activities.",

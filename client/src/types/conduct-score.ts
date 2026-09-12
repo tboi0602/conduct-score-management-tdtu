@@ -3,7 +3,24 @@ import type { Semester } from "@/types/events";
 
 export type ConductScoreStatus = "DRAFT" | "FINAL";
 export type ConductScoreRanking = "EXCELLENT" | "GOOD" | "FAIR" | "AVERAGE" | "POOR";
-export type ConductScoreEntrySource = "EVENT" | "MANUAL_ADJUSTMENT" | "REVERSAL" | "LEGACY_IMPORT";
+export type ConductScoreEntrySource =
+  "EVENT" | "MANUAL_ADJUSTMENT" | "DEFAULT_CRITERION" | "REVERSAL" | "LEGACY_IMPORT";
+
+export type BulkConductScoreAdjustmentPayload = {
+  operationId: string;
+  semesterId: string;
+  criteriaId: string;
+  reason: string;
+  result: string;
+  studentCodes: string[];
+};
+
+export type BulkConductScoreAdjustmentResult = {
+  requested: number;
+  applied: number;
+  skippedFinalized: number;
+  notFoundCodes: string[];
+};
 
 export type ConductScoreSummary = {
   id: string;
@@ -44,6 +61,7 @@ export type ConductScoreDetail = {
         entries: Array<{
           id: string;
           points: number;
+          result: string;
           source: ConductScoreEntrySource;
           reason: string | null;
           createdAt: string;

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useGoogleLogin } from "@/hooks/useGoogleLogin";
+import { useGoogleLogin } from "@/hooks/auth/useGoogleLogin";
 import { env } from "@/lib/env";
 import type { LoginMode } from "@/services/auth";
 

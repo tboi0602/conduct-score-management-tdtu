@@ -5,7 +5,7 @@ import type { PaginationMeta } from "@/types/admin";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
 export function ManagementTable({
   headers,
@@ -32,11 +32,11 @@ export function ManagementTable({
   return (
     <div
       aria-busy={fetching}
-      className="mt-5 overflow-hidden rounded-[22px] border border-[#dce4ef] bg-white shadow-[0_18px_45px_-30px_rgba(31,67,111,.4)]"
+      className="mt-5 overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white shadow-[0_22px_55px_-42px_rgba(16,42,80,.65)]"
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
+        <table className="w-full min-w-[720px] text-left text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-[#f8faff]">
+          <thead className="border-b border-[#dde6f0] bg-[#f5f8fc] text-[11px] uppercase tracking-[.1em] text-[#60728a]">
             <tr>
               <th scope="col" className="w-20 px-5 py-4 text-center">
                 {t.ordinal}
@@ -55,7 +55,7 @@ export function ManagementTable({
           {loading || fetching ? (
             <TableSkeleton columns={headers.length + 1} />
           ) : (
-            <tbody className="divide-y divide-[#e7ecf3]">
+            <tbody className="divide-y divide-[#e8edf3] text-[#314966]">
               {Children.map(children, (child, index) => {
                 if (!isValidElement(child)) return child;
                 const row = child as ReactElement<{ children?: ReactNode }>;

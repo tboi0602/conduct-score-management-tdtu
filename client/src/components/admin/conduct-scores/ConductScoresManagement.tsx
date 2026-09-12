@@ -10,8 +10,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { rankingLabel } from "@/components/conduct-scores/ConductScoreReport";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useConductScoresManagement } from "@/hooks/useConductScores";
+import { BulkAdjustmentAction } from "@/components/admin/conduct-scores/BulkAdjustmentAction";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useConductScoresManagement } from "@/hooks/conduct-score/useConductScores";
 import { conductScoreMessages } from "@/i18n/conduct-score-messages";
 import type { ConductScoreRanking, ConductScoreStatus } from "@/types/conduct-score";
 
@@ -56,6 +57,9 @@ export function ConductScoresManagement() {
           <p className="mt-2 text-sm text-[#66758a]">{t.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {access.can("conduct-score.manage") ? (
+            <BulkAdjustmentAction semesterId={state.filters.semesterId} />
+          ) : null}
           {canFinalize ? (
             <>
               <button
@@ -250,9 +254,7 @@ export function ConductScoresManagement() {
                     </td>
                     <td>
                       <p className="font-bold text-[#263b58]">{item.student.user.name}</p>
-                      <p className="text-xs text-[#718096]">
-                        {item.student.studentCode}{item.student.user.email}
-                      </p>
+                      <p className="text-xs text-[#718096]">{item.student.user.email}</p>
                     </td>
                     <td>
                       <p className="font-bold text-[#263b58]">{item.student.studentCode}</p>
@@ -309,9 +311,7 @@ export function ConductScoresManagement() {
           );
         }}
         title={bulkMode === "selected" ? t.finalizeSelected : t.finalizeFiltered}
-        subject={
-          bulkMode === "selected" ? t.confirmFinalizeSelected : t.confirmFinalizeFiltered
-        }
+        subject={bulkMode === "selected" ? t.confirmFinalizeSelected : t.confirmFinalizeFiltered}
         pending={state.bulkFinalize.isPending}
       />
     </section>

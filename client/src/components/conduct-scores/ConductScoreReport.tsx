@@ -31,7 +31,16 @@ export function ConductScoreReport({ data, compactHeader = false }: ReportProps)
   const totalByCriteria = new Map(
     score?.criteriaTotals.map((item) => [item.criteria.id, item.cappedScore]) ?? [],
   );
-  const resultLabel = (source: ConductScoreEntrySource) => {
+  const resultLabel = (result: string, source: ConductScoreEntrySource, hasDeduction: boolean) => {
+    if (source === "DEFAULT_CRITERION") {
+      return hasDeduction ? t.defaultScore : t.noViolation;
+    }
+    if (result === "ATTENDED") return t.achieved;
+    if (result === "NO_VIOLATION") return t.noViolation;
+    if (result === "DEFAULT_SCORE") return t.defaultScore;
+    if (result === "REVERSED") return t.reversed;
+    if (result === "IMPORTED") return t.imported;
+    if (result !== "RECORDED" && result !== "ADJUSTED") return result;
     if (source === "EVENT") return t.achieved;
     if (source === "REVERSAL") return t.reversed;
     if (source === "LEGACY_IMPORT") return t.imported;
@@ -86,6 +95,9 @@ export function ConductScoreReport({ data, compactHeader = false }: ReportProps)
         {criteriaCatalog.map((criteria, criteriaIndex) => {
           const entries =
             score?.entries.filter((entry) => entry.criteria?.id === criteria.id) ?? [];
+          const hasDeduction = entries.some(
+            (entry) => entry.source !== "DEFAULT_CRITERION" && entry.points < 0,
+          );
           return (
             <section key={criteria.id} aria-labelledby={`criterion-${criteria.id}`}>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -134,7 +146,7 @@ export function ConductScoreReport({ data, compactHeader = false }: ReportProps)
                           </p>
                         </td>
                         <td className="border-r border-[#e3e9f1] px-4 py-3 text-center text-[#40546f]">
-                          {resultLabel(entry.source)}
+                          {resultLabel(entry.result, entry.source, hasDeduction)}
                         </td>
                         <td
                           className={`px-4 py-3 text-center font-mono font-bold tabular-nums ${entry.points < 0 ? "text-[#c53a4b]" : "text-[#154a9b]"}`}

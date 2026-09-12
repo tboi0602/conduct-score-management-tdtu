@@ -10,9 +10,9 @@ import { SemesterForm } from "@/components/admin/semesters/SemesterForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useSemesterManagement } from "@/hooks/useSemesterManagement";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useSemesterManagement } from "@/hooks/semesters/useSemesterManagement";
 import { formatDate, managementError } from "@/lib/event-form";
 
 export function SemestersManagement() {

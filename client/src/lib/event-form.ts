@@ -46,7 +46,10 @@ function pointsInput(form: FormData, key: string): number {
 }
 
 export function criteriaPayload(form: FormData): CriteriaPayload {
-  return { title: requiredText(form, "title"), maxPoints: pointsInput(form, "maxPoints") };
+  const maxPoints = pointsInput(form, "maxPoints");
+  const defaultPoints = pointsInput(form, "defaultPoints");
+  if (defaultPoints > maxPoints) throw new FormValidationError("invalidPoints");
+  return { title: requiredText(form, "title"), maxPoints, defaultPoints };
 }
 
 export function eventPayload(form: FormData): EventPayload {

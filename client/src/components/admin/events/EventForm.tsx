@@ -7,8 +7,8 @@ import { RichTextEditor } from "@/components/admin/events/RichTextEditor";
 import { EventReferenceSelect } from "@/components/admin/events/EventReferenceSelect";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import type { EventReference } from "@/hooks/useEventOptions";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import type { EventReference } from "@/hooks/events/useEventOptions";
 import { localDateTime } from "@/lib/event-form";
 import type { ManagedEvent } from "@/types/events";
 

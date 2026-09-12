@@ -11,7 +11,22 @@ export function sanitizeEventDescription(value: unknown): string {
     throw new ApiError(400, "description cannot exceed 100 KiB");
   }
   return sanitizeHtml(value, {
-    allowedTags: ["p", "br", "strong", "em", "u", "s", "h1", "h2", "h3", "ul", "ol", "li", "a", "span"],
+    allowedTags: [
+      "p",
+      "br",
+      "strong",
+      "em",
+      "u",
+      "s",
+      "h1",
+      "h2",
+      "h3",
+      "ul",
+      "ol",
+      "li",
+      "a",
+      "span",
+    ],
     allowedAttributes: { a: ["href", "target", "rel"], span: ["style"] },
     allowedSchemes: ["http", "https", "mailto"],
     allowProtocolRelative: false,
@@ -26,13 +41,10 @@ export function sanitizeEventDescription(value: unknown): string {
 }
 
 export function eventDescriptionPreview(html: string, maxLength = 360): string {
-  const text = sanitizeHtml(
-    html.replace(/<br\s*\/?>|<\/(?:p|h[1-3]|li)>/gi, " "),
-    {
-      allowedTags: [],
-      allowedAttributes: {},
-    },
-  )
+  const text = sanitizeHtml(html.replace(/<br\s*\/?>|<\/(?:p|h[1-3]|li)>/gi, " "), {
+    allowedTags: [],
+    allowedAttributes: {},
+  })
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")

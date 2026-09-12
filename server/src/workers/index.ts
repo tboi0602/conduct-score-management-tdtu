@@ -7,7 +7,7 @@ import { rabbitClient } from "@rabbitmq";
 import { registry, rabbitConnected, redisConnected } from "@metrics";
 import { RABBITMQ_CONFIG } from "@rabbitmq";
 import { handleAttendanceMessage } from "@workers/attendance.worker";
-import { startOutboxRelay } from "@services/outbox.service";
+import { startOutboxRelay } from "@services/infrastructure/outbox.service";
 import { prisma } from "@config/prisma";
 import { sseHub } from "@realtime/sse";
 
@@ -42,9 +42,7 @@ const healthServer = http.createServer(async (req, res) => {
 function trackConnectionGauges(): void {
   setInterval(() => {
     rabbitConnected.set(rabbitClient.isConnected() ? 1 : 0);
-    redisConnected.set(
-      redisClient.getClient().status === "ready" ? 1 : 0,
-    );
+    redisConnected.set(redisClient.getClient().status === "ready" ? 1 : 0);
   }, 5_000).unref();
 }
 

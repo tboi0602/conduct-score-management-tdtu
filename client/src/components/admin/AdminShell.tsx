@@ -29,10 +29,10 @@ import { type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminSidebar } from "@/hooks/useAdminSidebar";
-import { useWorkspaceSwitch } from "@/hooks/useWorkspaceSwitch";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminSidebar } from "@/hooks/layout/useAdminSidebar";
+import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const {
@@ -127,7 +127,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         event.preventDefault();
         event.stopPropagation();
       }}
-      className={`relative flex h-full min-h-0 flex-col overscroll-contain border-r border-[#dce4ef] bg-white px-3 py-4 shadow-[10px_0_35px_-28px_rgba(21,74,155,.45)] transition-all duration-300 ${collapsed ? "w-[82px]" : "w-[268px]"}`}
+      className={`relative flex h-full min-h-0 flex-col overscroll-contain border-r border-[#d8e2ed] bg-[#fbfcfe] px-3 py-4 shadow-[12px_0_38px_-30px_rgba(16,42,80,.55)] transition-all duration-300 ${collapsed ? "w-[82px]" : "w-[276px]"}`}
     >
       <div
         className={`flex h-16 shrink-0 items-center gap-2 pt-2 ${collapsed ? "justify-center" : "justify-between px-1"}`}
@@ -464,11 +464,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   );
   return (
     <div
-      className={`min-h-[100dvh] bg-[#f5f7fb] lg:grid ${collapsed ? "lg:grid-cols-[82px_1fr]" : "lg:grid-cols-[268px_1fr]"}`}
+      className={`min-h-[100dvh] bg-[#f3f6fa] lg:grid ${collapsed ? "lg:grid-cols-[82px_1fr]" : "lg:grid-cols-[276px_1fr]"}`}
     >
       <div className="fixed inset-y-0 left-0 z-30 hidden lg:block">{sidebar}</div>
       <div className="fixed inset-x-0 top-0 z-20 flex h-16 items-center justify-between border-b border-[#dce4ef] bg-white/95 px-4 backdrop-blur lg:hidden">
-        <div className="">
+        <div>
           <Image
             src="/images/logo.png"
             alt="TDTU"
@@ -493,19 +493,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
             if (event.target === event.currentTarget) setMobileOpen(false);
           }}
         >
-          <div className="h-full w-[268px]">{sidebar}</div>
+          <div className="h-full w-[276px]">{sidebar}</div>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="absolute left-[280px] top-4 grid h-10 w-10 place-items-center rounded-xl bg-white text-[#102a50]"
+            className="absolute left-[288px] top-4 grid h-10 w-10 place-items-center rounded-xl bg-white text-[#102a50] shadow-[0_10px_28px_-16px_rgba(11,31,58,.6)]"
           >
             <X size={19} />
           </button>
         </div>
       ) : null}
       <main className="min-w-0 pt-16 lg:col-start-2 lg:pt-0">
-        <div className="mx-auto max-w-[1440px] p-4 sm:p-7 lg:p-9">{children}</div>
+        <div className="mx-auto max-w-[1480px] px-4 pb-10 pt-6 sm:px-7 sm:pt-8 lg:px-10 lg:pt-9">
+          {children}
+        </div>
       </main>
     </div>
   );

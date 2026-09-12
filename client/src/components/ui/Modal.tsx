@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { IconButton } from "@/components/ui/IconButton";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
 export function Modal({
   open,
@@ -47,9 +47,10 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`my-6 w-full ${width} animate-[modal-in_.25s_cubic-bezier(.16,1,.3,1)] rounded-[24px] border border-white/70 bg-white shadow-[0_30px_70px_-25px_rgba(16,42,80,.45)]`}
+        className={`my-6 w-full ${width} animate-[modal-in_.25s_cubic-bezier(.16,1,.3,1)] overflow-hidden rounded-[26px] border border-white/80 bg-white shadow-[0_34px_80px_-28px_rgba(11,31,58,.55)]`}
       >
-        <header className="relative z-20 flex items-start justify-between gap-4 rounded-t-[24px] border-b border-[#e6ebf2] bg-white px-6 py-5">
+        <div className="h-1 bg-[#154a9b]" />
+        <header className="relative z-20 flex items-start justify-between gap-4 border-b border-[#e3eaf2] bg-[#f9fbfd] px-6 py-5">
           <div>
             <h2 id="modal-title" className="text-xl font-bold tracking-tight text-[#102a50]">
               {title}
@@ -62,9 +63,7 @@ export function Modal({
             <X size={17} strokeWidth={2} />
           </IconButton>
         </header>
-        <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-b-[24px] bg-white p-6">
-          {children}
-        </div>
+        <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto bg-white p-6">{children}</div>
       </section>
     </div>
   );

@@ -2,8 +2,8 @@
 
 import { Skeleton } from "boneyard-js/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useEventOptions, type EventReference } from "@/hooks/useEventOptions";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useEventOptions, type EventReference } from "@/hooks/events/useEventOptions";
 import { semesterLabel } from "@/lib/event-form";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { inputClass } from "@/components/admin/management-styles";

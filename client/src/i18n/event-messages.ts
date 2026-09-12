@@ -66,6 +66,7 @@
   overCapacity: "Số đăng ký đã vượt sức chứa của sự kiện.",
   points: "Điểm",
   maxPoints: "Điểm tối đa",
+  defaultPoints: "Điểm mặc định",
   minPoints: "Điểm tối đa từ",
   maxPointsFilter: "Điểm tối đa đến",
   UNIVERSITY: "Trường",
@@ -98,7 +99,7 @@
   eventDeleteWarning:
     "Điểm danh và thông báo của sự kiện cũng sẽ bị xóa. Thao tác này không thể hoàn tác.",
   criteriaDeleteWarning:
-    "Chỉ xóa được tiêu chí chưa có sự kiện sử dụng. Thao tác này không thể hoàn tác.",
+    "Chỉ xóa được tiêu chí chưa có sự kiện hoặc điểm rèn luyện sử dụng. Thao tác này không thể hoàn tác.",
   semesterDeleteWarning: "Chỉ xóa được học kỳ chưa có sự kiện hoặc bảng điểm rèn luyện sử dụng.",
   deleting: "Đang xóa",
   retry: "Thử lại",
@@ -116,7 +117,7 @@
   invalidRange: "Giá trị từ phải nhỏ hơn hoặc bằng giá trị đến.",
   missingReference: "Vui lòng chọn tiêu chí và học kỳ.",
   resourceMissing: "Dữ liệu không còn tồn tại. Hãy tải lại danh sách.",
-  criteriaInUse: "Tiêu chí đang được sử dụng bởi sự kiện nên không thể xóa.",
+  criteriaInUse: "Tiêu chí đang được sử dụng bởi sự kiện hoặc điểm rèn luyện nên không thể xóa.",
   referenceMissing: "Tiêu chí hoặc học kỳ không còn tồn tại. Hãy chọn lại danh mục.",
   noOptions: "Không có kết quả phù hợp.",
   noSemesters: "Chưa có học kỳ. Cần bổ sung dữ liệu học kỳ trước khi tạo sự kiện.",
@@ -200,6 +201,7 @@ const en = {
   overCapacity: "Registrations exceed this event's capacity.",
   points: "Points",
   maxPoints: "Maximum points",
+  defaultPoints: "Default points",
   minPoints: "Maximum points from",
   maxPointsFilter: "Maximum points to",
   UNIVERSITY: "University",
@@ -232,7 +234,7 @@ const en = {
   eventDeleteWarning:
     "Attendance records and notifications for this event will also be deleted. This cannot be undone.",
   criteriaDeleteWarning:
-    "Only criteria without linked events can be deleted. This cannot be undone.",
+    "Only criteria unused by events or conduct scores can be deleted. This cannot be undone.",
   semesterDeleteWarning:
     "Only semesters without linked events or conduct score records can be deleted.",
   deleting: "Deleting",
@@ -250,7 +252,7 @@ const en = {
   invalidRange: "The lower bound must not exceed the upper bound.",
   missingReference: "Select a criterion and semester.",
   resourceMissing: "This record no longer exists. Reload the list.",
-  criteriaInUse: "This criterion is used by events and cannot be deleted.",
+  criteriaInUse: "This criterion is used by events or conduct scores and cannot be deleted.",
   referenceMissing: "The criterion or semester no longer exists. Select another option.",
   noOptions: "No matching options.",
   noSemesters: "No semesters are available. Semester data must be added before creating an event.",

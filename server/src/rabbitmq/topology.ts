@@ -1,10 +1,6 @@
 import type { ConfirmChannel } from "amqplib";
 
-import {
-  DLX_EXCHANGE,
-  RABBITMQ_CONFIG,
-  RETRY_EXCHANGE,
-} from "@rabbitmq/config";
+import { DLX_EXCHANGE, RABBITMQ_CONFIG, RETRY_EXCHANGE } from "@rabbitmq/config";
 
 export async function assertTopology(channel: ConfirmChannel): Promise<void> {
   await channel.assertExchange(RABBITMQ_CONFIG.exchange, "direct", { durable: true });

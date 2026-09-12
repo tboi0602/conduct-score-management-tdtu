@@ -6,7 +6,7 @@ import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useAdminLogin } from "@/hooks/useAdminLogin";
+import { useAdminLogin } from "@/hooks/auth/useAdminLogin";
 
 export default function AdminLoginPage() {
   const { message } = useLanguage();
@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
             autoComplete="username"
             required
             placeholder={message.admin.usernamePlaceholder}
-            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-white px-4 text-sm text-[#102a50] outline-none transition-colors placeholder:text-[#98a4b5] focus:border-[#154a9b]"
+            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-[#fbfcfe] px-4 text-sm text-[#102a50] outline-none transition placeholder:text-[#98a4b5] hover:border-[#afc1d7] focus:border-[#154a9b] focus:bg-white focus:ring-4 focus:ring-[#154a9b]/10"
           />
         </div>
 
@@ -48,14 +48,14 @@ export default function AdminLoginPage() {
             autoComplete="current-password"
             required
             placeholder={message.admin.passwordPlaceholder}
-            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-white px-4 text-sm text-[#102a50] outline-none transition-colors placeholder:text-[#98a4b5] focus:border-[#154a9b]"
+            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-[#fbfcfe] px-4 text-sm text-[#102a50] outline-none transition placeholder:text-[#98a4b5] hover:border-[#afc1d7] focus:border-[#154a9b] focus:bg-white focus:ring-4 focus:ring-[#154a9b]/10"
           />
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="min-h-12 w-full rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#103f85] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-65"
+          className="min-h-12 w-full rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_-18px_rgba(21,74,155,.85)] transition hover:-translate-y-0.5 hover:bg-[#103f85] focus-visible:ring-4 focus-visible:ring-[#154a9b]/20 active:translate-y-0 active:scale-[.99] disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-65"
         >
           {isSubmitting ? (
             <LoadingSpinner label={message.admin.submitting} />

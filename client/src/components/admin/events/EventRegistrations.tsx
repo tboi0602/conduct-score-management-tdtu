@@ -1,90 +1,21 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Search, UserPlus, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { ManagementTable } from "@/components/admin/ManagementTable";
 import { primaryButton } from "@/components/admin/management-styles";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/ToastProvider";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useEventRegistrations } from "@/hooks/events/useEventRegistrations";
 import { formatDate } from "@/lib/event-form";
-import { queryKeys } from "@/lib/query-keys";
-import { eventRegistrationService } from "@/services/events";
-import type { EventRegistration, ManagedEvent, StudentOption } from "@/types/events";
+import type { ManagedEvent, StudentOption } from "@/types/events";
 
 export function EventRegistrations({ event }: { event: ManagedEvent }) {
   const { t, locale } = useAdminTranslations();
-  const { showToast } = useToast();
-  const client = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [term, setTerm] = useState("");
-  const [status, setStatus] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [studentTerm, setStudentTerm] = useState("");
-  const [cancelTarget, setCancelTarget] = useState<EventRegistration | null>(null);
-  const search = useDebounce(term.trim(), 500);
-  const studentSearch = useDebounce(studentTerm.trim(), 500);
-  const query = useQuery({
-    queryKey: [...queryKeys.events.registrations(event.id, search, status), page],
-    queryFn: () =>
-      eventRegistrationService.managed(
-        event.id,
-        page,
-        20,
-        search.length >= 3 ? search : undefined,
-        status || undefined,
-      ),
-    placeholderData: keepPreviousData,
-  });
-  const students = useQuery({
-    queryKey: queryKeys.events.studentOptions(event.id, studentSearch),
-    queryFn: () =>
-      eventRegistrationService.students(
-        event.id,
-        1,
-        studentSearch.length >= 3 ? studentSearch : undefined,
-      ),
-    enabled: adding,
-    staleTime: 30_000,
-  });
-  const refresh = async () => {
-    await client.invalidateQueries({ queryKey: ["admin", "events", event.id, "registrations"] });
-    await client.invalidateQueries({ queryKey: queryKeys.events.all });
-  };
-  const add = useMutation({
-    mutationFn: (studentId: string) =>
-      eventRegistrationService.registerStudent(event.id, studentId),
-    onSuccess: async () => {
-      setCancelTarget(null);
-      setAdding(false);
-      showToast(t.registrationSaved);
-      await refresh();
-    },
-    onError: () => showToast(t.registrationFailed, "error"),
-  });
-  const cancel = useMutation({
-    mutationFn: (studentId: string) => eventRegistrationService.cancelStudent(event.id, studentId),
-    onSuccess: async () => {
-      setCancelTarget(null);
-      showToast(t.registrationSaved);
-      await refresh();
-    },
-    onError: () => showToast(t.registrationFailed, "error"),
-  });
-  const pagination = query.data?.pagination ?? {
-    page,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false,
-  };
+  const state = useEventRegistrations(event.id);
   return (
     <section className="mx-auto max-w-7xl">
       <Link
@@ -112,11 +43,8 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
         <label className="relative flex-1">
           <Search size={17} className="absolute left-3 top-3 text-[#718096]" />
           <input
-            value={term}
-            onChange={(e) => {
-              setTerm(e.target.value);
-              setPage(1);
-            }}
+            value={state.term}
+            onChange={(e) => state.updateTerm(e.target.value)}
             placeholder={t.registrationSearch}
             aria-label={t.registrationSearch}
             className="h-11 w-full rounded-xl border border-[#cdd9e7] pl-10 pr-3 text-sm outline-none focus:border-[#154a9b]"
@@ -124,11 +52,8 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
         </label>
         <div className="w-full sm:w-52">
           <CustomSelect
-            value={status}
-            onChange={(value) => {
-              setStatus(value);
-              setPage(1);
-            }}
+            value={state.status}
+            onChange={state.updateStatus}
             ariaLabel={t.registrationStatus}
             placeholder={t.allRegistrationStatuses}
             options={[
@@ -140,22 +65,22 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
             ]}
           />
         </div>
-        <button type="button" onClick={() => setAdding(true)} className={primaryButton}>
+        <button type="button" onClick={() => state.setAdding(true)} className={primaryButton}>
           <UserPlus size={17} />
           {t.addStudent}
         </button>
       </div>
       <ManagementTable
         headers={[t.studentCode, t.fullName, t.registrationStatus, t.registeredAt, t.actions]}
-        loading={query.isPending}
-        fetching={query.isFetching}
-        error={query.error}
-        count={query.data?.data.length ?? 0}
-        pagination={pagination}
-        onPageChange={setPage}
-        retry={() => void query.refetch()}
+        loading={state.registrations.isPending}
+        fetching={state.registrations.isFetching}
+        error={state.registrations.error}
+        count={state.registrations.data?.data.length ?? 0}
+        pagination={state.pagination}
+        onPageChange={state.setPage}
+        retry={() => void state.registrations.refetch()}
       >
-        {(query.data?.data ?? []).map((item) => (
+        {(state.registrations.data?.data ?? []).map((item) => (
           <tr key={item.id}>
             <td className="px-5 py-4 font-semibold text-[#154a9b]">{item.student.studentCode}</td>
             <td className="px-5 py-4">
@@ -169,8 +94,8 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
                 <IconButton
                   label={t.cancel}
                   tone="danger"
-                  disabled={cancel.isPending}
-                  onClick={() => setCancelTarget(item)}
+                  disabled={state.cancel.isPending}
+                  onClick={() => state.setCancelTarget(item)}
                 >
                   <X size={16} />
                 </IconButton>
@@ -179,21 +104,26 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
           </tr>
         ))}
       </ManagementTable>
-      <Modal open={adding} onClose={() => setAdding(false)} title={t.selectStudent} size="md">
+      <Modal
+        open={state.adding}
+        onClose={() => state.setAdding(false)}
+        title={t.selectStudent}
+        size="md"
+      >
         <input
-          value={studentTerm}
-          onChange={(e) => setStudentTerm(e.target.value)}
+          value={state.studentTerm}
+          onChange={(e) => state.setStudentTerm(e.target.value)}
           placeholder={t.registrationSearch}
           aria-label={t.registrationSearch}
           className="h-11 w-full rounded-xl border border-[#cdd9e7] px-3 text-sm outline-none focus:border-[#154a9b]"
         />
         <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
-          {(students.data?.data ?? []).map((student: StudentOption) => (
+          {(state.students.data?.data ?? []).map((student: StudentOption) => (
             <button
               key={student.id}
               type="button"
-              disabled={add.isPending}
-              onClick={() => add.mutate(student.id)}
+              disabled={state.add.isPending}
+              onClick={() => state.add.mutate(student.id)}
               className="flex w-full items-center justify-between rounded-xl border border-[#dce4ef] p-3 text-left hover:bg-[#f3f6fa]"
             >
               <span>
@@ -208,12 +138,12 @@ export function EventRegistrations({ event }: { event: ManagedEvent }) {
         </div>
       </Modal>
       <ConfirmDialog
-        open={Boolean(cancelTarget)}
-        onClose={() => setCancelTarget(null)}
-        onConfirm={() => cancelTarget && cancel.mutate(cancelTarget.student.id)}
+        open={Boolean(state.cancelTarget)}
+        onClose={() => state.setCancelTarget(null)}
+        onConfirm={() => state.cancelTarget && state.cancel.mutate(state.cancelTarget.student.id)}
         title={t.cancel}
-        subject={cancelTarget?.student.user.name ?? ""}
-        pending={cancel.isPending}
+        subject={state.cancelTarget?.student.user.name ?? ""}
+        pending={state.cancel.isPending}
       />
     </section>
   );

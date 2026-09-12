@@ -12,22 +12,22 @@ function emit(level: Level, message: string, extra?: unknown): void {
   const threshold = LEVELS[(process.env.LOG_LEVEL as Level) ?? "info"] ?? 20;
   if (LEVELS[level] < threshold) return;
   const base = {
-    ts: new Date().toLocaleString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }).replace(",", " -"),
+    ts: new Date()
+      .toLocaleString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+      .replace(",", " -"),
     level,
     msg: message,
   };
   if (extra && typeof extra === "object") {
-    process.stdout.write(
-      JSON.stringify({ ...base, ...(extra as Record<string, unknown>) }) + "\n",
-    );
+    process.stdout.write(JSON.stringify({ ...base, ...(extra as Record<string, unknown>) }) + "\n");
   } else {
     process.stdout.write(JSON.stringify(base) + "\n");
   }

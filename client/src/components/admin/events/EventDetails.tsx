@@ -2,7 +2,7 @@
 
 import { Modal } from "@/components/ui/Modal";
 import { CalendarClock, MapPin, ShieldCheck, Users } from "lucide-react";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { formatDate, organizerLabel, semesterLabel } from "@/lib/event-form";
 import type { ManagedEvent } from "@/types/events";
 

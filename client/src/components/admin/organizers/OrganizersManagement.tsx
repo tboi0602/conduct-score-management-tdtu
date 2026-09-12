@@ -1,7 +1,6 @@
 "use client";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ManagementTable } from "@/components/admin/ManagementTable";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
@@ -9,12 +8,11 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useOrganizerManagement } from "@/hooks/useOrganizerManagement";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useOrganizerManagement } from "@/hooks/organizers/useOrganizerManagement";
+import { useAcademicOptions } from "@/hooks/academic/useAcademicOptions";
 import { organizerLabel } from "@/lib/event-form";
-import { queryKeys } from "@/lib/query-keys";
-import { adminService } from "@/services/admin";
 import type { OrganizingUnit } from "@/types/events";
 
 const organizerCopy = {
@@ -89,12 +87,7 @@ function OrganizerForm({
   copy: (typeof organizerCopy)["vi"] | (typeof organizerCopy)["en"];
 }) {
   const [facultyId, setFacultyId] = useState(unit?.facultyId ?? "");
-  const faculties =
-    useQuery({
-      queryKey: queryKeys.academic.options,
-      queryFn: adminService.getAcademicOptions,
-      staleTime: 60 * 60_000,
-    }).data?.data ?? [];
+  const faculties = useAcademicOptions().data?.data ?? [];
   return (
     <form onSubmit={submit} className="space-y-5">
       <label className="block text-sm font-semibold">

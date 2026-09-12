@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { Semester, SemesterType } from "@/types/events";
 
 export function SemesterForm({

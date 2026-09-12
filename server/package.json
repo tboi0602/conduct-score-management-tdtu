@@ -18,6 +18,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seeds/index.ts",
     "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"prisma/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test:attendance-load": "tsx tests/attendance-load.ts"
   },
@@ -43,6 +45,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.43",
     "@types/sanitize-html": "^2.16.1",
+    "prettier": "^3.9.6",
     "tsc-alias": "^1.9.2",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"

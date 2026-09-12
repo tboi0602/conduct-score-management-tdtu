@@ -7,8 +7,8 @@ import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { usePermissionsManagement } from "@/hooks/usePermissionsManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { usePermissionsManagement } from "@/hooks/rbac/usePermissionsManagement";
 
 export function PermissionsManagement() {
   const state = usePermissionsManagement();

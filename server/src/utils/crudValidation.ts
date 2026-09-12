@@ -17,9 +17,7 @@ export function textInput(value: unknown, field: string, max = 255): string {
 export function uuidInput(value: unknown, field = "id"): string {
   if (
     typeof value !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      value,
-    )
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
   ) {
     throw new ApiError(400, `${field} must be a UUID`);
   }
@@ -27,12 +25,7 @@ export function uuidInput(value: unknown, field = "id"): string {
 }
 
 export function integerInput(value: unknown, field: string): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value < 0 ||
-    value > 2147483647
-  ) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2147483647) {
     throw new ApiError(400, `${field} must be a non-negative 32-bit integer`);
   }
   return value;
@@ -41,9 +34,7 @@ export function integerInput(value: unknown, field: string): number {
 export function dateInput(value: unknown, field: string): Date {
   if (
     typeof value !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.test(
-      value,
-    )
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.test(value)
   ) {
     throw new ApiError(400, `${field} must be an ISO datetime with timezone`);
   }
@@ -74,17 +65,13 @@ export function enumInput<T extends string>(
   return value as T;
 }
 
-export function optionalQuery<T>(
-  value: unknown,
-  parse: (value: unknown) => T,
-): T | undefined {
+export function optionalQuery<T>(value: unknown, parse: (value: unknown) => T): T | undefined {
   return value === undefined ? undefined : parse(value);
 }
 
 export function searchInput(value: unknown): string {
   const search = textInput(value, "search", 100);
-  if (search.length < 3)
-    throw new ApiError(400, "search must contain at least 3 characters");
+  if (search.length < 3) throw new ApiError(400, "search must contain at least 3 characters");
   // Escape LIKE wildcards so search means a literal substring.
   return search.replace(/[\\%_]/g, "\\$&");
 }

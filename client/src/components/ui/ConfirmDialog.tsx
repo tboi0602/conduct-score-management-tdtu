@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
 export function ConfirmDialog({
   open,
@@ -26,13 +26,15 @@ export function ConfirmDialog({
   const { t } = useAdminTranslations();
   return (
     <Modal open={open} onClose={pending ? () => {} : onClose} title={title} size="md">
-      <div className="flex gap-4">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#fff0f1] text-[#bd3343]">
-          <AlertTriangle size={21} />
-        </div>
-        <div>
-          <p className="font-semibold text-[#102a50]">{subject}</p>
-          <p className="mt-1 text-sm text-[#66758a]">{description ?? t.cannotUndo}</p>
+      <div className="rounded-2xl border border-[#f1d4d8] bg-[#fff8f8] p-4 sm:p-5">
+        <div className="flex gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#ffe9ec] text-[#bd3343]">
+            <AlertTriangle size={22} />
+          </div>
+          <div>
+            <p className="font-bold text-[#102a50]">{subject}</p>
+            <p className="mt-1.5 text-sm leading-6 text-[#66758a]">{description ?? t.cannotUndo}</p>
+          </div>
         </div>
       </div>
       {error ? (
@@ -40,7 +42,7 @@ export function ConfirmDialog({
           {error}
         </p>
       ) : null}
-      <div className="mt-7 flex justify-end gap-3">
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onClose}
@@ -53,7 +55,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="rounded-xl bg-[#bd3343] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#a72a38] active:scale-[.98]"
+          className="rounded-xl bg-[#bd3343] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-16px_rgba(189,51,67,.8)] transition hover:bg-[#a72a38] active:scale-[.98] disabled:opacity-50"
         >
           {pending ? t.deleting : t.confirm}
         </button>

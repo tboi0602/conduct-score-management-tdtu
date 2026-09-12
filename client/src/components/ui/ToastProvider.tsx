@@ -24,7 +24,7 @@ function ToastItem({ toast, close }: { toast: Toast; close: () => void }) {
   return (
     <div
       role={success ? "status" : "alert"}
-      className={`pointer-events-auto flex w-[min(360px,calc(100vw-2rem))] items-start gap-3 rounded-2xl border bg-white p-4 shadow-[0_18px_50px_-20px_rgba(16,42,80,.45)] ${success ? "border-[#b8dfcb]" : "border-[#f0bdc4]"}`}
+      className={`pointer-events-auto relative flex w-[min(380px,calc(100vw-2rem))] items-start gap-3 overflow-hidden rounded-2xl border bg-white p-4 shadow-[0_22px_55px_-24px_rgba(16,42,80,.55)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${success ? "border-[#b8dfcb] before:bg-[#1f7a4d]" : "border-[#f0bdc4] before:bg-[#bd3343]"}`}
     >
       {success ? (
         <CheckCircle2 size={19} className="mt-0.5 shrink-0 text-[#1f7a4d]" />

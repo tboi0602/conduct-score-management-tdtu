@@ -42,7 +42,10 @@ const studentOrganizations: Array<{ name: string; facultyCode?: string }> = [
   { name: "Câu lạc bộ Du lịch", facultyCode: "SSH" },
   { name: "Câu lạc bộ Điện tử", facultyCode: "FEEE" },
   { name: "Câu lạc bộ Công tác sự kiện", facultyCode: "IT" },
-  { name: "Câu lạc bộ Dare to Open khoa Khoa học ứng dụng Trường Đại học Tôn Đức Thắng", facultyCode: "FAS" },
+  {
+    name: "Câu lạc bộ Dare to Open khoa Khoa học ứng dụng Trường Đại học Tôn Đức Thắng",
+    facultyCode: "FAS",
+  },
   { name: "Câu lạc bộ Faculty of Applied Science's English Club", facultyCode: "FAS" },
   { name: "Câu lạc bộ Vườn ươm - Nhà nấm", facultyCode: "FAS" },
   { name: "Câu lạc bộ MIC BAC", facultyCode: "FBA" },
@@ -85,12 +88,24 @@ export async function seedOrganizingUnits(prisma: PrismaClient): Promise<void> {
       create: { type: "FACULTY", code: `FACULTY:${faculty.code}`, facultyId: faculty.id },
     });
   }
-  const classes = await prisma.class.findMany({ select: { id: true, code: true, major: { select: { facultyId: true } } } });
+  const classes = await prisma.class.findMany({
+    select: { id: true, code: true, major: { select: { facultyId: true } } },
+  });
   for (const academicClass of classes) {
     await prisma.organizingUnit.upsert({
       where: { code: `CLASS:${academicClass.code}` },
-      update: { type: "CLASS", name: null, facultyId: academicClass.major.facultyId, classId: academicClass.id },
-      create: { type: "CLASS", code: `CLASS:${academicClass.code}`, facultyId: academicClass.major.facultyId, classId: academicClass.id },
+      update: {
+        type: "CLASS",
+        name: null,
+        facultyId: academicClass.major.facultyId,
+        classId: academicClass.id,
+      },
+      create: {
+        type: "CLASS",
+        code: `CLASS:${academicClass.code}`,
+        facultyId: academicClass.major.facultyId,
+        classId: academicClass.id,
+      },
     });
   }
 
@@ -105,7 +120,12 @@ export async function seedOrganizingUnits(prisma: PrismaClient): Promise<void> {
     }
     await prisma.organizingUnit.upsert({
       where: { code },
-      update: { type: "CLUB", name: organization.name, facultyId: facultyId ?? null, classId: null },
+      update: {
+        type: "CLUB",
+        name: organization.name,
+        facultyId: facultyId ?? null,
+        classId: null,
+      },
       create: { type: "CLUB", code, name: organization.name, facultyId: facultyId ?? null },
     });
   }

@@ -46,9 +46,10 @@ enum EventRegistrationStatus {
 
 // Tiêu chí đánh giá, vd: "Ý thức tham gia hoạt động"
 model Criteria {
-  id        String   @id @default(uuid()) @db.Uuid
-  title     String   @db.VarChar(255)
-  maxPoints Int      @default(0)
+  id            String   @id @default(uuid()) @db.Uuid
+  title         String   @db.VarChar(255)
+  maxPoints     Int      @default(0)
+  defaultPoints Int      @default(0)
   events    Event[]
   conductScoreEntries ConductScoreEntry[]
   conductScoreTotals ConductScoreCriterionTotal[]

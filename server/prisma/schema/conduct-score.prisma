@@ -20,6 +20,7 @@ enum ConductScoreStatus {
 enum ConductScoreEntrySource {
   EVENT
   MANUAL_ADJUSTMENT
+  DEFAULT_CRITERION
   REVERSAL
   LEGACY_IMPORT
 }
@@ -73,6 +74,7 @@ model ConductScoreEntry {
   criteriaId      String?                 @db.Uuid
   eventId         String?                 @db.Uuid
   points          Int
+  result          String                  @default("RECORDED") @db.VarChar(100)
   source          ConductScoreEntrySource
   reason          String?                 @db.VarChar(500)
   createdByUserId String?                 @db.Uuid

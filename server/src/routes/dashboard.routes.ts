@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { summary } from "@controllers/dashboard.controller";
+import { summary } from "@controllers/dashboard/dashboard.controller";
 import { authenticate, requirePermission } from "@middleware";
 import { asyncHandler } from "@utils/asyncHandler";
 

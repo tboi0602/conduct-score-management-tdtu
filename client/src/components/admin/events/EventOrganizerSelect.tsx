@@ -1,14 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useEventOrganizerOptions } from "@/hooks/events/useEventOptions";
 import { organizerLabel } from "@/lib/event-form";
-import { queryKeys } from "@/lib/query-keys";
-import { eventService } from "@/services/events";
 import type { OrganizingUnit } from "@/types/events";
 
 export function EventOrganizerSelect({
@@ -20,24 +15,8 @@ export function EventOrganizerSelect({
   onChange: (unit: OrganizingUnit | null) => void;
   disabled?: boolean;
 }) {
-  const [search, setSearch] = useState("");
-  const term = useDebounce(search.trim(), 500);
-  const { profile } = useAdminAccess();
   const { t } = useAdminTranslations();
-  const query = useQuery({
-    queryKey: queryKeys.eventOptions.organizerPage(1, term),
-    queryFn: () => eventService.organizers(1, term || undefined),
-    staleTime: 5 * 60_000,
-  });
-  const items = query.data?.data ?? [];
-  useEffect(() => {
-    if (selected) return;
-    const facultyUnit = items.find(
-      (item) => item.type === "FACULTY" && item.facultyId === profile?.effectiveFaculty?.id,
-    );
-    if (facultyUnit) onChange(facultyUnit);
-    else if (items.length === 1) onChange(items[0]);
-  }, [items, onChange, profile?.effectiveFaculty?.id, selected]);
+  const { search, setSearch, query, items } = useEventOrganizerOptions(selected, onChange);
   return (
     <div className="space-y-2">
       <input

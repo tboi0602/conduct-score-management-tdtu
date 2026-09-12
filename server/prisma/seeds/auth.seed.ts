@@ -75,26 +75,68 @@ const allPermissionDescriptions = {
 const permissionsByRole = {
   ADMIN: ["*"],
   EVENT_ORGANIZER: [
-    "auth.login", "dashboard.read", "event.read", "event.create", "event.update", "event.delete",
-    "event-registration.read", "event-registration.manage", "attendance.read", "attendance.manage",
-    "attendance.session.manage", "organizer.read", "academic.read", "criteria.read", "semester.read",
+    "auth.login",
+    "dashboard.read",
+    "event.read",
+    "event.create",
+    "event.update",
+    "event.delete",
+    "event-registration.read",
+    "event-registration.manage",
+    "attendance.read",
+    "attendance.manage",
+    "attendance.session.manage",
+    "organizer.read",
+    "academic.read",
+    "criteria.read",
+    "semester.read",
   ],
   STUDENT_AFFAIRS: [
-    "auth.login", "dashboard.read", "event.read", "event.create", "event.update", "event.delete",
-    "event-registration.read", "event-registration.manage", "attendance.read", "attendance.manage",
-    "attendance.session.manage", "organizer.read", "academic.read", "academic.class.create",
-    "academic.class.update", "criteria.read", "semester.read", "student.read", "student.create",
-    "student.update", "student.delete", "faculty-staff.read", "faculty-staff.create",
-    "faculty-staff.update", "faculty-staff.disable", "faculty-staff.assign-event-organizer",
-    "conduct-score.read", "conduct-score.manage", "conduct-score.finalize", "conduct-score.reopen",
+    "auth.login",
+    "dashboard.read",
+    "event.read",
+    "event.create",
+    "event.update",
+    "event.delete",
+    "event-registration.read",
+    "event-registration.manage",
+    "attendance.read",
+    "attendance.manage",
+    "attendance.session.manage",
+    "organizer.read",
+    "academic.read",
+    "academic.class.create",
+    "academic.class.update",
+    "criteria.read",
+    "semester.read",
+    "student.read",
+    "student.create",
+    "student.update",
+    "student.delete",
+    "faculty-staff.read",
+    "faculty-staff.create",
+    "faculty-staff.update",
+    "faculty-staff.disable",
+    "faculty-staff.assign-event-organizer",
+    "conduct-score.read",
+    "conduct-score.manage",
+    "conduct-score.finalize",
+    "conduct-score.reopen",
   ],
   STUDENT: [
-    "auth.login", "event.read", "event-registration.read", "event-registration.create",
-    "event-registration.delete", "attendance.create", "organizer.read", "academic.read",
-    "criteria.read", "semester.read", "conduct-score.read-own",
+    "auth.login",
+    "event.read",
+    "event-registration.read",
+    "event-registration.create",
+    "event-registration.delete",
+    "attendance.create",
+    "organizer.read",
+    "academic.read",
+    "criteria.read",
+    "semester.read",
+    "conduct-score.read-own",
   ],
 } as const;
-
 
 export async function seedAuthData(prisma: PrismaClient): Promise<void> {
   for (const [permission, description] of Object.entries(allPermissionDescriptions)) {
@@ -140,7 +182,9 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
   });
   const assignedObsolete = obsoleteRoles.filter(({ _count }) => _count.userRoles > 0);
   if (assignedObsolete.length) {
-    throw new Error(`Unsupported assigned roles: ${assignedObsolete.map(({ name }) => name).join(", ")}`);
+    throw new Error(
+      `Unsupported assigned roles: ${assignedObsolete.map(({ name }) => name).join(", ")}`,
+    );
   }
   await prisma.role.deleteMany({ where: { id: { in: obsoleteRoles.map(({ id }) => id) } } });
   await prisma.permission.deleteMany({ where: { permission: "training-point.read" } });

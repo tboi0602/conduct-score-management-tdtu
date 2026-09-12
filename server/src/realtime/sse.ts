@@ -40,7 +40,8 @@ class SSEHub {
     for (const client of this.clients.values()) {
       if ([...client.channels].some((channel) => channel.startsWith("sse:student:"))) student += 1;
       if ([...client.channels].some((channel) => channel.startsWith("sse:event:"))) event += 1;
-      if ([...client.channels].some((channel) => channel.startsWith("sse:dashboard:"))) dashboard += 1;
+      if ([...client.channels].some((channel) => channel.startsWith("sse:dashboard:")))
+        dashboard += 1;
     }
     attendanceSseConnections.set({ scope: "student" }, student);
     attendanceSseConnections.set({ scope: "event" }, event);
@@ -51,9 +52,7 @@ class SSEHub {
   private ensurePublisher(): Redis {
     if (!this.publisher) {
       this.publisher = new Redis(REDIS_CONFIG.url);
-      this.publisher.on("error", (err) =>
-        logger.error(`[sse] publisher error: ${err.message}`),
-      );
+      this.publisher.on("error", (err) => logger.error(`[sse] publisher error: ${err.message}`));
     }
     return this.publisher;
   }
@@ -63,9 +62,7 @@ class SSEHub {
     if (this.subscriber) return this.subscriber;
 
     this.subscriber = new Redis(REDIS_CONFIG.url);
-    this.subscriber.on("error", (err) =>
-      logger.error(`[sse] subscriber error: ${err.message}`),
-    );
+    this.subscriber.on("error", (err) => logger.error(`[sse] subscriber error: ${err.message}`));
     // Khi nhận message từ Redis, đẩy xuống mọi client đang đăng ký kênh đó.
     this.subscriber.on("message", (channel, raw) => {
       for (const client of this.clients.values()) {
@@ -126,10 +123,7 @@ class SSEHub {
     for (const client of this.clients.values()) client.res.end();
     this.clients.clear();
     this.updateConnectionMetrics();
-    await Promise.all([
-      this.publisher?.quit(),
-      this.subscriber?.quit(),
-    ]).catch(() => undefined);
+    await Promise.all([this.publisher?.quit(), this.subscriber?.quit()]).catch(() => undefined);
     this.publisher = null;
     this.subscriber = null;
   }

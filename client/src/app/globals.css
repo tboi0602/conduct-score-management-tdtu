@@ -4,12 +4,14 @@
 
 :root {
   color-scheme: light;
-  --background: #ffffff;
+  --background: #f3f6fa;
   --foreground: #102a50;
   --surface: #ffffff;
-  --border: #d4e0f2;
+  --surface-muted: #f7f9fc;
+  --border: #d8e2ee;
   --muted: #526987;
   --accent: #154a9b;
+  --accent-strong: #103f85;
 }
 
 .event-rich-content {
@@ -100,6 +102,28 @@ body {
   background: var(--background);
   font-family: Geist, "Segoe UI", Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  color: #ffffff;
+  background: #2c65ad;
+}
+
+a,
+button,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #91a0b3;
 }
 
 @keyframes modal-in {

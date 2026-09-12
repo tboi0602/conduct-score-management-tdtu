@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { Criteria } from "@/types/events";
 
 export function CriteriaForm({
@@ -44,6 +44,19 @@ export function CriteriaForm({
             step={1}
             required
             defaultValue={criterion?.maxPoints ?? 0}
+            className={inputClass}
+          />
+        </label>
+        <label className="block text-sm font-semibold text-[#263b58]">
+          {t.defaultPoints}
+          <input
+            name="defaultPoints"
+            type="number"
+            min={0}
+            max={2147483647}
+            step={1}
+            required
+            defaultValue={criterion?.defaultPoints ?? 0}
             className={inputClass}
           />
         </label>

@@ -1,20 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { EventRegistrations } from "@/components/admin/events/EventRegistrations";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { queryKeys } from "@/lib/query-keys";
-import { eventService } from "@/services/events";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useEventDetail } from "@/hooks/events/useEventManagement";
 
 export function EventRegistrationsRoute({ eventId }: { eventId: string }) {
   const { t } = useAdminTranslations();
-  const query = useQuery({
-    queryKey: queryKeys.events.detail(eventId),
-    queryFn: () => eventService.get(eventId).then((response) => response.data),
-    staleTime: 60_000,
-  });
+  const query = useEventDetail(eventId);
   if (query.isPending) return <PageLoadingSkeleton />;
   if (query.error || !query.data) {
     return (

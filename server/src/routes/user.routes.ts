@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import * as controller from "@controllers/user.controller";
+import * as controller from "@controllers/users/user.controller";
 import { authenticate, requirePermission } from "@middleware";
 import { asyncHandler } from "@utils/asyncHandler";
 

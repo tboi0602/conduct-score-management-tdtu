@@ -54,9 +54,9 @@ export const eventService = {
     authHttp<PaginatedResponse<Semester>>(
       `/api/v1/events/options/semesters?${queryString(page, 20, { year })}`,
     ),
-  criteria: (page: number, search?: string) =>
+  criteria: (page: number, search?: string, limit = 20) =>
     authHttp<PaginatedResponse<Criteria>>(
-      `/api/v1/events/options/criteria?${queryString(page, 20, { search })}`,
+      `/api/v1/events/options/criteria?${queryString(page, limit, { search })}`,
     ),
   organizers: (page: number, search?: string) =>
     authHttp<PaginatedResponse<OrganizingUnit>>(

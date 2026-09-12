@@ -7,8 +7,8 @@ import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useRolesManagement } from "@/hooks/useRolesManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useRolesManagement } from "@/hooks/rbac/useRolesManagement";
 
 export function RolesManagement() {
   const state = useRolesManagement();

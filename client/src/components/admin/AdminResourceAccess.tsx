@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 

@@ -29,7 +29,7 @@ const pageBones: SkeletonResult = {
 
 export function PageLoadingSkeleton() {
   return (
-    <main className="min-h-[100dvh] bg-[#f5f7fb] p-5 sm:p-8">
+    <main className="min-h-[100dvh] bg-[#f3f6fa] p-5 sm:p-8">
       <Skeleton
         name="admin-page"
         loading

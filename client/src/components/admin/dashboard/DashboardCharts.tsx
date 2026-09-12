@@ -18,7 +18,8 @@ import {
 import type { DashboardSummary } from "@/types/attendance";
 
 const colors = ["#154a9b", "#2f7cc0", "#e6a23c", "#2f855a", "#b33b4b"];
-const card = "rounded-[22px] border border-[#dce4ef] bg-white p-5";
+const card =
+  "rounded-[24px] border border-[#d9e3ee] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(16,42,80,.55)] sm:p-6";
 
 type Labels = {
   trend: string;

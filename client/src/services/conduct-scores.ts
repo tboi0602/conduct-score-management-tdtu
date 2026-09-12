@@ -5,6 +5,8 @@ import type {
   ConductScoreListResponse,
   ConductScoreSummary,
   BulkFinalizeResult,
+  BulkConductScoreAdjustmentPayload,
+  BulkConductScoreAdjustmentResult,
 } from "@/types/conduct-score";
 
 const json = (body: unknown): RequestInit => ({
@@ -29,10 +31,21 @@ export const conductScoreService = {
     ),
   adjust: (
     studentId: string,
-    payload: { semesterId: string; criteriaId: string; points: number; reason: string },
+    payload: {
+      semesterId: string;
+      criteriaId: string;
+      points: number;
+      reason: string;
+      result: string;
+    },
   ) =>
     authHttp<{ ok: true; data: ConductScoreSummary }>(
       `/api/v1/conduct-scores/${studentId}/adjustments`,
+      json(payload),
+    ),
+  bulkAdjust: (payload: BulkConductScoreAdjustmentPayload) =>
+    authHttp<{ ok: true; data: BulkConductScoreAdjustmentResult }>(
+      "/api/v1/conduct-scores/adjustments-bulk",
       json(payload),
     ),
   finalize: (studentId: string, semesterId: string) =>

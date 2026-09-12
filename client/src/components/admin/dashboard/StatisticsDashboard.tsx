@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Building2, CalendarDays, CheckCircle2, KeyRound, Percent, Users } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useDashboardData } from "@/hooks/dashboard/useDashboardData";
 import { dashboardMessages } from "@/i18n/dashboard-messages";
-import { queryKeys } from "@/lib/query-keys";
-import { attendanceService } from "@/services/attendance";
 import type { Permission } from "@/types/admin";
 
 export function StatisticsDashboard() {
@@ -17,12 +15,7 @@ export function StatisticsDashboard() {
   const t = dashboardMessages[locale];
   const access = useAdminAccess();
   const [permissionsOpen, setPermissionsOpen] = useState(false);
-  const query = useQuery({
-    queryKey: queryKeys.dashboard(),
-    queryFn: () => attendanceService.dashboard().then((response) => response.data),
-    enabled: access.can("dashboard.read"),
-    staleTime: 60_000,
-  });
+  const { dashboard: query } = useDashboardData(access.can("dashboard.read"));
   const groupedPermissions = useMemo(() => {
     const groups = new Map<string, Permission[]>();
     for (const permission of access.profile?.permissions ?? []) {

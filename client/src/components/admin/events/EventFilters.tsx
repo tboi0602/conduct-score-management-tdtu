@@ -11,8 +11,8 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/management-styles";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import type { EventReference } from "@/hooks/useEventOptions";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import type { EventReference } from "@/hooks/events/useEventOptions";
 import type { EventFilters as Filters } from "@/types/events";
 import type { OrganizingUnit } from "@/types/events";
 

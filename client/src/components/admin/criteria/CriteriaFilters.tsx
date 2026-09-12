@@ -8,7 +8,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/management-styles";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { CriteriaFilters as Filters } from "@/types/events";
 
 export function CriteriaFilters({

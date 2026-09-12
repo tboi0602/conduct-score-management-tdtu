@@ -21,11 +21,7 @@ export type PaginationMeta = {
   hasPreviousPage: boolean;
 };
 
-function parsePositiveInteger(
-  value: unknown,
-  fallback: number,
-  field: string,
-): number {
+function parsePositiveInteger(value: unknown, fallback: number, field: string): number {
   if (value === undefined) return fallback;
   if (typeof value !== "string" || !/^\d+$/.test(value)) {
     throw new ApiError(400, `${field} must be a positive integer`);
@@ -54,10 +50,7 @@ export function parsePagination(
     throw new ApiError(400, "Pagination offset is too large");
   }
   if (options.maxOffset !== undefined && skip > options.maxOffset) {
-    throw new ApiError(
-      400,
-      "Pagination offset is too large; narrow the search or filters",
-    );
+    throw new ApiError(400, "Pagination offset is too large; narrow the search or filters");
   }
   return { page, limit, skip };
 }

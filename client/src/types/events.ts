@@ -31,10 +31,11 @@ export type Criteria = {
   id: string;
   title: string;
   maxPoints: number;
+  defaultPoints: number;
   createdAt: string;
   updatedAt: string;
 };
-export type CriteriaPayload = Pick<Criteria, "title" | "maxPoints">;
+export type CriteriaPayload = Pick<Criteria, "title" | "maxPoints" | "defaultPoints">;
 export type CriteriaFilters = { search?: string; minPoints?: string; maxPoints?: string };
 export type EventPayload = {
   name: string;

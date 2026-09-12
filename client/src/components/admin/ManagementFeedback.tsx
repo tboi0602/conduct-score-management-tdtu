@@ -1,6 +1,6 @@
 "use client";
 
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { managementError } from "@/lib/event-form";
 
 export function ManagementError({

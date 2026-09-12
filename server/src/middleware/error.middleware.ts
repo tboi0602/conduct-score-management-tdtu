@@ -7,12 +7,7 @@ import { logger } from "@config/logger";
  *   - ApiError  -> trả đúng status + message
  *   - lỗi khác  -> trả 500 (không lộ chi tiết nội bộ ra ngoài)
  */
-export function errorHandler(
-  err: Error,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-): void {
+export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
   const status = (err as Error & { status?: number }).status ?? 500;
 
   if (status >= 500) {

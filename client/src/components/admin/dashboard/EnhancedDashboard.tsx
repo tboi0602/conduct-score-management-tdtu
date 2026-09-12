@@ -18,8 +18,8 @@ import { rankingLabel } from "@/components/conduct-scores/ConductScoreReport";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useDashboardData } from "@/hooks/dashboard/useDashboardData";
 import type { Permission } from "@/types/admin";
 import type { ConductScoreRanking } from "@/types/conduct-score";
 
@@ -104,12 +104,17 @@ export function EnhancedDashboard() {
   };
   return (
     <section>
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex flex-col gap-5 border-b border-[#dfe7f0] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[.18em] text-[#154a9b]">
-            {data.scope === "GLOBAL" ? "TDTU Intelligence" : access.profile?.effectiveFaculty?.code}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#102a50]">
+          <div className="flex items-center gap-2.5">
+            <span className="h-px w-7 bg-[#154a9b]" />
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#154a9b]">
+              {data.scope === "GLOBAL"
+                ? "TDTU Intelligence"
+                : access.profile?.effectiveFaculty?.code}
+            </p>
+          </div>
+          <h1 className="mt-3 text-3xl font-bold tracking-[-.035em] text-[#102a50] sm:text-4xl">
             {vi ? "Tổng quan vận hành" : "Operations overview"}
           </h1>
           <p className="mt-2 text-sm text-[#66758a]">
@@ -132,7 +137,7 @@ export function EnhancedDashboard() {
           <button
             type="button"
             onClick={() => setPermissionsOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d1dcea] bg-white px-4 text-sm font-bold text-[#40546f]"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#cbd8e7] bg-white px-4 text-sm font-bold text-[#40546f] transition hover:border-[#a9bdd4] hover:bg-[#f8faff] active:scale-[.98]"
           >
             <KeyRound size={17} />
             {access.profile?.permissions.length ?? 0} {vi ? "quyền" : "permissions"}
@@ -143,9 +148,10 @@ export function EnhancedDashboard() {
         {cards.map(({ label, value, icon: Icon }) => (
           <article
             key={label}
-            className="rounded-[22px] border border-[#dce4ef] bg-white p-5 shadow-[0_14px_35px_-30px_rgba(16,42,80,.55)]"
+            className="group relative overflow-hidden rounded-[22px] border border-[#d9e3ee] bg-white p-5 shadow-[0_18px_42px_-36px_rgba(16,42,80,.62)] transition duration-200 hover:-translate-y-1 hover:border-[#bfd0e3] hover:shadow-[0_24px_50px_-34px_rgba(16,42,80,.58)]"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#edf4fc] text-[#154a9b]">
+            <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-80" />
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#edf4fc] text-[#154a9b] transition group-hover:bg-[#154a9b] group-hover:text-white">
               <Icon size={19} />
             </span>
             <p className="mt-5 text-3xl font-black tracking-tight text-[#102a50]">{value}</p>
@@ -163,14 +169,21 @@ export function EnhancedDashboard() {
         }}
         labels={chartLabels}
       />
-      <article className="mt-5 overflow-hidden rounded-[22px] border border-[#dce4ef] bg-white">
-        <div className="border-b border-[#e7edf4] p-5">
-          <h2 className="font-bold text-[#102a50]">{vi ? "Sự kiện nổi bật" : "Top events"}</h2>
+      <article className="mt-5 overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white shadow-[0_20px_48px_-40px_rgba(16,42,80,.6)]">
+        <div className="border-b border-[#e3eaf2] bg-[#fbfcfe] p-5">
+          <h2 className="text-lg font-bold tracking-[-.02em] text-[#102a50]">
+            {vi ? "Sự kiện nổi bật" : "Top events"}
+          </h2>
         </div>
         <div className="divide-y divide-[#edf1f5]">
           {data.topEvents.map((event, index) => (
-            <div key={event.id} className="grid grid-cols-[32px_1fr_auto] items-center gap-3 p-4">
-              <span className="font-black text-[#154a9b]">{index + 1}</span>
+            <div
+              key={event.id}
+              className="grid grid-cols-[36px_1fr_auto] items-center gap-3 p-4 transition hover:bg-[#f8faff]"
+            >
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#edf4fc] font-mono text-sm font-black text-[#154a9b]">
+                {index + 1}
+              </span>
               <div>
                 <p className="font-semibold text-[#263b58]">{event.name}</p>
                 <p className="text-xs text-[#718096]">

@@ -1,11 +1,7 @@
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 
 import { logger } from "@config/logger";
-import {
-  attendanceDlqTotal,
-  attendanceEventsConsumed,
-  attendanceQueueRetryTotal,
-} from "@metrics";
+import { attendanceDlqTotal, attendanceEventsConsumed, attendanceQueueRetryTotal } from "@metrics";
 import { RABBITMQ_CONFIG, RETRY_EXCHANGE } from "@rabbitmq/config";
 import { rabbitConnection } from "@rabbitmq/connection";
 

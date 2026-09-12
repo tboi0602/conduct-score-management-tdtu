@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   CalendarDays,
@@ -25,12 +24,10 @@ import { EventDetails } from "@/components/admin/events/EventDetails";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useEventManagement } from "@/hooks/useEventManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useEventManagement } from "@/hooks/events/useEventManagement";
 import { formatDate, managementError, organizerLabel, semesterLabel } from "@/lib/event-form";
-import { queryKeys } from "@/lib/query-keys";
-import { eventService } from "@/services/events";
 import type { ManagedEvent } from "@/types/events";
 
 export function EventsManagement() {
@@ -39,15 +36,8 @@ export function EventsManagement() {
   const { t, locale } = useAdminTranslations();
   const [viewing, setViewing] = useState<ManagedEvent | null>(null);
   const router = useRouter();
-  const queryClient = useQueryClient();
   const loadDetail = (event: ManagedEvent, action: (detail: ManagedEvent) => void) => {
-    void queryClient
-      .fetchQuery({
-        queryKey: queryKeys.events.detail(event.id),
-        queryFn: () => eventService.get(event.id).then((response) => response.data),
-        staleTime: 60_000,
-      })
-      .then(action);
+    void state.loadDetail(event.id).then(action);
   };
   return (
     <section>
@@ -100,8 +90,9 @@ export function EventsManagement() {
           : state.items.map((event) => (
               <article
                 key={event.id}
-                className="flex min-h-72 flex-col rounded-[22px] border border-[#dce4ef] bg-white p-5 shadow-[0_18px_45px_-32px_rgba(31,67,111,.42)] transition hover:border-[#b9cae0]"
+                className="group relative flex min-h-72 flex-col overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white p-5 shadow-[0_20px_48px_-38px_rgba(16,42,80,.62)] transition duration-200 hover:-translate-y-1 hover:border-[#b9cae0] hover:shadow-[0_26px_55px_-36px_rgba(16,42,80,.6)]"
               >
+                <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-85" />
                 <header className="flex items-start justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eaf2fc] font-bold text-[#154a9b]">
@@ -127,7 +118,7 @@ export function EventsManagement() {
                   onClick={() => loadDetail(event, setViewing)}
                   className="mt-5 text-left"
                 >
-                  <h2 className="line-clamp-2 text-xl font-bold leading-7 text-[#102a50] hover:text-[#154a9b]">
+                  <h2 className="line-clamp-2 text-xl font-bold leading-7 tracking-[-.02em] text-[#102a50] transition group-hover:text-[#154a9b]">
                     {event.name}
                   </h2>
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66758a]">

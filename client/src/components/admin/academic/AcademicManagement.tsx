@@ -8,9 +8,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAcademicManagement } from "@/hooks/useAcademicManagement";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
+import { useAcademicManagement } from "@/hooks/academic/useAcademicManagement";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { AcademicKind } from "@/types/admin";
 
 const copy = {

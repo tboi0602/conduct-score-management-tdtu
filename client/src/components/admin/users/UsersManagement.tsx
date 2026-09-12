@@ -9,8 +9,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { useUsersManagement } from "@/hooks/useUsersManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useUsersManagement } from "@/hooks/users/useUsersManagement";
 import type { AdminUser, Faculty, Role } from "@/types/admin";
 
 const inputClass =
