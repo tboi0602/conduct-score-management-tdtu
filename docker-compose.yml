@@ -14,7 +14,7 @@ x-api-base: &api-base
     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=${DB_POOL_TIMEOUT:-10}
     REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672${RABBITMQ_VHOST:-/}
-    ATTENDANCE_QR_SECRET: ${ATTENDANCE_QR_SECRET}
+    ATTENDANCE_QR_SECRET: ${ATTENDANCE_QR_SECRET:-}
     CLIENT_ORIGIN: ${NEXT_PUBLIC_APP_URL}
   depends_on:
     db-migrate:
@@ -71,7 +71,7 @@ services:
       - .env.docker
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-    command: ["sh", "-c", "npx prisma migrate deploy"]
+    command: ["sh", "-c", "npx prisma migrate deploy && npm run seed"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +138,10 @@ services:
       context: ./client
       dockerfile: Dockerfile
       target: runner
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     image: training-point-client:latest
     container_name: training-point-client
     restart: unless-stopped
