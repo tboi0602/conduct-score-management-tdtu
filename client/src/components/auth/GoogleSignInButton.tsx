@@ -5,12 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useGoogleLogin } from "@/hooks/useGoogleLogin";
+import { useGoogleLogin } from "@/hooks/auth/useGoogleLogin";
 import { env } from "@/lib/env";
+import type { LoginMode } from "@/services/auth";
 
-export function GoogleSignInButton() {
+export function GoogleSignInButton({ mode }: { mode: LoginMode }) {
   const { locale, message } = useLanguage();
-  const { error, handleCredential, isSubmitting } = useGoogleLogin();
+  const { error, handleCredential, isSubmitting } = useGoogleLogin(mode);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [scriptReady, setScriptReady] = useState(false);
 

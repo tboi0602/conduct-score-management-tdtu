@@ -1,0 +1,127 @@
+enum SemesterType {
+  HK1
+  HK2
+  HK3
+}
+
+enum Ranking {
+  EXCELLENT
+  GOOD
+  FAIR
+  AVERAGE
+  POOR
+}
+
+enum ConductScoreStatus {
+  DRAFT
+  FINAL
+}
+
+enum ConductScoreEntrySource {
+  EVENT
+  MANUAL_ADJUSTMENT
+  DEFAULT_CRITERION
+  REVERSAL
+  LEGACY_IMPORT
+}
+
+enum ConductScoreStatusAction {
+  FINALIZED
+  REOPENED
+}
+
+model Semester {
+  id            String         @id @default(uuid()) @db.Uuid
+  year          Int
+  type          SemesterType
+  events        Event[]
+  conductScores ConductScore[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([year, type])
+  @@map("semesters")
+}
+
+model ConductScore {
+  id                String             @id @default(uuid()) @db.Uuid
+  studentId         String             @db.Uuid
+  semesterId        String             @db.Uuid
+  totalScore        Int                @default(0)
+  ranking           Ranking            @default(POOR)
+  status            ConductScoreStatus @default(DRAFT)
+  finalizedAt       DateTime?
+  finalizedByUserId String?            @db.Uuid
+
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester    Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  finalizedBy User?     @relation("ConductScoreFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  entries     ConductScoreEntry[]
+  criteriaTotals ConductScoreCriterionTotal[]
+  statusHistory ConductScoreStatusHistory[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([studentId, semesterId])
+  @@index([semesterId, status, ranking, id])
+  @@index([studentId, updatedAt, id])
+  @@map("conduct_scores")
+}
+
+model ConductScoreEntry {
+  id              String                  @id @default(uuid()) @db.Uuid
+  conductScoreId  String                  @db.Uuid
+  criteriaId      String?                 @db.Uuid
+  eventId         String?                 @db.Uuid
+  points          Int
+  result          String                  @default("RECORDED") @db.VarChar(100)
+  source          ConductScoreEntrySource
+  reason          String?                 @db.VarChar(500)
+  createdByUserId String?                 @db.Uuid
+  reversalOfId    String?                 @db.Uuid
+  idempotencyKey  String                  @unique @db.VarChar(255)
+  createdAt       DateTime                @default(now())
+
+  conductScore ConductScore             @relation(fields: [conductScoreId], references: [id], onDelete: Cascade)
+  criteria     Criteria?                @relation(fields: [criteriaId], references: [id], onDelete: Restrict)
+  event        Event?                   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy    User?                    @relation("ConductScoreEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reversalOf   ConductScoreEntry?       @relation("ConductScoreReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversals    ConductScoreEntry[]      @relation("ConductScoreReversal")
+
+  @@index([conductScoreId, createdAt, id])
+  @@index([criteriaId, conductScoreId])
+  @@index([eventId, conductScoreId])
+  @@map("conduct_score_entries")
+}
+
+model ConductScoreCriterionTotal {
+  id             String   @id @default(uuid()) @db.Uuid
+  conductScoreId String   @db.Uuid
+  criteriaId     String   @db.Uuid
+  rawScore       Int      @default(0)
+  cappedScore    Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  conductScore ConductScore @relation(fields: [conductScoreId], references: [id], onDelete: Cascade)
+  criteria     Criteria     @relation(fields: [criteriaId], references: [id], onDelete: Restrict)
+
+  @@unique([conductScoreId, criteriaId])
+  @@index([criteriaId, cappedScore])
+  @@map("conduct_score_criterion_totals")
+}
+
+model ConductScoreStatusHistory {
+  id             String                   @id @default(uuid()) @db.Uuid
+  conductScoreId String                   @db.Uuid
+  action         ConductScoreStatusAction
+  reason         String?                  @db.VarChar(500)
+  actorUserId    String?                  @db.Uuid
+  createdAt      DateTime                 @default(now())
+
+  conductScore ConductScore @relation(fields: [conductScoreId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("ConductScoreStatusActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([conductScoreId, createdAt, id])
+  @@map("conduct_score_status_history")
+}

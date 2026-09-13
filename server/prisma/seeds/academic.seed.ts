@@ -21,9 +21,7 @@ const academicFaculties: AcademicFaculty[] = [
   {
     code: "FOP",
     name: "Khoa Dược",
-    majors: [
-      { code: "7720201", name: "Dược học" },
-    ],
+    majors: [{ code: "7720201", name: "Dược học" }],
   },
 
   {
@@ -132,9 +130,7 @@ const academicFaculties: AcademicFaculty[] = [
   {
     code: "LAW",
     name: "Khoa Luật",
-    majors: [
-      { code: "7380101", name: "Luật" },
-    ],
+    majors: [{ code: "7380101", name: "Luật" }],
   },
 
   {

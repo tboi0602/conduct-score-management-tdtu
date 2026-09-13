@@ -6,8 +6,8 @@ Read it before making changes. When working under `client/` or `server/`, also r
 
 ## Project identity
 
-- Product: TDTU Smart Training Point Management System.
-- Purpose: manage student conduct/training points, events, attendance, evidence, users, and RBAC.
+- Product: TDTU Conduct Score Management System.
+- Purpose: manage student conduct score, events, attendance, evidence, users, and RBAC.
 - Primary language for user communication: Vietnamese.
 - UI languages: Vietnamese and English.
 - Brand colors: TDTU blue `#154a9b` and white.

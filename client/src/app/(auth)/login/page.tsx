@@ -15,7 +15,7 @@ export default function LoginPage() {
       title={message.login.title}
       description={message.login.description}
     >
-      <GoogleSignInButton />
+      <GoogleSignInButton mode="STUDENT" />
 
       <p className="mt-5 text-center text-xs leading-5 text-[#7a8799]">
         {message.login.emailPrefix} <strong>@student.tdtu.edu.vn</strong>{" "}

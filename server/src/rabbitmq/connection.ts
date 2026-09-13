@@ -24,7 +24,9 @@ class RabbitConnection {
       timeout: 15000,
     });
     this.connection = connection;
-    connection.on("error", (error) => logger.error(`[rabbitmq] connection error: ${error.message}`));
+    connection.on("error", (error) =>
+      logger.error(`[rabbitmq] connection error: ${error.message}`),
+    );
     connection.on("close", () => this.handleUnexpectedClose("connection"));
 
     const channel = await connection.createConfirmChannel();

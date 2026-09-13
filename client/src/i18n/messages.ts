@@ -17,7 +17,7 @@ export const messages = {
       tdtuEmailOnly: "Chỉ chấp nhận tài khoản email TDTU.",
       emailPrefix: "Chỉ chấp nhận email",
       emailConnector: "hoặc",
-      adminLink: "Đăng nhập dành cho quản trị viên",
+      adminLink: "Đăng nhập vào hệ thống quản lý",
     },
     admin: {
       eyebrow: "Khu vực quản trị",
@@ -32,11 +32,12 @@ export const messages = {
       submitting: "Đang đăng nhập...",
       invalidCredentials: "Tên đăng nhập hoặc mật khẩu không đúng.",
       loginError: "Không thể đăng nhập. Vui lòng thử lại.",
+      orGoogle: "Hoặc tiếp tục bằng Google",
       back: "Quay lại đăng nhập Google",
     },
   },
   en: {
-    campusTitle: "Student training point management system",
+    campusTitle: "Student con management system",
     campusDescription:
       "Track activities, attendance, and conduct progress in one unified workspace.",
     terms: "By signing in, you agree to follow the university's system usage policies.",
@@ -51,7 +52,7 @@ export const messages = {
       tdtuEmailOnly: "Only TDTU email accounts are accepted.",
       emailPrefix: "Only emails ending in",
       emailConnector: "or",
-      adminLink: "Sign in as an administrator",
+      adminLink: "Log in to the management system.",
     },
     admin: {
       eyebrow: "Administration area",
@@ -66,6 +67,7 @@ export const messages = {
       submitting: "Signing in...",
       invalidCredentials: "The username or password is incorrect.",
       loginError: "Unable to sign in. Please try again.",
+      orGoogle: "Or continue with Google",
       back: "Back to Google sign in",
     },
   },

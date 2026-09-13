@@ -2,12 +2,21 @@ import { PrismaClient } from "@prisma/client";
 
 import { seedAcademicData } from "./academic.seed";
 import { seedAuthData } from "./auth.seed";
+import { seedOrganizingUnits } from "./organizer.seed";
+import { seedTrainingCriteria } from "./criteria.seed";
+import { seedSemesters } from "./semester.seed";
 
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   console.log("[seed] Seeding academic data...");
   await seedAcademicData(prisma);
+  console.log("[seed] Seeding organizing units...");
+  await seedOrganizingUnits(prisma);
+  console.log("[seed] Seeding training criteria...");
+  await seedTrainingCriteria(prisma);
+  console.log("[seed] Seeding semesters...");
+  await seedSemesters(prisma);
   console.log("[seed] Seeding roles, permissions and admin account...");
   await seedAuthData(prisma);
   console.log("[seed] All seed data completed successfully");

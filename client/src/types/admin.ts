@@ -24,6 +24,18 @@ export type Permission = {
 export type AcademicClass = { id: string; code: string; name: string };
 export type Major = { id: string; code: string; name: string; classes: AcademicClass[] };
 export type Faculty = { id: string; code: string; name: string; majors: Major[] };
+export type AcademicKind = "faculties" | "majors" | "classes";
+export type AcademicRecord = {
+  id: string;
+  code: string;
+  name: string;
+  facultyId?: string;
+  majorId?: string;
+  faculty?: Pick<Faculty, "id" | "code" | "name">;
+  major?: Omit<Major, "classes"> & { faculty: Pick<Faculty, "id" | "code" | "name"> };
+  _count?: { majors?: number; classes?: number; students?: number; primaryUsers?: number };
+};
+export type AcademicPayload = { code: string; name: string; facultyId?: string; majorId?: string };
 export type UserFilters = {
   search?: string;
   facultyId?: string;
@@ -43,8 +55,11 @@ export type AdminUser = {
   id: string;
   email: string;
   name: string;
+  status: "ACTIVE" | "DISABLED";
   createdAt: string;
   updatedAt: string;
+  primaryFacultyId: string | null;
+  primaryFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
   userRoles: Array<{ role: { id: string; name: string } }>;
   student: {
     id: string;
@@ -62,6 +77,28 @@ export type CurrentUserProfile = {
   name: string;
   roles: Array<{ id: string; name: string }>;
   permissions: Permission[];
+  effectiveFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
+  student: {
+    id: string;
+    studentCode: string;
+    phone: string | null;
+    address: string | null;
+    dateOfBirth: string | null;
+    class:
+      | (AcademicClass & {
+          major: Omit<Major, "classes"> & { faculty: Omit<Faculty, "majors"> };
+        })
+      | null;
+  } | null;
+};
+
+export type StudentProfilePayload = {
+  name: string;
+  studentCode: string;
+  classId: string;
+  phone: string | null;
+  address: string | null;
+  dateOfBirth: string | null;
 };
 
 export type UserPayload = {
@@ -71,4 +108,5 @@ export type UserPayload = {
   roleIds: string[];
   studentCode?: string | null;
   classId?: string | null;
+  primaryFacultyId?: string | null;
 };

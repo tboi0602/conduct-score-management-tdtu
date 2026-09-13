@@ -26,11 +26,10 @@ These instructions extend the repository root `AGENTS.md` for all files under `s
 - Access tokens expire after 15 minutes; refresh sessions are stored in Redis.
 - Google login accepts verified TDTU identities by intended business rule:
   - `@student.tdtu.edu.vn` -> `STUDENT`.
-  - `@tdtu.edu.vn` -> `LECTURER`.
+  - Staff `@tdtu.edu.vn` accounts must be provisioned as `EVENT_ORGANIZER` or `STUDENT_AFFAIRS` before login.
   - Other domains are rejected.
-- Important: inspect `roleForEmail` before auth work. A temporary development bypass may exist and must
-  not silently become the production rule.
-- A first Google login creates the user and assigns the matching seeded role.
+- Keep staff self-registration disabled; only pre-provisioned staff accounts may use Google login.
+- A first student Google login creates the user and assigns `STUDENT`; staff roles are assigned beforehand.
 - Admin uses the separate credential login and only accesses `/admin` client routes.
 - Permissions use lowercase `resource.action`; `*` is the protected administrator wildcard.
 - Protect endpoints with the narrowest existing permission, for example `user.read` or `user.delete`.
@@ -62,4 +61,3 @@ npm.cmd run build
 ```
 
 For schema changes also run Prisma generation and explain the migration/seed command to the user.
-

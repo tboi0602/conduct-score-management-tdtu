@@ -6,20 +6,14 @@ import { httpRequestsTotal, httpRequestDuration } from "@metrics";
  * Express (vd: /api/v1/events/:id) thay vì path thật để tránh sinh ra
  * vô hạn label từ các path chứa id.
  */
-export function metricsMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export function metricsMiddleware(req: Request, res: Response, next: NextFunction): void {
   const endTimer = httpRequestDuration.startTimer({
     method: req.method,
     route: "unmatched",
   });
 
   res.on("finish", () => {
-    const route = req.route
-      ? `${req.baseUrl}${req.route.path}`
-      : req.baseUrl || req.path;
+    const route = req.route ? `${req.baseUrl}${req.route.path}` : req.baseUrl || req.path;
     const labels = {
       method: req.method,
       route,

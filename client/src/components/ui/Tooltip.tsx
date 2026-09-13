@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
 export function Tooltip({
@@ -15,23 +16,65 @@ export function Tooltip({
   className?: string;
 }) {
   const [dismissed, setDismissed] = useState(false);
-  const position =
-    side === "right"
-      ? "left-full top-1/2 ml-3 -translate-y-1/2"
-      : "bottom-full left-1/2 mb-2 -translate-x-1/2";
+  const [visible, setVisible] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const updatePosition = useCallback(() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPosition(
+      side === "right"
+        ? { left: rect.right + 12, top: rect.top + rect.height / 2 }
+        : { left: rect.left + rect.width / 2, top: rect.top - 8 },
+    );
+  }, [side]);
+  useEffect(() => {
+    if (!visible) return;
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [updatePosition, visible]);
   return (
     <span
-      className={`group/tooltip relative inline-flex ${className}`}
-      onClick={() => setDismissed(true)}
-      onMouseLeave={() => setDismissed(false)}
+      ref={containerRef}
+      className={`relative inline-flex ${className}`}
+      onMouseEnter={() => {
+        updatePosition();
+        setVisible(true);
+      }}
+      onMouseLeave={() => {
+        setDismissed(false);
+        setVisible(false);
+      }}
+      onFocusCapture={() => {
+        updatePosition();
+        setVisible(true);
+      }}
+      onBlurCapture={() => setVisible(false)}
+      onClick={() => {
+        setDismissed(true);
+        setVisible(false);
+      }}
     >
       {children}
-      <span
-        role="tooltip"
-        className={`pointer-events-none absolute ${position} z-20 whitespace-nowrap rounded-lg bg-[#102a50] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(16,42,80,.55)] transition duration-200 ${dismissed ? "invisible opacity-0" : "opacity-0 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100"}`}
-      >
-        {label}
-      </span>
+      {visible && !dismissed && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              role="tooltip"
+              style={{ left: position.left, top: position.top }}
+              className={`pointer-events-none fixed z-[100] whitespace-nowrap rounded-lg bg-[#102a50] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(16,42,80,.55)] ${
+                side === "right" ? "-translate-y-1/2" : "-translate-x-1/2 -translate-y-full"
+              }`}
+            >
+              {label}
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }

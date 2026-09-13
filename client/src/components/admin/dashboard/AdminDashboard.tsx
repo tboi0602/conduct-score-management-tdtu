@@ -2,30 +2,14 @@
 
 import Link from "next/link";
 import { ArrowUpRight, KeyRound, ShieldCheck, Users } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { getAuthSession } from "@/lib/auth-storage";
-import { adminService } from "@/services/admin";
-import type { AuthUser } from "@/types/auth";
-import { queryKeys } from "@/lib/query-keys";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useClock } from "@/hooks/shared/useClock";
 
 export function AdminDashboard() {
   const { t, locale } = useAdminTranslations();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [now, setNow] = useState<Date | null>(null);
-  const profileQuery = useQuery({
-    queryKey: queryKeys.auth.me,
-    queryFn: adminService.getCurrentUser,
-    staleTime: 10 * 60 * 1000,
-  });
-  const profile = profileQuery.data?.data ?? null;
-  useEffect(() => {
-    setUser(getAuthSession()?.user ?? null);
-    setNow(new Date());
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const { profile } = useAdminAccess();
+  const now = useClock();
   const dateLocale = locale === "vi" ? "vi-VN" : "en-US";
   const modules = [
     {
@@ -53,7 +37,7 @@ export function AdminDashboard() {
         {t.administrator.toUpperCase()}
       </p>
       <h1 className="mt-2 text-[2rem] font-bold tracking-[-.035em] text-[#102a50]">
-        {t.hello}, {user?.name ?? "—"}
+        {t.hello}, {profile?.name ?? "—"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[#66758a]">{t.dashboardDescription}</p>
       <div className="mt-5 rounded-2xl border border-[#dce4ef] bg-white px-4 py-3 shadow-[0_12px_28px_-24px_rgba(31,67,111,.4)] sm:absolute sm:right-0 sm:top-0 sm:mt-0 sm:text-right">
@@ -103,7 +87,7 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
-      {user?.role === "ADMIN" ? (
+      {profile?.roles.some((role) => role.name === "ADMIN") ? (
         <div className="mt-9">
           <h2 className="text-lg font-bold tracking-tight text-[#102a50]">{t.quickAccess}</h2>
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.85fr]">

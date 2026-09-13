@@ -1,4 +1,4 @@
-import { http } from "@/services/http";
+import { authHttp, http } from "@/services/http";
 import type { AuthUser } from "@/types/auth";
 
 export type AuthSession = {
@@ -6,6 +6,8 @@ export type AuthSession = {
   refreshToken: string;
   user: AuthUser;
 };
+
+export type LoginMode = "STUDENT" | "ADMIN";
 
 type ApiResponse<T> = {
   ok: true;
@@ -22,11 +24,21 @@ export async function loginAdmin(email: string, password: string) {
   return response.data;
 }
 
-export async function loginWithGoogle(credential: string) {
+export async function loginWithGoogle(credential: string, mode: LoginMode) {
   const response = await http<ApiResponse<AuthSession>>("/api/v1/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential }),
+    body: JSON.stringify({ credential, mode }),
+  });
+
+  return response.data;
+}
+
+export async function switchAccessMode(mode: LoginMode) {
+  const response = await authHttp<ApiResponse<AuthSession>>("/api/v1/auth/switch-mode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode }),
   });
 
   return response.data;

@@ -28,23 +28,39 @@ function UnitedKingdomFlag() {
   );
 }
 
-const options: Array<{ value: Locale; label: string; flag: ReactNode }> = [
-  { value: "vi", label: "VI", flag: <VietnamFlag /> },
-  { value: "en", label: "EN", flag: <UnitedKingdomFlag /> },
+const options: Array<{ value: Locale; flag: ReactNode }> = [
+  { value: "vi", flag: <VietnamFlag /> },
+  { value: "en", flag: <UnitedKingdomFlag /> },
 ];
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale } = useLanguage();
+  if (compact) {
+    const current = options.find((option) => option.value === locale) ?? options[0];
+    const next = locale === "vi" ? "en" : "vi";
+    return (
+      <button
+        type="button"
+        onClick={() => setLocale(next)}
+        aria-label={locale === "vi" ? "Switch to English" : "Chuyển sang tiếng Việt"}
+        className="grid h-9 w-9 place-items-center rounded-xl border border-[#cad5e5] bg-white transition hover:border-[#9fb7d5] hover:bg-[#eef4fc] active:scale-[.96]"
+      >
+        <span className="overflow-hidden rounded-[3px] border border-black/10 shadow-sm">
+          {current.flag}
+        </span>
+      </button>
+    );
+  }
 
   return (
-    <div className="flex rounded-xl border border-[#cad5e5] bg-white p-1" aria-label="Language">
+    <div className="flex rounded-lg border border-[#cad5e5] bg-white p-1" aria-label="Language">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => setLocale(option.value)}
           aria-pressed={locale === option.value}
-          className={`flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-all active:scale-[.97] ${
+          className={`flex min-h-6 items-center gap-1.5 rounded-md px-2 text-xs font-semibold transition-all active:scale-[.97] ${
             locale === option.value
               ? "bg-[#154a9b] text-white"
               : "text-[#66758a] hover:bg-[#eef4fc] hover:text-[#154a9b]"
@@ -53,7 +69,6 @@ export function LanguageSwitcher() {
           <span className="overflow-hidden rounded-[3px] border border-black/10 shadow-sm">
             {option.flag}
           </span>
-          {option.label}
         </button>
       ))}
     </div>

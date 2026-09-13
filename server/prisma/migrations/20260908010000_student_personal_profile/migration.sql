@@ -1,0 +1,4 @@
+ALTER TABLE "students"
+ADD COLUMN "phone" VARCHAR(20),
+ADD COLUMN "address" VARCHAR(255),
+ADD COLUMN "dateOfBirth" DATE;

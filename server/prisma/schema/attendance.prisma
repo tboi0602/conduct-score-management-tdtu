@@ -1,7 +1,3 @@
-// ============================================================
-// Nhóm: điểm danh
-// ============================================================
-
 enum AttendanceStatus {
   ATTENDED // đã tham gia
   ABSENT // vắng
@@ -12,6 +8,23 @@ enum AttendanceStatus {
 enum AttendanceDirection {
   CHECK_IN // quét ở đầu sự kiện
   CHECK_OUT // quét ở cuối sự kiện
+}
+
+enum AttendanceSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum AttendanceScanStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum AttendanceScanSource {
+  STUDENT_QR
+  STAFF_BARCODE
+  MANUAL_ENTRY
 }
 
 // Nhật ký điểm danh: MỖI LƯỢT QUÉT là một bản ghi, phân biệt chiều
@@ -27,13 +40,91 @@ model AttendanceRecord {
   timeChecking DateTime?
   status       AttendanceStatus    @default(ATTENDED)
   pointsEarned Int                 @default(0)
+  scanRequestId String?            @unique @db.Uuid
 
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scanRequest AttendanceScanRequest? @relation(fields: [scanRequestId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   // Chặn quét trùng cùng chiều: vào 1 lần, ra 1 lần
   @@unique([studentId, eventId, direction])
   @@index([eventId])
   @@map("attendance_records")
+}
+
+model AttendanceSession {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  eventId              String                  @db.Uuid
+  direction            AttendanceDirection
+  status               AttendanceSessionStatus @default(OPEN)
+  centerLatitude       Float
+  centerLongitude      Float
+  centerAccuracyMeters Float
+  radiusMeters         Int
+  openedByUserId       String                  @db.Uuid
+  closedByUserId       String?                 @db.Uuid
+  openedAt             DateTime                @default(now())
+  closedAt             DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  event          Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  openedBy       User                    @relation("AttendanceSessionOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
+  closedBy       User?                   @relation("AttendanceSessionClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  scanRequests   AttendanceScanRequest[]
+
+  @@index([eventId, status, openedAt, id])
+  @@index([openedByUserId, openedAt])
+  @@map("attendance_sessions")
+}
+
+model AttendanceScanRequest {
+  id                   String               @id @default(uuid()) @db.Uuid
+  eventId              String               @db.Uuid
+  sessionId            String?              @db.Uuid
+  studentId            String               @db.Uuid
+  submittedByUserId    String               @db.Uuid
+  direction            AttendanceDirection
+  source               AttendanceScanSource
+  requestedStatus      AttendanceStatus     @default(ATTENDED)
+  latitude             Float?
+  longitude            Float?
+  accuracyMeters       Float?
+  status               AttendanceScanStatus @default(PENDING)
+  rejectionReason      String?              @db.VarChar(100)
+  correlationId        String               @unique @db.Uuid
+  processedAt          DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  event          Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  session        AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submittedBy    User               @relation("AttendanceScanSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  attendanceRecord AttendanceRecord?
+
+  @@index([eventId, status, createdAt, id])
+  @@index([studentId, status, createdAt, id])
+  @@index([sessionId, createdAt, id])
+  @@map("attendance_scan_requests")
+}
+
+model OutboxEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  aggregateType String   @db.VarChar(50)
+  aggregateId   String   @db.Uuid
+  eventType     String   @db.VarChar(100)
+  payload       Json
+  correlationId String   @db.Uuid
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  publishedAt   DateTime?
+  lastError     String?  @db.VarChar(500)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([publishedAt, nextAttemptAt, createdAt, id])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@map("outbox_events")
 }

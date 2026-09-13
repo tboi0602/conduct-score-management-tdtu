@@ -21,7 +21,7 @@ const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES_IN ?? "30d") as NonNull
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
 
-export type AppRole = "ADMIN" | "STUDENT" | "LECTURER";
+export type AppRole = "ADMIN" | "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
 
 export interface JwtPayload {
   sub: string;
@@ -38,11 +38,10 @@ export function signAccessToken(payload: TokenIdentity): string {
 }
 
 export function signRefreshToken(payload: TokenIdentity): string {
-  return jwt.sign(
-    { ...payload, tokenType: "refresh" },
-    SECRET,
-    { expiresIn: REFRESH_EXPIRES, jwtid: randomUUID() },
-  );
+  return jwt.sign({ ...payload, tokenType: "refresh" }, SECRET, {
+    expiresIn: REFRESH_EXPIRES,
+    jwtid: randomUUID(),
+  });
 }
 
 function verifyTokenType(token: string, expected: JwtPayload["tokenType"]): JwtPayload {

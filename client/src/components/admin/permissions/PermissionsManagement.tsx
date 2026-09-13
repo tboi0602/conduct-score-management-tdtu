@@ -7,8 +7,8 @@ import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
-import { useAdminTranslations } from "@/hooks/useAdminTranslations";
-import { usePermissionsManagement } from "@/hooks/usePermissionsManagement";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { usePermissionsManagement } from "@/hooks/rbac/usePermissionsManagement";
 
 export function PermissionsManagement() {
   const state = usePermissionsManagement();
@@ -40,17 +40,21 @@ export function PermissionsManagement() {
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
               <tr>
+                <th className="w-20 px-5 py-4 text-center">{t.ordinal}</th>
                 <th className="px-5 py-4">{t.permissionCode}</th>
                 <th className="px-5 py-4">{t.description}</th>
                 <th className="px-5 py-4 text-right">{t.actions}</th>
               </tr>
             </thead>
             {state.isLoading ? (
-              <TableSkeleton columns={3} />
+              <TableSkeleton columns={4} />
             ) : (
               <tbody className="divide-y divide-[#e7ecf3]">
-                {state.items.map((item) => (
+                {state.items.map((item, index) => (
                   <tr key={item.id} className="transition-colors hover:bg-[#f9fbfd]">
+                    <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
+                      {(state.pagination.page - 1) * state.pagination.limit + index + 1}
+                    </td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-2 rounded-xl bg-[#edf4fc] px-3 py-2">
                         <KeyRound size={15} className="text-[#154a9b]" />

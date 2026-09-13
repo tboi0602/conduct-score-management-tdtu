@@ -27,17 +27,19 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Manages users, roles, and permissions.
 - The seeded wildcard permission `*` represents full access.
 
-### LECTURER
-
-- Intended to sign in with a verified `@tdtu.edu.vn` Google account.
-- Shares the administrative shell for lecturer-authorized functions.
-- Must never receive Admin-only behavior merely because the UI route is under `/admin`.
-
 ### STUDENT
 
 - Intended to sign in with a verified `@student.tdtu.edu.vn` Google account.
 - Uses the student dashboard route group rather than Admin management pages.
 - A first login creates the related student profile and derives the student code from the email prefix.
+
+### EVENT_ORGANIZER and STUDENT_AFFAIRS
+
+- These staff roles use Google sign-in and the administrative shell.
+- Their event, attendance, dashboard, and sidebar scope comes from database permissions and the
+  effective faculty assigned in the database. They do not receive system-wide access by role name.
+- The system has exactly four roles: `ADMIN`, `EVENT_ORGANIZER`, `STUDENT_AFFAIRS`, and `STUDENT`.
+- Student Affairs may manage students, event organizers, classes, and conduct scores only in its faculty.
 
 ## RBAC decisions
 
@@ -59,6 +61,12 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Locale is stored under localStorage key `locale` and must survive reloads.
 - TanStack Query is the server-state cache. Do not duplicate API state into unrelated local state.
 - Boneyard skeletons are preferred for page/data loading; action-level progress may stay compact.
+- Admin event and criteria management lives at `/admin/events` and `/admin/criteria`.
+  These screens reuse shared tables, modals, selects and bilingual labels, and gate actions
+  with permissions from `/auth/me`. Event forms use paginated criterion/semester lookups.
+- Event dates are entered in the device's local time zone and sent as ISO UTC instants.
+  Filtered lists are invalidated after writes because membership/page boundaries can change;
+  criterion writes also invalidate event summaries and criterion option queries.
 
 ## Server and infrastructure decisions
 
@@ -71,12 +79,36 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Redis stores refresh-session hashes, rate-limit state, locks, idempotency data, and selected caches.
 - RabbitMQ decouples high-volume attendance work from API request latency.
 - SSE is the existing realtime transport in `server/src/realtime/sse.ts`; do not describe it as Socket.IO.
+- Attendance scan submission uses a PostgreSQL transactional outbox. Confirm-channel producers publish
+  versioned RabbitMQ events; horizontally scaled workers use Redis locks plus database uniqueness for
+  idempotency, then fan realtime results across API instances through Redis Pub/Sub and SSE.
+- Student QR attendance requires GPS with at most 100 metres reported accuracy and validates distance
+  against the session centre plus configured event radius. QR tokens rotate every five minutes with a
+  30-second previous-slot grace period. Staff barcode/manual attendance does not require staff GPS.
+- Dashboard statistics are scoped globally or by effective faculty and cached in Redis for 60 seconds.
+  Event registration, attendance, and conduct-score changes invalidate the affected cache version.
+- Conduct scores use an append-only entry ledger with criterion projections and a 0-100 summary.
+  Finalized scores require an audited reopen action before they can change.
 
 ## Important implementation caveats
 
-- `server/src/services/auth.service.ts` currently contains a commented domain check and a temporary
-  development fallback in `roleForEmail`. The intended production rule is still TDTU-only. Any change
-  here must be explicit and tested rather than inferred.
+- Event and criteria CRUD is implemented under `/api/v1/events` and `/api/v1/criteria`,
+  following User/RBAC pagination and granular permissions. Lists use database filters,
+  bounded offsets and indexed substring search; details are in `Docs/EVENT_CRITERIA_API.md`.
+- Event deletion follows the existing cascade to attendance records and notifications.
+  Criteria in use cannot be deleted. CRUD does not recalculate earned attendance points.
+- Student event registration is stored separately from attendance. Capacity may be unlimited;
+  student registration obeys each event's opening/closing window, while authorized managers may
+  override the window and capacity. Attendance/absence is derived from check-in records.
+- Event capacity uses an atomically maintained `registeredCount`; registration and cancellation
+  update the registration row and counter in one PostgreSQL transaction. API instances remain
+  stateless behind Nginx `least_conn`, and registration throttling is keyed by user in shared Redis.
+- Student event discovery supports database-backed organizer-level and concrete organizer filters.
+  Students may edit their name, phone, address, and date of birth; email, student code,
+  class, major, and faculty remain read-only academic data.
+
+- Google login creates student accounts only for `@student.tdtu.edu.vn`. Staff accounts must already
+  exist with `EVENT_ORGANIZER` or `STUDENT_AFFAIRS`; unknown staff accounts are rejected.
 - The seeded `admin` / `admin` account is only a local-development bootstrap convenience.
 - Do not cache a complete, frequently changing user list in Redis by default. The Admin client already
   uses TanStack Query for short-lived view caching.
@@ -99,4 +131,3 @@ When completing a feature that changes a stable rule, update this document in th
 - a new cache or queue responsibility;
 - a change to login domains or token lifetime;
 - a replacement for SSE, Redis session structure, or the academic hierarchy.
-

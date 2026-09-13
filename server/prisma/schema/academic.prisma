@@ -1,17 +1,16 @@
-// ============================================================
-// Nhóm: cơ cấu tổ chức trường - Khoa -> Ngành -> Lớp
-// ============================================================
-
 // Khoa
 model Faculty {
   id        String   @id @default(uuid()) @db.Uuid
   code      String   @unique @db.VarChar(20)
   name      String   @db.VarChar(150)
   majors    Major[]
+  primaryUsers User[]
+  organizingUnits OrganizingUnit[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("faculties")
+  @@index([code, id])
 }
 
 // Ngành, thuộc về một khoa
@@ -26,6 +25,7 @@ model Major {
   updatedAt DateTime @updatedAt
 
   @@index([facultyId])
+  @@index([facultyId, code, id])
   @@map("majors")
 }
 
@@ -37,9 +37,11 @@ model Class {
   majorId   String    @db.Uuid
   major     Major     @relation(fields: [majorId], references: [id], onDelete: Cascade)
   students  Student[]
+  organizingUnit OrganizingUnit?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   @@index([majorId])
+  @@index([majorId, code, id])
   @@map("classes")
 }

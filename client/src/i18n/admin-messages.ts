@@ -1,6 +1,8 @@
 import type { Locale } from "@/i18n/messages";
+import { eventMessages } from "@/i18n/event-messages";
 
 const vi = {
+  ...eventMessages.vi,
   dashboard: "Tổng quan",
   users: "Người dùng",
   authorization: "Phân quyền",
@@ -9,6 +11,8 @@ const vi = {
   collapse: "Thu gọn thanh bên",
   expand: "Mở rộng thanh bên",
   logout: "Đăng xuất",
+  studentWorkspace: "Chuyển sang trang sinh viên",
+  switchingWorkspace: "Đang chuyển khu vực",
   language: "Ngôn ngữ",
   administrator: "Quản trị viên",
   add: "Thêm mới",
@@ -20,6 +24,7 @@ const vi = {
   saving: "Đang lưu",
   close: "Đóng",
   actions: "Thao tác",
+  ordinal: "STT",
   records: "bản ghi",
   page: "Trang",
   previous: "Trước",
@@ -88,6 +93,7 @@ const vi = {
 };
 
 const en = {
+  ...eventMessages.en,
   dashboard: "Overview",
   users: "Users",
   authorization: "Authorization",
@@ -96,6 +102,8 @@ const en = {
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
   logout: "Sign out",
+  studentWorkspace: "Switch to student workspace",
+  switchingWorkspace: "Switching workspace",
   language: "Language",
   administrator: "Administrator",
   add: "Add new",
@@ -107,6 +115,7 @@ const en = {
   saving: "Saving",
   close: "Close",
   actions: "Actions",
+  ordinal: "No.",
   records: "records",
   page: "Page",
   previous: "Previous",
