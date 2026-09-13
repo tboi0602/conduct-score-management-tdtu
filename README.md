@@ -112,10 +112,10 @@ Mở PowerShell tại thư mục `server`:
 
 ```powershell
 cd server
-npm.cmd install
-npm.cmd run prisma:generate
-npm.cmd run prisma:migrate:local
-npm.cmd run seed:local
+npm install
+npm run prisma:generate
+npm run prisma:migrate:local
+npm run seed:local
 ```
 
 Lệnh seed tạo role, permission và tài khoản quản trị mặc định `admin` / `admin`.
@@ -125,7 +125,7 @@ Lệnh seed tạo role, permission và tài khoản quản trị mặc định `
 Trong thư mục `server`:
 
 ```powershell
-npm.cmd run dev
+npm run dev
 ```
 
 Server chạy tại `http://localhost:3000`. Có thể kiểm tra bằng `http://localhost:3000/health`. Server sử dụng watch mode và tự khởi động lại khi mã nguồn thay đổi.
@@ -136,8 +136,8 @@ Mở terminal khác:
 
 ```powershell
 cd client
-npm.cmd install
-npm.cmd run dev
+npm install
+npm run dev
 ```
 
 Client chạy tại `http://localhost:3001`; trang đăng nhập quản trị nằm tại `http://localhost:3001/admin`. Next.js tự cập nhật giao diện khi mã nguồn thay đổi.
