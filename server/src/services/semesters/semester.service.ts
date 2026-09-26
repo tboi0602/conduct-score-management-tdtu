@@ -4,16 +4,20 @@ import { ApiError } from "@utils/ApiError";
 import { mapCrudError } from "@utils/crudError";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
 
-export type SemesterInput = { year: number; type: SemesterType };
+export type SemesterInput = { year: number; type: SemesterType; startDate: Date; endDate: Date };
 export type SemesterFilters = { year?: number; type?: SemesterType };
 
 const select = {
   id: true,
   year: true,
   type: true,
+  startDate: true,
+  endDate: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { events: true, conductScores: true } },
+  _count: {
+    select: { events: true, conductScores: true, schedules: true, scheduleExceptions: true },
+  },
 } satisfies Prisma.SemesterSelect;
 
 export async function listSemesters(params: PaginationParams, filters: SemesterFilters) {
@@ -32,10 +36,18 @@ export async function listSemesters(params: PaginationParams, filters: SemesterF
 }
 
 export async function createSemester(input: SemesterInput) {
+  if (!Number.isFinite(input.startDate.getTime()) || !Number.isFinite(input.endDate.getTime()))
+    throw new ApiError(400, "Semester dates are invalid");
+  if (input.endDate < input.startDate)
+    throw new ApiError(400, "endDate must not be before startDate");
   return prisma.semester.create({ data: input, select }).catch(mapCrudError);
 }
 
 export async function updateSemester(id: string, input: SemesterInput) {
+  if (!Number.isFinite(input.startDate.getTime()) || !Number.isFinite(input.endDate.getTime()))
+    throw new ApiError(400, "Semester dates are invalid");
+  if (input.endDate < input.startDate)
+    throw new ApiError(400, "endDate must not be before startDate");
   return prisma.semester.update({ where: { id }, data: input, select }).catch(mapCrudError);
 }
 
@@ -44,10 +56,25 @@ export async function deleteSemester(id: string): Promise<void> {
     .$transaction(async (tx) => {
       const semester = await tx.semester.findUnique({
         where: { id },
-        select: { id: true, _count: { select: { events: true, conductScores: true } } },
+        select: {
+          id: true,
+          _count: {
+            select: {
+              events: true,
+              conductScores: true,
+              schedules: true,
+              scheduleExceptions: true,
+            },
+          },
+        },
       });
       if (!semester) throw new ApiError(404, "Semester not found");
-      if (semester._count.events || semester._count.conductScores) {
+      if (
+        semester._count.events ||
+        semester._count.conductScores ||
+        semester._count.schedules ||
+        semester._count.scheduleExceptions
+      ) {
         throw new ApiError(409, "Semester is in use and cannot be deleted");
       }
       await tx.semester.delete({ where: { id }, select: { id: true } });

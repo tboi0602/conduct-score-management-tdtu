@@ -183,8 +183,17 @@ export function useMyConductScore(semesterId: string) {
     queryFn: () => conductScoreService.mine(semesterId).then((response) => response.data),
     enabled: Boolean(semesterId),
     staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 }
+
+const localDate = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export function useMyConductScores() {
   const [semesterId, setSemesterId] = useState("");
@@ -194,9 +203,13 @@ export function useMyConductScores() {
     staleTime: 10 * 60_000,
   });
   useEffect(() => {
-    if (!semesterId && semesters.data?.data[0]) {
-      setSemesterId(semesters.data.data[0].id);
-    }
+    if (semesterId || !semesters.data?.data.length) return;
+    const today = localDate();
+    const activeSemester = semesters.data.data.find(
+      (semester) =>
+        semester.startDate.slice(0, 10) <= today && today <= semester.endDate.slice(0, 10),
+    );
+    setSemesterId((activeSemester ?? semesters.data.data[0]).id);
   }, [semesterId, semesters.data]);
   const score = useMyConductScore(semesterId);
   return { semesterId, setSemesterId, semesters, score };

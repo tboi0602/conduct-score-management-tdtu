@@ -1,0 +1,89 @@
+enum AttendanceAppealTarget {
+  CHECK_IN
+  CHECK_OUT
+  BOTH
+}
+
+enum AttendanceAppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceFailureCategory {
+  NETWORK_ERROR
+  QR_ERROR
+  SESSION_EXPIRED
+  TIMEOUT
+  LOCATION_ERROR
+  SERVICE_ERROR
+  OTHER
+}
+
+enum UserNotificationType {
+  APPEAL_APPROVED
+  APPEAL_REJECTED
+}
+
+model AttendanceAppeal {
+  id               String                 @id @default(uuid()) @db.Uuid
+  studentId        String                 @db.Uuid
+  eventId          String                 @db.Uuid
+  attemptNumber    Int
+  target           AttendanceAppealTarget?
+  failureCategory  AttendanceFailureCategory?
+  failedAt         DateTime?
+  status           AttendanceAppealStatus @default(PENDING)
+  explanation      String                 @db.VarChar(2000)
+  reviewNote       String?                @db.VarChar(1000)
+  reviewedByUserId String?                @db.Uuid
+  reviewedAt       DateTime?
+  evidenceKey      String                 @unique @db.VarChar(500)
+  evidenceName     String                 @db.VarChar(255)
+  evidenceMime     String                 @db.VarChar(50)
+  evidenceSize     Int
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reviewedBy User?  @relation("AttendanceAppealReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, eventId, attemptNumber])
+  @@index([studentId, createdAt, id])
+  @@index([eventId, status, createdAt, id])
+  @@index([status, reviewedAt])
+  @@map("attendance_appeals")
+}
+
+model UserNotification {
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String               @db.Uuid
+  type      UserNotificationType
+  title     String               @db.VarChar(255)
+  message   String               @db.VarChar(1000)
+  entityId  String?              @db.Uuid
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt, id])
+  @@map("user_notifications")
+}
+
+model AttendanceAppealAttempt {
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @db.Uuid
+  eventId    String   @db.Uuid
+  totalCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, eventId])
+  @@index([eventId])
+  @@map("attendance_appeal_attempts")
+}

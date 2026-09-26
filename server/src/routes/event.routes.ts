@@ -16,6 +16,11 @@ router.use(authenticate);
 
 router.get("/discover", requirePermission("event.read"), asyncHandler(registrations.listPublic));
 router.get(
+  "/recommended",
+  requirePermission("event.read"),
+  asyncHandler(registrations.listRecommended),
+);
+router.get(
   "/discover-options/organizers",
   requirePermission("event.read"),
   asyncHandler(registrations.publicOrganizerOptions),

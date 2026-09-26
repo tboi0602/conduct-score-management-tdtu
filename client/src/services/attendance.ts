@@ -6,6 +6,7 @@ import type {
   AttendanceRequest,
   AttendanceScanStatus,
   AttendanceSession,
+  StudentAttendanceAttempt,
   DashboardSummary,
 } from "@/types/attendance";
 
@@ -66,19 +67,29 @@ export const attendanceService = {
     ),
   studentQr: (payload: {
     token: string;
+    clientAttemptId: string;
     latitude: number;
     longitude: number;
     accuracyMeters: number;
   }) =>
-    authHttp<{ ok: true; data: { requestId: string; status: "PENDING" } }>(
-      "/api/v1/attendance/scan/qr",
-      json("POST", payload),
-    ),
+    authHttp<{
+      ok: true;
+      data: {
+        requestId: string;
+        status: AttendanceScanStatus;
+        direction: AttendanceDirection;
+        event: { id: string; name: string; timeEnd: string };
+      };
+    }>("/api/v1/attendance/scan/qr", json("POST", payload)),
   myRequest: (requestId: string) =>
     authHttp<{
       ok: true;
       data: { id: string; status: AttendanceScanStatus; rejectionReason: string | null };
     }>(`/api/v1/attendance/requests/${requestId}`),
+  myAttempt: (clientAttemptId: string) =>
+    authHttp<{ ok: true; data: StudentAttendanceAttempt }>(
+      `/api/v1/attendance/me/attempts/${clientAttemptId}`,
+    ),
   studentTicket: () =>
     authHttp<{ ok: true; data: { ticket: string; expiresInSeconds: number } }>(
       "/api/v1/attendance/me/sse-ticket",

@@ -165,6 +165,7 @@ export async function getActiveSession(access: EventAccess, eventId: string) {
   return prisma.attendanceSession.findFirst({
     where: { eventId, status: "OPEN" },
     orderBy: { openedAt: "desc" },
+    include: { event: { select: { name: true, timeEnd: true } } },
   });
 }
 
@@ -175,9 +176,16 @@ export async function getQr(access: EventAccess, eventId: string) {
   if (activeId !== session.id) throw new ApiError(503, "Attendance session cache is unavailable");
   const qr = createAttendanceQrToken(session.id);
   const origin = process.env.CLIENT_ORIGIN ?? "http://localhost:3001";
+  const query = new URLSearchParams({
+    token: qr.token,
+    eventId: session.eventId,
+    direction: session.direction,
+    eventName: session.event.name,
+    eventEnd: session.event.timeEnd.toISOString(),
+  });
   return {
     ...qr,
-    scanUrl: `${origin}/events/check-in?token=${encodeURIComponent(qr.token)}`,
+    scanUrl: `${origin}/events/check-in?${query.toString()}`,
     session,
   };
 }
@@ -190,8 +198,26 @@ async function createScanRequest(input: {
   direction: AttendanceDirection;
   source: AttendanceScanSource;
   requestedStatus: AttendanceStatus;
+  clientAttemptId?: string;
   coordinates?: Coordinates;
 }) {
+  if (input.clientAttemptId) {
+    const existing = await prisma.attendanceScanRequest.findFirst({
+      where: {
+        clientAttemptId: input.clientAttemptId,
+        studentId: input.studentId,
+        submittedByUserId: input.submittedByUserId,
+      },
+      select: { id: true, correlationId: true, status: true },
+    });
+    if (existing) {
+      return {
+        requestId: existing.id,
+        correlationId: existing.correlationId,
+        status: existing.status,
+      };
+    }
+  }
   if (redisClient.getClient().status !== "ready" || !rabbitClient.isConnected()) {
     throw new ApiError(503, "Attendance processing service is temporarily unavailable");
   }
@@ -216,53 +242,104 @@ async function createScanRequest(input: {
   const requestId = randomUUID();
   const correlationId = randomUUID();
   const occurredAt = new Date().toISOString();
-  await prisma.$transaction(async (tx) => {
-    await tx.attendanceScanRequest.create({
-      data: {
-        id: requestId,
-        eventId: input.eventId,
-        sessionId: input.sessionId,
-        studentId: input.studentId,
-        submittedByUserId: input.submittedByUserId,
-        direction: input.direction,
-        source: input.source,
-        requestedStatus: input.requestedStatus,
-        latitude: input.coordinates?.latitude,
-        longitude: input.coordinates?.longitude,
-        accuracyMeters: input.coordinates?.accuracyMeters,
-        correlationId,
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.attendanceScanRequest.create({
+        data: {
+          id: requestId,
+          clientAttemptId: input.clientAttemptId,
+          eventId: input.eventId,
+          sessionId: input.sessionId,
+          studentId: input.studentId,
+          submittedByUserId: input.submittedByUserId,
+          direction: input.direction,
+          source: input.source,
+          requestedStatus: input.requestedStatus,
+          latitude: input.coordinates?.latitude,
+          longitude: input.coordinates?.longitude,
+          accuracyMeters: input.coordinates?.accuracyMeters,
+          correlationId,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: outboxData(requestId, attendanceRoutingKeys.scanRequested, correlationId, {
+          schemaVersion: 1,
+          requestId,
+          eventId: input.eventId,
+          sessionId: input.sessionId ?? null,
+          studentId: input.studentId,
+          direction: input.direction,
+          source: input.source,
+          occurredAt,
+          correlationId,
+        }),
+      });
     });
-    await tx.outboxEvent.create({
-      data: outboxData(requestId, attendanceRoutingKeys.scanRequested, correlationId, {
-        schemaVersion: 1,
-        requestId,
-        eventId: input.eventId,
-        sessionId: input.sessionId ?? null,
-        studentId: input.studentId,
-        direction: input.direction,
-        source: input.source,
-        occurredAt,
-        correlationId,
-      }),
-    });
-  });
+  } catch (error) {
+    if (
+      input.clientAttemptId &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.attendanceScanRequest.findFirst({
+        where: { clientAttemptId: input.clientAttemptId, studentId: input.studentId },
+        select: { id: true, correlationId: true, status: true },
+      });
+      if (existing) {
+        return {
+          requestId: existing.id,
+          correlationId: existing.correlationId,
+          status: existing.status,
+        };
+      }
+    }
+    throw error;
+  }
   attendanceScanRequestsTotal.inc({ source: input.source, direction: input.direction });
   return { requestId, correlationId, status: AttendanceScanStatus.PENDING };
 }
 
-export async function submitStudentQr(userId: string, token: string, coordinates: Coordinates) {
+export async function submitStudentQr(
+  userId: string,
+  token: string,
+  coordinates: Coordinates,
+  clientAttemptId?: string,
+) {
+  const student = await prisma.student.findUnique({ where: { userId }, select: { id: true } });
+  if (!student) throw new ApiError(409, "Student profile is required");
+  if (clientAttemptId) {
+    const existing = await prisma.attendanceScanRequest.findFirst({
+      where: { clientAttemptId, studentId: student.id, submittedByUserId: userId },
+      select: {
+        id: true,
+        correlationId: true,
+        status: true,
+        direction: true,
+        event: { select: { id: true, name: true, timeEnd: true } },
+      },
+    });
+    if (existing) {
+      return {
+        requestId: existing.id,
+        correlationId: existing.correlationId,
+        status: existing.status,
+        direction: existing.direction,
+        event: existing.event,
+      };
+    }
+  }
   validateCoordinates(coordinates);
   if (coordinates.accuracyMeters > 100) throw new ApiError(409, "Location accuracy is too low");
   const sessionId = verifyAttendanceQrToken(token);
-  const session = await prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+  const session = await prisma.attendanceSession.findUnique({
+    where: { id: sessionId },
+    include: { event: { select: { id: true, name: true, timeEnd: true } } },
+  });
   if (!session || session.status !== "OPEN")
     throw new ApiError(409, "Attendance session is closed");
   const activeId = await redisClient.getClient().get(activeSessionKey(session.eventId));
   if (activeId !== session.id) throw new ApiError(409, "Attendance session is closed");
-  const student = await prisma.student.findUnique({ where: { userId }, select: { id: true } });
-  if (!student) throw new ApiError(409, "Student profile is required");
-  return createScanRequest({
+  const result = await createScanRequest({
     eventId: session.eventId,
     sessionId,
     studentId: student.id,
@@ -270,8 +347,25 @@ export async function submitStudentQr(userId: string, token: string, coordinates
     direction: session.direction,
     source: "STUDENT_QR",
     requestedStatus: "ATTENDED",
+    clientAttemptId,
     coordinates,
   });
+  return { ...result, direction: session.direction, event: session.event };
+}
+
+export async function getMyAttempt(userId: string, clientAttemptId: string) {
+  const request = await prisma.attendanceScanRequest.findFirst({
+    where: { clientAttemptId, student: { userId } },
+    select: {
+      id: true,
+      status: true,
+      rejectionReason: true,
+      processedAt: true,
+      direction: true,
+      event: { select: { id: true, name: true, timeEnd: true } },
+    },
+  });
+  return request ? { found: true as const, request } : { found: false as const, request: null };
 }
 
 export async function submitManagedScan(

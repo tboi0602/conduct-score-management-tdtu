@@ -11,6 +11,8 @@ function parseSemester(form: FormData): SemesterPayload {
   return {
     year: Number(form.get("year")),
     type: String(form.get("type")) as SemesterType,
+    startDate: String(form.get("startDate")),
+    endDate: String(form.get("endDate")),
   };
 }
 

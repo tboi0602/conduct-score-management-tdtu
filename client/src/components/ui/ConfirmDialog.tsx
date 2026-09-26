@@ -13,15 +13,19 @@ export function ConfirmDialog({
   description,
   pending = false,
   error,
+  confirmLabel,
+  cancelLabel,
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  subject: string;
+  subject?: string;
   description?: string;
   pending?: boolean;
   error?: string | null;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }) {
   const { t } = useAdminTranslations();
   return (
@@ -32,7 +36,7 @@ export function ConfirmDialog({
             <AlertTriangle size={22} />
           </div>
           <div>
-            <p className="font-bold text-[#102a50]">{subject}</p>
+            {subject ? <p className="font-bold text-[#102a50]">{subject}</p> : null}
             <p className="mt-1.5 text-sm leading-6 text-[#66758a]">{description ?? t.cannotUndo}</p>
           </div>
         </div>
@@ -49,7 +53,7 @@ export function ConfirmDialog({
           disabled={pending}
           className="rounded-xl border border-[#d4deeb] px-4 py-2.5 text-sm font-semibold text-[#52647d] transition hover:bg-[#f4f7fa] active:scale-[.98]"
         >
-          {t.cancel}
+          {cancelLabel ?? t.cancel}
         </button>
         <button
           type="button"
@@ -57,7 +61,7 @@ export function ConfirmDialog({
           disabled={pending}
           className="rounded-xl bg-[#bd3343] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-16px_rgba(189,51,67,.8)] transition hover:bg-[#a72a38] active:scale-[.98] disabled:opacity-50"
         >
-          {pending ? t.deleting : t.confirm}
+          {pending ? t.deleting : (confirmLabel ?? t.confirm)}
         </button>
       </div>
     </Modal>

@@ -23,6 +23,8 @@ function parseInput(req: Request): semesters.SemesterInput {
   return {
     year: parseYear(body.year),
     type: enumInput(body.type, Object.values(SemesterType), "type"),
+    startDate: new Date(`${String(body.startDate)}T00:00:00.000Z`),
+    endDate: new Date(`${String(body.endDate)}T00:00:00.000Z`),
   };
 }
 

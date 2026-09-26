@@ -24,8 +24,10 @@ import {
   X,
   ScanLine,
   Award,
+  MessageSquareWarning,
 } from "lucide-react";
 import { type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -33,6 +35,8 @@ import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminSidebar } from "@/hooks/layout/useAdminSidebar";
 import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
+import { appealService } from "@/services/appeals";
+import { queryKeys } from "@/lib/query-keys";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const {
@@ -85,6 +89,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
           attendance: "Attendance",
         };
   const { can, profile } = useAdminAccess();
+  const pendingAppeals = useQuery({
+    queryKey: queryKeys.appeals.pending,
+    queryFn: () => appealService.list("PENDING"),
+    enabled: can("appeal.read"),
+    staleTime: 30_000,
+  });
   const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
   if (!user) return <PageLoadingSkeleton />;
   const canManageAcademicCatalog =
@@ -95,8 +105,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const showAcademicGroup = canManageAcademicCatalog || canManageClasses || canManageOrganizers;
   const conductScoreLabel = locale === "vi" ? "Điểm rèn luyện" : "Conduct Scores";
   const linkClass = (active: boolean) =>
-    `group flex min-h-11 w-full items-center rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[.98] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? `bg-[#e9f1fb] text-[#154a9b] ${collapsed ? "" : "shadow-[inset_3px_0_0_#154a9b]"}` : "text-[#53657d] hover:bg-[#f1f5fa] hover:text-[#102a50]"}`;
-  const navItem = (href: string, label: string, icon: ReactNode) => {
+    `group relative flex min-h-11 w-full items-center rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[.98] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? `bg-[#e9f1fb] text-[#154a9b] ${collapsed ? "" : "shadow-[inset_3px_0_0_#154a9b]"}` : "text-[#53657d] hover:bg-[#f1f5fa] hover:text-[#102a50]"}`;
+  const navItem = (href: string, label: string, icon: ReactNode, badge?: number) => {
     const link = (
       <Link
         href={href}
@@ -105,7 +115,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
         className={linkClass(pathname === href)}
       >
         {icon}
-        {!collapsed ? <span>{label}</span> : null}
+        {!collapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
+        {badge ? (
+          <span
+            className={`${collapsed ? "absolute right-1 top-1" : "ml-auto"} grid min-h-5 min-w-5 place-items-center rounded-full bg-[#b42332] px-1 text-[10px] font-bold text-white`}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
       </Link>
     );
     return collapsed ? (
@@ -329,6 +346,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
           : null}
         {can("conduct-score.read")
           ? navItem("/admin/conduct-scores", conductScoreLabel, <Award size={18} strokeWidth={2} />)
+          : null}
+        {can("appeal.read")
+          ? navItem(
+              "/admin/appeals",
+              locale === "vi" ? "Khiếu nại" : "Appeals",
+              <MessageSquareWarning size={18} strokeWidth={2} />,
+              pendingAppeals.data?.pagination.total,
+            )
           : null}
         {can("user.read") || can("student.read") || can("faculty-staff.read")
           ? navItem("/admin/users", t.users, <Users size={18} strokeWidth={2} />)

@@ -47,6 +47,12 @@ const permissionDescriptions = {
   "attendance.session.manage": "Mở và đóng phiên QR điểm danh",
   "dashboard.read": "Xem thống kê tổng quan theo phạm vi được cấp",
   "student.read": "Xem danh sách và thông tin sinh viên",
+  "schedule.read-own": "Xem thời khóa biểu của bản thân",
+  "schedule.update-own": "Cập nhật thời khóa biểu của bản thân",
+  "appeal.create-own": "Gửi khiếu nại điểm danh của bản thân",
+  "appeal.read-own": "Xem khiếu nại điểm danh của bản thân",
+  "appeal.read": "Xem khiếu nại điểm danh trong phạm vi quản lý",
+  "appeal.manage": "Duyệt hoặc từ chối khiếu nại điểm danh",
 } as const;
 
 const conductScorePermissionDescriptions = {
@@ -86,6 +92,8 @@ const permissionsByRole = {
     "attendance.read",
     "attendance.manage",
     "attendance.session.manage",
+    "appeal.read",
+    "appeal.manage",
     "organizer.read",
     "academic.read",
     "criteria.read",
@@ -103,6 +111,8 @@ const permissionsByRole = {
     "attendance.read",
     "attendance.manage",
     "attendance.session.manage",
+    "appeal.read",
+    "appeal.manage",
     "organizer.read",
     "academic.read",
     "academic.class.create",
@@ -135,6 +145,10 @@ const permissionsByRole = {
     "criteria.read",
     "semester.read",
     "conduct-score.read-own",
+    "schedule.read-own",
+    "schedule.update-own",
+    "appeal.create-own",
+    "appeal.read-own",
   ],
 } as const;
 

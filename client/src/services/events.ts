@@ -69,6 +69,10 @@ export const eventRegistrationService = {
     authHttp<PaginatedResponse<PublicEvent>>(
       `/api/v1/events/discover?${queryString(page, limit, filters)}`,
     ),
+  recommended: (page: number, limit: number, filters: StudentEventFilters = {}) =>
+    authHttp<PaginatedResponse<PublicEvent>>(
+      `/api/v1/events/recommended?${queryString(page, limit, filters)}`,
+    ),
   detail: (id: string) =>
     authHttp<{ ok: true; data: PublicEvent }>(`/api/v1/events/discover/${id}`),
   mine: (page: number, limit: number, view?: string) =>

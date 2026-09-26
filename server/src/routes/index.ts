@@ -11,6 +11,9 @@ import { attendanceRoutes } from "@routes/attendance.routes";
 import { dashboardRoutes } from "@routes/dashboard.routes";
 import { facultyUserRoutes } from "@routes/faculty-user.routes";
 import { conductScoreRoutes } from "@routes/conduct-score.routes";
+import { scheduleRoutes } from "@routes/schedule.routes";
+import { appealRoutes } from "@routes/appeal.routes";
+import { notificationRoutes } from "@routes/notification.routes";
 
 const router = Router();
 router.use("/auth", authRoutes);
@@ -25,6 +28,9 @@ router.use("/attendance", attendanceRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/faculty-users", facultyUserRoutes);
 router.use("/conduct-scores", conductScoreRoutes);
+router.use("/schedules", scheduleRoutes);
+router.use("/appeals", appealRoutes);
+router.use("/notifications", notificationRoutes);
 
 // TODO: khai báo các endpoint nghiệp vụ tại đây, ví dụ:
 //   router.use("/attendance", attendanceRoutes);

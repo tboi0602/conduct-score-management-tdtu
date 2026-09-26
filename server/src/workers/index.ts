@@ -10,6 +10,11 @@ import { handleAttendanceMessage } from "@workers/attendance.worker";
 import { startOutboxRelay } from "@services/infrastructure/outbox.service";
 import { prisma } from "@config/prisma";
 import { sseHub } from "@realtime/sse";
+import {
+  cleanupResolvedAppeals,
+  reconcileApprovedAppealScores,
+} from "@services/appeals/appeal.service";
+import { syncEndedEventConductScores } from "@services/conduct-score/conduct-score.service";
 
 // Port cho server health/metrics của worker.
 const HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "9101", 10);
@@ -46,6 +51,34 @@ function trackConnectionGauges(): void {
   }, 5_000).unref();
 }
 
+function startAppealCleanup(): void {
+  const intervalMs = Number(process.env.APPEAL_CLEANUP_INTERVAL_MS ?? 60 * 60 * 1000);
+  const run = () =>
+    reconcileApprovedAppealScores()
+      .then(() => cleanupResolvedAppeals())
+      .then((count) => count > 0 && logger.info(`[appeals] cleaned ${count} resolved appeals`))
+      .catch((error: unknown) =>
+        logger.error(`[appeals] cleanup failed: ${(error as Error).message}`),
+      );
+  void run();
+  setInterval(run, intervalMs).unref();
+}
+
+function startEndedEventScoreSync(): void {
+  const intervalMs = Number(process.env.CONDUCT_SCORE_EVENT_SYNC_INTERVAL_MS ?? 30_000);
+  const run = () =>
+    syncEndedEventConductScores()
+      .then(
+        (count) =>
+          count > 0 && logger.info(`[conduct-score] synchronized ${count} ended event scores`),
+      )
+      .catch((error: unknown) =>
+        logger.error(`[conduct-score] ended event sync failed: ${(error as Error).message}`),
+      );
+  void run();
+  setInterval(run, intervalMs).unref();
+}
+
 async function bootstrap(): Promise<void> {
   redisClient.connect();
   await prisma.$connect();
@@ -53,6 +86,8 @@ async function bootstrap(): Promise<void> {
 
   await rabbitClient.consume(RABBITMQ_CONFIG.queues.attendance.name, handleAttendanceMessage);
   startOutboxRelay();
+  startAppealCleanup();
+  startEndedEventScoreSync();
 
   // TODO: consume("attendance.scan.queue", handler) - logic xử lý
   // điểm danh (idempotency, geofence, ghi DB, rule engine...)

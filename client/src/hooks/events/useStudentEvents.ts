@@ -11,7 +11,7 @@ import { eventRegistrationService } from "@/services/events";
 import type { PaginatedResponse } from "@/types/admin";
 import type { MyEventRegistration, PublicEvent, StudentEventFilters } from "@/types/events";
 
-export type StudentEventTab = "all" | "mine";
+export type StudentEventTab = "all" | "recommended" | "mine";
 export const studentEventViews = ["", "UPCOMING", "ATTENDED", "ABSENT", "CANCELLED"] as const;
 type StudentEventView = (typeof studentEventViews)[number];
 
@@ -50,6 +50,13 @@ export function useStudentEvents() {
     queryKey: [...queryKeys.studentEvents.mine(view), page],
     queryFn: () => eventRegistrationService.mine(page, 12, view || undefined),
     enabled: tab === "mine",
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const recommendedQuery = useQuery({
+    queryKey: [...queryKeys.studentEvents.recommended(appliedFilters), page],
+    queryFn: () => eventRegistrationService.recommended(page, 12, appliedFilters),
+    enabled: tab === "recommended",
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -160,7 +167,7 @@ export function useStudentEvents() {
     onError: () => showToast(messages.actionError, "error"),
   });
 
-  const query = tab === "all" ? listQuery : mineQuery;
+  const query = tab === "all" ? listQuery : tab === "recommended" ? recommendedQuery : mineQuery;
   const pagination = query.data?.pagination ?? {
     page,
     limit: 12,
@@ -170,8 +177,10 @@ export function useStudentEvents() {
     hasPreviousPage: false,
   };
   const items: Array<{ event: PublicEvent; participation?: string }> =
-    tab === "all"
-      ? (listQuery.data?.data ?? []).map((event) => ({ event }))
+    tab !== "mine"
+      ? (tab === "all" ? (listQuery.data?.data ?? []) : (recommendedQuery.data?.data ?? [])).map(
+          (event) => ({ event }),
+        )
       : (mineQuery.data?.data ?? []).map((registration) => ({
           event: { ...registration.event, registrationStatus: registration.status },
           participation: registration.participationStatus,

@@ -56,7 +56,7 @@ export function EventDetails({
           </div>
         </div>
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-[#e1e8f0] p-4">
           <CalendarClock size={19} className="text-[#154a9b]" />
           <p className="mt-3 text-xs font-semibold text-[#66758a]">{t.timeStart}</p>
@@ -75,6 +75,11 @@ export function EventDetails({
           <ShieldCheck size={19} className="text-[#154a9b]" />
           <p className="mt-3 text-xs font-semibold text-[#66758a]">{t.checkInMode}</p>
           <p className="mt-1 text-sm font-bold text-[#263b58]">{t[event.checkInMode]}</p>
+        </div>
+        <div className="rounded-2xl border border-[#e1e8f0] p-4">
+          <ShieldCheck size={19} className="text-[#154a9b]" />
+          <p className="mt-3 text-xs font-semibold text-[#66758a]">{t.deliveryMode}</p>
+          <p className="mt-1 text-sm font-bold text-[#263b58]">{t[event.deliveryMode]}</p>
         </div>
       </div>
       <dl className="mt-5 grid gap-4 rounded-2xl border border-[#e1e8f0] p-5 sm:grid-cols-2">

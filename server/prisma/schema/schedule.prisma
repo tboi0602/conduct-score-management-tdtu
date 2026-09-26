@@ -1,12 +1,12 @@
-
 model ClassSession {
   id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(50) // Ca 1, Ca 2...
+  name      String   @unique @db.VarChar(50) // Ca 1, Ca 2...
   startTime DateTime @db.Time
   endTime   DateTime @db.Time
 
-  schedules Schedule[]
-  freeTimes FreeTime[]
+  schedules          Schedule[]
+  scheduleExceptions ScheduleException[]
+  freeTimes          FreeTime[]
 
   @@map("class_sessions")
 }
@@ -17,14 +17,40 @@ model Schedule {
   id             String @id @default(uuid()) @db.Uuid
   classSessionId String @db.Uuid
   studentId      String @db.Uuid
+  semesterId     String @db.Uuid
   dayOfWeek      Int
 
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester     Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
 
-  @@index([studentId])
+  @@unique([studentId, semesterId, dayOfWeek, classSessionId])
+  @@index([studentId, semesterId])
   @@index([classSessionId])
   @@map("schedules")
+}
+
+enum ScheduleExceptionStatus {
+  HAS_CLASS
+  NO_CLASS
+}
+
+model ScheduleException {
+  id             String                  @id @default(uuid()) @db.Uuid
+  studentId      String                  @db.Uuid
+  semesterId     String                  @db.Uuid
+  classSessionId String                  @db.Uuid
+  date           DateTime                @db.Date
+  status         ScheduleExceptionStatus
+  student        Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester       Semester                @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  classSession   ClassSession            @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([studentId, date, classSessionId])
+  @@index([studentId, semesterId, date])
+  @@map("schedule_exceptions")
 }
 
 // Lịch rảnh: sinh viên rảnh ca nào vào thứ mấy

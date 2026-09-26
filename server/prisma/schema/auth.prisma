@@ -1,4 +1,3 @@
-
 // Một quyền cụ thể theo dạng resource.action, ví dụ: user.create, event.read.
 model Permission {
   id              String           @id @default(uuid()) @db.Uuid
@@ -55,28 +54,30 @@ enum UserStatus {
 }
 
 model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique @db.VarChar(150)
-  googleSubject String?    @unique @db.VarChar(255)
-  name          String     @db.VarChar(100)
-  password      String?    @db.VarChar(255)
-  status        UserStatus @default(ACTIVE)
-  userRoles     UserRole[]
-  primaryFacultyId String? @db.Uuid
-  primaryFaculty Faculty? @relation(fields: [primaryFacultyId], references: [id], onDelete: SetNull)
+  id               String     @id @default(uuid()) @db.Uuid
+  email            String     @unique @db.VarChar(150)
+  googleSubject    String?    @unique @db.VarChar(255)
+  name             String     @db.VarChar(100)
+  password         String?    @db.VarChar(255)
+  status           UserStatus @default(ACTIVE)
+  userRoles        UserRole[]
+  primaryFacultyId String?    @db.Uuid
+  primaryFaculty   Faculty?   @relation(fields: [primaryFacultyId], references: [id], onDelete: SetNull)
 
-  student   Student?
-  registrationsCreated   EventRegistration[] @relation("RegistrationCreatedBy")
-  registrationsCancelled EventRegistration[] @relation("RegistrationCancelledBy")
-  attendanceSessionsOpened AttendanceSession[] @relation("AttendanceSessionOpenedBy")
-  attendanceSessionsClosed AttendanceSession[] @relation("AttendanceSessionClosedBy")
-  attendanceScansSubmitted AttendanceScanRequest[] @relation("AttendanceScanSubmittedBy")
-  conductScoresFinalized ConductScore[] @relation("ConductScoreFinalizedBy")
-  conductScoreEntriesCreated ConductScoreEntry[] @relation("ConductScoreEntryCreatedBy")
-  conductScoreStatusActions ConductScoreStatusHistory[] @relation("ConductScoreStatusActor")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  student                    Student?
+  registrationsCreated       EventRegistration[]         @relation("RegistrationCreatedBy")
+  registrationsCancelled     EventRegistration[]         @relation("RegistrationCancelledBy")
+  attendanceSessionsOpened   AttendanceSession[]         @relation("AttendanceSessionOpenedBy")
+  attendanceSessionsClosed   AttendanceSession[]         @relation("AttendanceSessionClosedBy")
+  attendanceScansSubmitted   AttendanceScanRequest[]     @relation("AttendanceScanSubmittedBy")
+  conductScoresFinalized     ConductScore[]              @relation("ConductScoreFinalizedBy")
+  conductScoreEntriesCreated ConductScoreEntry[]         @relation("ConductScoreEntryCreatedBy")
+  conductScoreStatusActions  ConductScoreStatusHistory[] @relation("ConductScoreStatusActor")
+  attendanceAppealsReviewed  AttendanceAppeal[]           @relation("AttendanceAppealReviewedBy")
+  notifications              UserNotification[]
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
 
-  @@map("users")
   @@index([primaryFacultyId])
+  @@map("users")
 }

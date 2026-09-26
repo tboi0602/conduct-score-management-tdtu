@@ -7,7 +7,7 @@ export async function listSemesterOptions(params: PaginationParams, year?: numbe
     prisma.semester.count({ where }),
     prisma.semester.findMany({
       where,
-      select: { id: true, year: true, type: true },
+      select: { id: true, year: true, type: true, startDate: true, endDate: true },
       orderBy: [{ year: "desc" }, { type: "asc" }],
       skip: params.skip,
       take: params.limit,

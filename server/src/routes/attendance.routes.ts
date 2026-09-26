@@ -30,6 +30,11 @@ router.get(
   requirePermission("attendance.create"),
   asyncHandler(controller.myRequest),
 );
+router.get(
+  "/me/attempts/:clientAttemptId",
+  requirePermission("attendance.create"),
+  asyncHandler(controller.myAttempt),
+);
 router.post(
   "/scan/qr",
   requirePermission("attendance.create"),

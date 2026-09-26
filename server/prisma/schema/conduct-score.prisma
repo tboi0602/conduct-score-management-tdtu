@@ -31,13 +31,17 @@ enum ConductScoreStatusAction {
 }
 
 model Semester {
-  id            String         @id @default(uuid()) @db.Uuid
-  year          Int
-  type          SemesterType
-  events        Event[]
-  conductScores ConductScore[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                 String              @id @default(uuid()) @db.Uuid
+  year               Int
+  type               SemesterType
+  startDate          DateTime            @db.Date
+  endDate            DateTime            @db.Date
+  events             Event[]
+  conductScores      ConductScore[]
+  schedules          Schedule[]
+  scheduleExceptions ScheduleException[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([year, type])
   @@map("semesters")
@@ -53,14 +57,14 @@ model ConductScore {
   finalizedAt       DateTime?
   finalizedByUserId String?            @db.Uuid
 
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  semester    Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  finalizedBy User?     @relation("ConductScoreFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
-  entries     ConductScoreEntry[]
+  student        Student                      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester       Semester                     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  finalizedBy    User?                        @relation("ConductScoreFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  entries        ConductScoreEntry[]
   criteriaTotals ConductScoreCriterionTotal[]
-  statusHistory ConductScoreStatusHistory[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  statusHistory  ConductScoreStatusHistory[]
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
 
   @@unique([studentId, semesterId])
   @@index([semesterId, status, ranking, id])
@@ -82,12 +86,12 @@ model ConductScoreEntry {
   idempotencyKey  String                  @unique @db.VarChar(255)
   createdAt       DateTime                @default(now())
 
-  conductScore ConductScore             @relation(fields: [conductScoreId], references: [id], onDelete: Cascade)
-  criteria     Criteria?                @relation(fields: [criteriaId], references: [id], onDelete: Restrict)
-  event        Event?                   @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  createdBy    User?                    @relation("ConductScoreEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reversalOf   ConductScoreEntry?       @relation("ConductScoreReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
-  reversals    ConductScoreEntry[]      @relation("ConductScoreReversal")
+  conductScore ConductScore        @relation(fields: [conductScoreId], references: [id], onDelete: Cascade)
+  criteria     Criteria?           @relation(fields: [criteriaId], references: [id], onDelete: Restrict)
+  event        Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy    User?               @relation("ConductScoreEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reversalOf   ConductScoreEntry?  @relation("ConductScoreReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversals    ConductScoreEntry[] @relation("ConductScoreReversal")
 
   @@index([conductScoreId, createdAt, id])
   @@index([criteriaId, conductScoreId])

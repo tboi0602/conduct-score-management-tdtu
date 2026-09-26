@@ -1,4 +1,3 @@
-
 // Loại sự kiện theo đơn vị tổ chức
 enum EventType {
   UNIVERSITY // trường
@@ -44,17 +43,22 @@ enum EventRegistrationStatus {
   CANCELLED
 }
 
+enum EventDeliveryMode {
+  OFFLINE
+  ONLINE
+}
+
 // Tiêu chí đánh giá, vd: "Ý thức tham gia hoạt động"
 model Criteria {
-  id            String   @id @default(uuid()) @db.Uuid
-  title         String   @db.VarChar(255)
-  maxPoints     Int      @default(0)
-  defaultPoints Int      @default(0)
-  events    Event[]
+  id                  String                       @id @default(uuid()) @db.Uuid
+  title               String                       @db.VarChar(255)
+  maxPoints           Int                          @default(0)
+  defaultPoints       Int                          @default(0)
+  events              Event[]
   conductScoreEntries ConductScoreEntry[]
-  conductScoreTotals ConductScoreCriterionTotal[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  conductScoreTotals  ConductScoreCriterionTotal[]
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
 
   @@index([createdAt, id])
   @@index([maxPoints])
@@ -64,41 +68,44 @@ model Criteria {
 
 // Sự kiện/hoạt động tích lũy điểm
 model Event {
-  id          String      @id @default(uuid()) @db.Uuid
-  criteriaId  String      @db.Uuid
-  semesterId  String      @db.Uuid
-  name               String  @db.VarChar(255)
-  description        String  @default("") @db.Text
-  descriptionPreview String  @default("") @db.VarChar(500)
-  location           String  @default("") @db.VarChar(255)
-  organizerId        String? @db.Uuid
-  timeStart   DateTime
-  timeEnd     DateTime
-  points      Int         @default(0)
-  type        EventType   @default(UNIVERSITY)
+  id                     String            @id @default(uuid()) @db.Uuid
+  criteriaId             String            @db.Uuid
+  semesterId             String            @db.Uuid
+  name                   String            @db.VarChar(255)
+  description            String            @default("") @db.Text
+  descriptionPreview     String            @default("") @db.VarChar(500)
+  location               String            @default("") @db.VarChar(255)
+  deliveryMode           EventDeliveryMode @default(OFFLINE)
+  organizerId            String?           @db.Uuid
+  timeStart              DateTime
+  timeEnd                DateTime
+  points                 Int               @default(0)
+  type                   EventType         @default(UNIVERSITY)
   // Đặt lúc tạo sự kiện. Nghiệp vụ đọc trường này để biết:
   // ONE_WAY  -> chỉ cần 1 bản ghi CHECK_IN là tính điểm đủ
   // TWO_WAY  -> cần cả CHECK_IN + CHECK_OUT mới tính đủ
-  checkInMode CheckInMode @default(ONE_WAY)
-  attendanceRadiusMeters Int @default(100)
-  capacity          Int?
-  registeredCount   Int       @default(0)
-  registrationStart DateTime
-  registrationEnd   DateTime
+  checkInMode            CheckInMode       @default(ONE_WAY)
+  attendanceRadiusMeters Int               @default(100)
+  capacity               Int?
+  registeredCount        Int               @default(0)
+  registrationStart      DateTime
+  registrationEnd        DateTime
 
   // ON DELETE RESTRICT = mặc định của Prisma với quan hệ bắt buộc
-  criteria Criteria @relation(fields: [criteriaId], references: [id])
-  semester Semester @relation(fields: [semesterId], references: [id])
+  criteria  Criteria        @relation(fields: [criteriaId], references: [id])
+  semester  Semester        @relation(fields: [semesterId], references: [id])
   organizer OrganizingUnit? @relation(fields: [organizerId], references: [id], onDelete: Restrict)
 
-  attendanceRecords AttendanceRecord[]
-  attendanceSessions AttendanceSession[]
+  attendanceRecords      AttendanceRecord[]
+  attendanceSessions     AttendanceSession[]
   attendanceScanRequests AttendanceScanRequest[]
-  registrations     EventRegistration[]
-  conductScoreEntries ConductScoreEntry[]
-  notifications     Notification[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  registrations          EventRegistration[]
+  conductScoreEntries    ConductScoreEntry[]
+  notifications          Notification[]
+  attendanceAppeals      AttendanceAppeal[]
+  attendanceAppealAttempts AttendanceAppealAttempt[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@index([criteriaId])
   @@index([semesterId])
@@ -115,20 +122,20 @@ model Event {
 }
 
 model EventRegistration {
-  id                  String                  @id @default(uuid()) @db.Uuid
-  eventId             String                  @db.Uuid
-  studentId           String                  @db.Uuid
-  status              EventRegistrationStatus @default(REGISTERED)
-  registeredAt        DateTime                @default(now())
-  cancelledAt         DateTime?
-  registeredByUserId  String?                 @db.Uuid
-  cancelledByUserId   String?                 @db.Uuid
-  event               Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  student             Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  registeredByUser    User?                   @relation("RegistrationCreatedBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
-  cancelledByUser     User?                   @relation("RegistrationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
+  id                 String                  @id @default(uuid()) @db.Uuid
+  eventId            String                  @db.Uuid
+  studentId          String                  @db.Uuid
+  status             EventRegistrationStatus @default(REGISTERED)
+  registeredAt       DateTime                @default(now())
+  cancelledAt        DateTime?
+  registeredByUserId String?                 @db.Uuid
+  cancelledByUserId  String?                 @db.Uuid
+  event              Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student            Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  registeredByUser   User?                   @relation("RegistrationCreatedBy", fields: [registeredByUserId], references: [id], onDelete: SetNull)
+  cancelledByUser    User?                   @relation("RegistrationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
   @@unique([eventId, studentId])
   @@index([eventId, status, registeredAt, id])

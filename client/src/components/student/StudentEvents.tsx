@@ -32,18 +32,18 @@ export function StudentEvents() {
       </header>
       <div className="mt-6 flex flex-col gap-3 rounded-[22px] border border-[#dae4ef] bg-white p-3 shadow-[0_18px_45px_-38px_rgba(16,42,80,.6)] sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1 rounded-xl bg-[#f1f5f9] p-1">
-          {(["all", "mine"] as const).map((value) => (
+          {(["all", "recommended", "mine"] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => state.selectTab(value)}
               className={`flex-1 rounded-lg px-4 py-2 text-sm font-bold transition sm:flex-none ${state.tab === value ? "bg-white text-[#154a9b] shadow-[0_6px_18px_-12px_rgba(16,42,80,.7)]" : "text-[#60728a] hover:text-[#102a50]"}`}
             >
-              {value === "all" ? t.all : t.mine}
+              {value === "all" ? t.all : value === "recommended" ? t.recommended : t.mine}
             </button>
           ))}
         </div>
-        {state.tab === "all" ? (
+        {state.tab !== "mine" ? (
           <label className="relative block sm:w-80">
             <Search className="absolute left-3 top-3 text-[#718096]" size={17} />
             <input
@@ -77,7 +77,7 @@ export function StudentEvents() {
           </div>
         )}
       </div>
-      {state.tab === "all" ? (
+      {state.tab !== "mine" ? (
         <button
           type="button"
           onClick={() => state.setFiltersOpen((value) => !value)}
@@ -96,7 +96,7 @@ export function StudentEvents() {
           />
         </button>
       ) : null}
-      {state.tab === "all" && state.filtersOpen ? (
+      {state.tab !== "mine" && state.filtersOpen ? (
         <div className="mt-4 rounded-[22px] border border-[#d9e3ee] bg-white p-4 shadow-[0_18px_45px_-38px_rgba(16,42,80,.6)] sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <p className="flex items-center gap-2 text-sm font-bold text-[#263b58]">
@@ -201,6 +201,12 @@ export function StudentEvents() {
           const now = Date.now();
           const pending = now < new Date(event.registrationStart).getTime();
           const full = event.remainingSlots === 0;
+          const lifecycle =
+            now < new Date(event.timeStart).getTime()
+              ? t.upcoming
+              : now <= new Date(event.timeEnd).getTime()
+                ? t.ongoing
+                : t.completed;
           return (
             <article
               key={event.id}
@@ -208,9 +214,17 @@ export function StudentEvents() {
             >
               <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-85" />
               <div className="flex items-start justify-between gap-3">
-                <span className="rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
-                  {event.points} {t.points}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
+                    {event.points} {t.points}
+                  </span>
+                  <span className="rounded-lg bg-[#fff1f3] px-2.5 py-1 text-xs font-bold text-[#b42332]">
+                    {lifecycle}
+                  </span>
+                  <span className="rounded-lg bg-[#f1f5f9] px-2.5 py-1 text-xs font-bold text-[#52647d]">
+                    {t[event.deliveryMode]}
+                  </span>
+                </div>
                 <span className="text-xs font-semibold text-[#66758a]">
                   {participation === "ATTENDED"
                     ? t.attended
@@ -243,7 +257,10 @@ export function StudentEvents() {
                 <span className="line-clamp-2">{event.location || t.locationPending}</span>
               </p>
               <p className="mt-4 flex items-center gap-2 text-sm text-[#52647d]">
-                <CalendarDays size={16} /> {formatDate(event.timeStart, locale)}
+                <CalendarDays size={16} /> {t.starts}: {formatDate(event.timeStart, locale)}
+              </p>
+              <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
+                <CalendarDays size={16} /> {t.ends}: {formatDate(event.timeEnd, locale)}
               </p>
               <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
                 <Users size={16} />{" "}
@@ -344,6 +361,10 @@ function EventDetail({
         <div>
           <dt className="font-semibold">{t.starts}</dt>
           <dd>{formatDate(event.timeStart, locale)}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold">{t.ends}</dt>
+          <dd>{formatDate(event.timeEnd, locale)}</dd>
         </div>
         <div>
           <dt className="font-semibold">{t.registrationTime}</dt>

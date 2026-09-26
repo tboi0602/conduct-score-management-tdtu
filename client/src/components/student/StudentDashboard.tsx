@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Award, CalendarDays, GraduationCap, UserRound } from "lucide-react";
+import { ArrowUpRight, Award, CalendarDays, GraduationCap, QrCode, UserRound } from "lucide-react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
@@ -24,16 +24,23 @@ export function StudentDashboard() {
     },
     {
       href: "/conduct-scores",
-      label: t.dashboardConductScore,
+      label: t.conductScoreResults,
       description: t.dashboardScoreDescription,
       icon: Award,
       visible: access.can("conduct-score.read-own"),
     },
     {
       href: "/profile",
-      label: t.profile,
+      label: t.studentInformation,
       description: t.dashboardProfileDescription,
       icon: UserRound,
+      visible: true,
+    },
+    {
+      href: "/qr-scan",
+      label: t.qrScanner,
+      description: t.qrScannerDescription,
+      icon: QrCode,
       visible: true,
     },
   ].filter((item) => item.visible);
@@ -59,16 +66,16 @@ export function StudentDashboard() {
             <Link
               key={href}
               href={href}
-              className={`group relative overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white p-5 shadow-[0_20px_48px_-40px_rgba(16,42,80,.65)] transition duration-200 hover:-translate-y-1 hover:border-[#b9cde2] ${index === 0 && modules.length === 3 ? "sm:col-span-2" : ""}`}
+              className={`group relative overflow-hidden rounded-[24px] border border-[#eadde0] bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#d8a5ac] ${index === 0 && modules.length === 3 ? "sm:col-span-2" : ""}`}
             >
-              <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-80" />
+              <span className="absolute inset-x-0 top-0 h-1 bg-[#b42332] opacity-80" />
               <div className="flex items-start justify-between gap-4">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#edf4fc] text-[#154a9b] transition group-hover:bg-[#154a9b] group-hover:text-white">
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#fff1f3] text-[#b42332] transition group-hover:bg-[#b42332] group-hover:text-white">
                   <Icon size={20} />
                 </span>
                 <ArrowUpRight
                   size={18}
-                  className="text-[#91a0b3] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#154a9b]"
+                  className="text-[#aa9298] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#b42332]"
                 />
               </div>
               <h2 className="mt-6 text-lg font-bold tracking-[-.02em] text-[#102a50]">{label}</h2>

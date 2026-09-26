@@ -45,7 +45,15 @@ export function SemestersManagement() {
       <ManagementNotice notice={state.notice} />
       <SemesterFilters onApply={state.applyFilters} onClear={state.clearFilters} />
       <ManagementTable
-        headers={[t.year, t.semesterType, t.linkedData, t.createdAt, t.actions]}
+        headers={[
+          t.year,
+          t.semesterType,
+          t.startDate,
+          t.endDate,
+          t.linkedData,
+          t.createdAt,
+          t.actions,
+        ]}
         loading={state.isLoading}
         fetching={state.isFetching}
         error={state.requestError}
@@ -58,6 +66,12 @@ export function SemestersManagement() {
           <tr key={semester.id} className="transition-colors hover:bg-[#f9fbfd]">
             <td className="px-5 py-4 font-semibold text-[#102a50]">{semester.year}</td>
             <td className="px-5 py-4 font-semibold text-[#154a9b]">{t[semester.type]}</td>
+            <td className="whitespace-nowrap px-5 py-4 text-[#52647d]">
+              {semester.startDate.slice(0, 10)}
+            </td>
+            <td className="whitespace-nowrap px-5 py-4 text-[#52647d]">
+              {semester.endDate.slice(0, 10)}
+            </td>
             <td className="px-5 py-4 text-[#52647d]">
               {semester._count?.events ?? 0} {t.events.toLowerCase()} ·{" "}
               {semester._count?.conductScores ?? 0} {t.trainingPointRecords}

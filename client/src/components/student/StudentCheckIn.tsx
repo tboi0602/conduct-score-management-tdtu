@@ -6,10 +6,31 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { attendanceMessages } from "@/i18n/attendance-messages";
 import { useStudentCheckIn } from "@/hooks/attendance/useStudentCheckIn";
 
-export function StudentCheckIn({ token }: { token: string }) {
+export function StudentCheckIn({
+  token,
+  eventId,
+  eventName,
+  eventEnd,
+  direction,
+}: {
+  token: string;
+  eventId: string;
+  eventName: string;
+  eventEnd: string;
+  direction: "CHECK_IN" | "CHECK_OUT" | null;
+}) {
   const { locale } = useLanguage();
   const t = attendanceMessages[locale];
-  const { mutation, request: requestQuery, status } = useStudentCheckIn(token);
+  const {
+    mutation,
+    request: requestQuery,
+    status,
+  } = useStudentCheckIn(token, {
+    eventId,
+    eventName,
+    eventEnd,
+    direction,
+  });
   return (
     <section className="mx-auto max-w-xl">
       <Link

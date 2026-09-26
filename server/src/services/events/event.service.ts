@@ -1,4 +1,4 @@
-import { Prisma, type CheckInMode, type EventType } from "@prisma/client";
+import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
 import { mapCrudError } from "@utils/crudError";
@@ -26,6 +26,7 @@ export type EventInput = {
   attendanceRadiusMeters: number;
   points: number;
   checkInMode: CheckInMode;
+  deliveryMode: EventDeliveryMode;
 };
 
 export type EventFilters = {
@@ -59,6 +60,7 @@ const eventSelect = {
   organizerId: true,
   descriptionPreview: true,
   location: true,
+  deliveryMode: true,
   timeStart: true,
   timeEnd: true,
   registrationStart: true,
@@ -73,7 +75,7 @@ const eventSelect = {
   updatedAt: true,
   organizer: { select: organizerSelect },
   criteria: { select: { id: true, title: true, maxPoints: true } },
-  semester: { select: { id: true, year: true, type: true } },
+  semester: { select: { id: true, year: true, type: true, startDate: true, endDate: true } },
 } satisfies Prisma.EventSelect;
 
 const eventDetailSelect = { ...eventSelect, description: true } satisfies Prisma.EventSelect;
@@ -141,6 +143,18 @@ function validateTimes(input: EventInput): void {
   }
   if (input.attendanceRadiusMeters < 10 || input.attendanceRadiusMeters > 5000) {
     throw new ApiError(400, "attendanceRadiusMeters must be between 10 and 5000");
+  }
+  if (input.deliveryMode === "OFFLINE") {
+    const date = (value: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(value);
+    if (date(input.timeStart) !== date(input.timeEnd)) {
+      throw new ApiError(400, "Offline events must start and end on the same day");
+    }
   }
 }
 

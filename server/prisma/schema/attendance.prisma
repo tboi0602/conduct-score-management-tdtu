@@ -33,19 +33,19 @@ enum AttendanceScanSource {
 // bản ghi có direction = CHECK_OUT.
 // points_earned ghi nhận số điểm thực nhận được (có thể bị trừ khi đi muộn...).
 model AttendanceRecord {
-  id           String              @id @default(uuid()) @db.Uuid
-  studentId    String              @db.Uuid
-  eventId      String              @db.Uuid
-  direction    AttendanceDirection @default(CHECK_IN)
-  timeChecking DateTime?
-  status       AttendanceStatus    @default(ATTENDED)
-  pointsEarned Int                 @default(0)
-  scanRequestId String?            @unique @db.Uuid
+  id            String              @id @default(uuid()) @db.Uuid
+  studentId     String              @db.Uuid
+  eventId       String              @db.Uuid
+  direction     AttendanceDirection @default(CHECK_IN)
+  timeChecking  DateTime?
+  status        AttendanceStatus    @default(ATTENDED)
+  pointsEarned  Int                 @default(0)
+  scanRequestId String?             @unique @db.Uuid
 
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student     Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event       Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   scanRequest AttendanceScanRequest? @relation(fields: [scanRequestId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  createdAt   DateTime               @default(now())
 
   // Chặn quét trùng cùng chiều: vào 1 lần, ra 1 lần
   @@unique([studentId, eventId, direction])
@@ -69,10 +69,10 @@ model AttendanceSession {
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
 
-  event          Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  openedBy       User                    @relation("AttendanceSessionOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
-  closedBy       User?                   @relation("AttendanceSessionClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
-  scanRequests   AttendanceScanRequest[]
+  event        Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  openedBy     User                    @relation("AttendanceSessionOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
+  closedBy     User?                   @relation("AttendanceSessionClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  scanRequests AttendanceScanRequest[]
 
   @@index([eventId, status, openedAt, id])
   @@index([openedByUserId, openedAt])
@@ -80,28 +80,29 @@ model AttendanceSession {
 }
 
 model AttendanceScanRequest {
-  id                   String               @id @default(uuid()) @db.Uuid
-  eventId              String               @db.Uuid
-  sessionId            String?              @db.Uuid
-  studentId            String               @db.Uuid
-  submittedByUserId    String               @db.Uuid
-  direction            AttendanceDirection
-  source               AttendanceScanSource
-  requestedStatus      AttendanceStatus     @default(ATTENDED)
-  latitude             Float?
-  longitude            Float?
-  accuracyMeters       Float?
-  status               AttendanceScanStatus @default(PENDING)
-  rejectionReason      String?              @db.VarChar(100)
-  correlationId        String               @unique @db.Uuid
-  processedAt          DateTime?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  id                String               @id @default(uuid()) @db.Uuid
+  clientAttemptId   String?              @unique @db.Uuid
+  eventId           String               @db.Uuid
+  sessionId         String?              @db.Uuid
+  studentId         String               @db.Uuid
+  submittedByUserId String               @db.Uuid
+  direction         AttendanceDirection
+  source            AttendanceScanSource
+  requestedStatus   AttendanceStatus     @default(ATTENDED)
+  latitude          Float?
+  longitude         Float?
+  accuracyMeters    Float?
+  status            AttendanceScanStatus @default(PENDING)
+  rejectionReason   String?              @db.VarChar(100)
+  correlationId     String               @unique @db.Uuid
+  processedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
-  event          Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  session        AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  submittedBy    User               @relation("AttendanceScanSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  event            Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  session          AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  student          Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submittedBy      User               @relation("AttendanceScanSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
   attendanceRecord AttendanceRecord?
 
   @@index([eventId, status, createdAt, id])
@@ -111,18 +112,18 @@ model AttendanceScanRequest {
 }
 
 model OutboxEvent {
-  id            String   @id @default(uuid()) @db.Uuid
-  aggregateType String   @db.VarChar(50)
-  aggregateId   String   @db.Uuid
-  eventType     String   @db.VarChar(100)
+  id            String    @id @default(uuid()) @db.Uuid
+  aggregateType String    @db.VarChar(50)
+  aggregateId   String    @db.Uuid
+  eventType     String    @db.VarChar(100)
   payload       Json
-  correlationId String   @db.Uuid
-  attempts      Int      @default(0)
-  nextAttemptAt DateTime @default(now())
+  correlationId String    @db.Uuid
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
   publishedAt   DateTime?
-  lastError     String?  @db.VarChar(500)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastError     String?   @db.VarChar(500)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([publishedAt, nextAttemptAt, createdAt, id])
   @@index([aggregateType, aggregateId, createdAt])

@@ -26,6 +26,8 @@ export async function getCurrentUser(userId: string) {
       student: {
         select: {
           id: true,
+          userId: true,
+          classId: true,
           studentCode: true,
           phone: true,
           address: true,

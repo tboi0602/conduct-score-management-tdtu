@@ -31,6 +31,7 @@ export function EventForm({
   const [organizer, setOrganizer] = useState(event?.organizer ?? null);
   const [description, setDescription] = useState(event?.description ?? "");
   const [mode, setMode] = useState<string>(event?.checkInMode ?? "ONE_WAY");
+  const [deliveryMode, setDeliveryMode] = useState<string>(event?.deliveryMode ?? "OFFLINE");
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <fieldset disabled={saving} className="space-y-5">
@@ -70,6 +71,21 @@ export function EventForm({
               onChange={setCriterion}
               placeholder={t.selectCriteria}
               disabled={saving}
+            />
+          </div>
+          <div className="space-y-2 text-sm font-semibold text-[#263b58]">
+            <p>{t.deliveryMode}</p>
+            <CustomSelect
+              name="deliveryMode"
+              value={deliveryMode}
+              onChange={setDeliveryMode}
+              ariaLabel={t.deliveryMode}
+              disabled={saving}
+              placeholder={t.deliveryMode}
+              options={(["OFFLINE", "ONLINE"] as const).map((value) => ({
+                value,
+                label: t[value],
+              }))}
             />
           </div>
           <div className="space-y-2 text-sm font-semibold text-[#263b58]">

@@ -39,6 +39,24 @@ export async function listPublic(req: Request, res: Response) {
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }
 
+export async function listRecommended(req: Request, res: Response) {
+  const result = await registrations.listRecommendedEvents(
+    auth(res).sub,
+    parsePagination(req.query, { maxOffset: 10000 }),
+    {
+      search: optionalQuery(req.query.search, searchInput),
+      criteriaId: optionalQuery(req.query.criteriaId, (value) => uuidInput(value, "criteriaId")),
+      organizerId: optionalQuery(req.query.organizerId, (value) => uuidInput(value, "organizerId")),
+      startsFrom: optionalQuery(req.query.startsFrom, (value) => dateInput(value, "startsFrom")),
+      startsTo: optionalQuery(req.query.startsTo, (value) => dateInput(value, "startsTo")),
+      type: optionalQuery(req.query.type, (value) =>
+        enumInput(value, Object.values(OrganizingUnitType), "type"),
+      ),
+    },
+  );
+  res.json({ ok: true, data: result.items, pagination: result.pagination });
+}
+
 export async function publicOrganizerOptions(req: Request, res: Response) {
   const result = await registrations.listPublicOrganizerOptions(
     parsePagination(req.query, { maxOffset: 10000 }),

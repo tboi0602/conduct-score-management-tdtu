@@ -80,6 +80,8 @@ export type CurrentUserProfile = {
   effectiveFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
   student: {
     id: string;
+    userId: string;
+    classId: string | null;
     studentCode: string;
     phone: string | null;
     address: string | null;

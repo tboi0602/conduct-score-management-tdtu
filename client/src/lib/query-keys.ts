@@ -23,6 +23,8 @@ export const queryKeys = {
     listAll: ["student", "events", "list"] as const,
     mineAll: ["student", "events", "mine"] as const,
     list: (filters: StudentEventFilters) => ["student", "events", "list", filters] as const,
+    recommended: (filters: StudentEventFilters) =>
+      ["student", "events", "recommended", filters] as const,
     detail: (id: string) => ["student", "events", "detail", id] as const,
     mine: (view: string) => ["student", "events", "mine", view] as const,
     organizerOptions: (type?: string, search?: string) =>
@@ -87,4 +89,20 @@ export const queryKeys = {
     mine: (semesterId: string) => ["conduct-scores", "mine", semesterId] as const,
   },
   dashboard: (semesterId?: string) => ["admin", "dashboard", semesterId] as const,
+  schedules: {
+    all: ["student", "schedules"] as const,
+    mine: (semesterId: string) => ["student", "schedules", semesterId] as const,
+    week: (semesterId: string, weekStart: string) =>
+      ["student", "schedules", semesterId, "week", weekStart] as const,
+  },
+  appeals: {
+    all: ["appeals"] as const,
+    mine: ["appeals", "mine"] as const,
+    eligible: ["appeals", "eligible"] as const,
+    managed: (status: string, search: string) => ["appeals", "managed", status, search] as const,
+    pending: ["appeals", "managed", "PENDING"] as const,
+  },
+  notifications: {
+    mine: ["student", "notifications"] as const,
+  },
 };

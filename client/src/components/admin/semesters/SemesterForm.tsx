@@ -53,6 +53,28 @@ export function SemesterForm({
             }))}
           />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-[#263b58]">
+            {t.startDate}
+            <input
+              name="startDate"
+              type="date"
+              required
+              defaultValue={semester?.startDate?.slice(0, 10) ?? ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="text-sm font-semibold text-[#263b58]">
+            {t.endDate}
+            <input
+              name="endDate"
+              type="date"
+              required
+              defaultValue={semester?.endDate?.slice(0, 10) ?? ""}
+              className={inputClass}
+            />
+          </label>
+        </div>
       </fieldset>
       <ManagementError error={error} fallback={t.saveError} />
       <div className="flex justify-end gap-3 border-t border-[#e6ebf2] pt-5">

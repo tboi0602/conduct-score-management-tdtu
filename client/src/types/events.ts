@@ -1,5 +1,6 @@
 export type EventType = "UNIVERSITY" | "FACULTY" | "CLASS" | "CLUB";
 export type CheckInMode = "ONE_WAY" | "TWO_WAY";
+export type EventDeliveryMode = "OFFLINE" | "ONLINE";
 export type OrganizingUnitType = EventType;
 export type OrganizingUnit = {
   id: string;
@@ -21,11 +22,23 @@ export type Semester = {
   id: string;
   year: number;
   type: SemesterType;
+  startDate: string;
+  endDate: string;
   createdAt?: string;
   updatedAt?: string;
-  _count?: { events: number; conductScores: number };
+  _count?: {
+    events: number;
+    conductScores: number;
+    schedules?: number;
+    scheduleExceptions?: number;
+  };
 };
-export type SemesterPayload = { year: number; type: SemesterType };
+export type SemesterPayload = {
+  year: number;
+  type: SemesterType;
+  startDate: string;
+  endDate: string;
+};
 export type SemesterFilters = { year?: string; type?: SemesterType };
 export type Criteria = {
   id: string;
@@ -52,6 +65,7 @@ export type EventPayload = {
   attendanceRadiusMeters: number;
   points: number;
   checkInMode: CheckInMode;
+  deliveryMode: EventDeliveryMode;
 };
 export type ManagedEvent = Omit<EventPayload, "description"> & {
   description?: string;

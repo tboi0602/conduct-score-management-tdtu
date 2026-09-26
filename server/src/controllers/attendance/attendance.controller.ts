@@ -74,8 +74,19 @@ export async function studentQr(req: Request, res: Response) {
     auth(res).sub,
     textInput(body.token, "token", 1000),
     coordinates(body),
+    uuidInput(body.clientAttemptId, "clientAttemptId"),
   );
   res.status(202).json({ ok: true, data: result });
+}
+
+export async function myAttempt(req: Request, res: Response) {
+  res.json({
+    ok: true,
+    data: await attendance.getMyAttempt(
+      auth(res).sub,
+      uuidInput(req.params.clientAttemptId, "clientAttemptId"),
+    ),
+  });
 }
 
 export async function managedScan(req: Request, res: Response) {

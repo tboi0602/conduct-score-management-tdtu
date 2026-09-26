@@ -77,6 +77,11 @@ export function eventPayload(form: FormData): EventPayload {
   const checkInMode = form.get("checkInMode");
   if (checkInMode !== "ONE_WAY" && checkInMode !== "TWO_WAY")
     throw new FormValidationError("invalidFields");
+  const deliveryMode = form.get("deliveryMode");
+  if (deliveryMode !== "OFFLINE" && deliveryMode !== "ONLINE")
+    throw new FormValidationError("invalidFields");
+  if (deliveryMode === "OFFLINE" && start.toLocaleDateString() !== end.toLocaleDateString())
+    throw new FormValidationError("invalidTime");
   return {
     name: requiredText(form, "name"),
     description: String(form.get("description") ?? ""),
@@ -92,6 +97,7 @@ export function eventPayload(form: FormData): EventPayload {
     attendanceRadiusMeters: pointsInput(form, "attendanceRadiusMeters"),
     points: pointsInput(form, "points"),
     checkInMode,
+    deliveryMode,
   };
 }
 

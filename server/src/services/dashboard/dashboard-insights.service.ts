@@ -15,15 +15,20 @@ export async function getDashboardInsights(userId: string, requestedSemesterId?:
   const access = await getEventAccess(userId);
   if (!access.manageAnyUnit && !access.facultyId)
     throw new ApiError(409, "A primary faculty must be assigned");
+  const currentSemester = await prisma.semester.findFirst({
+    where: { startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+    select: { id: true, year: true, type: true },
+  });
   const semester = requestedSemesterId
     ? await prisma.semester.findUnique({
         where: { id: requestedSemesterId },
         select: { id: true, year: true, type: true },
       })
-    : await prisma.semester.findFirst({
+    : (currentSemester ??
+      (await prisma.semester.findFirst({
         orderBy: [{ year: "desc" }, { type: "asc" }],
         select: { id: true, year: true, type: true },
-      });
+      })));
   if (!semester) throw new ApiError(404, "Semester not found");
   const facultyId = access.manageAnyUnit ? null : access.facultyId;
   const scopeKey = access.manageAnyUnit ? "global" : `faculty:${facultyId}`;

@@ -5,6 +5,8 @@ import { seedAuthData } from "./auth.seed";
 import { seedOrganizingUnits } from "./organizer.seed";
 import { seedTrainingCriteria } from "./criteria.seed";
 import { seedSemesters } from "./semester.seed";
+import { seedClassSessions } from "./schedule.seed";
+import { seedEvents } from "./event.seed";
 
 const prisma = new PrismaClient();
 
@@ -17,6 +19,10 @@ async function main(): Promise<void> {
   await seedTrainingCriteria(prisma);
   console.log("[seed] Seeding semesters...");
   await seedSemesters(prisma);
+  console.log("[seed] Seeding class sessions...");
+  await seedClassSessions(prisma);
+  console.log("[seed] Seeding sample events...");
+  await seedEvents(prisma);
   console.log("[seed] Seeding roles, permissions and admin account...");
   await seedAuthData(prisma);
   console.log("[seed] All seed data completed successfully");

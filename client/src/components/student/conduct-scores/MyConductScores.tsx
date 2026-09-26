@@ -47,7 +47,7 @@ export function MyConductScores() {
       ) : null}
       {state.score.data ? (
         <div className="mt-7">
-          <ConductScoreReport data={state.score.data} />
+          <ConductScoreReport data={state.score.data} blueHeader currentEventResultsOnly />
         </div>
       ) : null}
     </section>

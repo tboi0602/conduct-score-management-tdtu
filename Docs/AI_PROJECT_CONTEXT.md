@@ -89,6 +89,11 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
   Event registration, attendance, and conduct-score changes invalidate the affected cache version.
 - Conduct scores use an append-only entry ledger with criterion projections and a 0-100 summary.
   Finalized scores require an audited reopen action before they can change.
+- Student schedules are semester-scoped recurring weekly slots with date-specific `HAS_CLASS` and
+  `NO_CLASS` exceptions. The five seeded class sessions are the shared time-slot catalog.
+- Events explicitly use `OFFLINE` or `ONLINE` delivery mode. Offline events must start and end on the
+  same Vietnam calendar day. Student recommendations include only open, upcoming offline events that
+  do not overlap the effective schedule after applying that date's exceptions.
 
 ## Important implementation caveats
 
@@ -103,6 +108,11 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Event capacity uses an atomically maintained `registeredCount`; registration and cancellation
   update the registration row and counter in one PostgreSQL transaction. API instances remain
   stateless behind Nginx `least_conn`, and registration throttling is keyed by user in shared Redis.
+- Attendance appeals allow registered students to submit one private S3 evidence image within seven
+  days after an event. Each student has three lifetime attempts per event. Scoped managers can approve
+  an appeal to repair attendance and conduct score, or reject it with a reason. Resolved appeal rows
+  and evidence are retained for three days, then removed by the worker while the compact attempt
+  counter remains.
 - Student event discovery supports database-backed organizer-level and concrete organizer filters.
   Students may edit their name, phone, address, and date of birth; email, student code,
   class, major, and faculty remain read-only academic data.

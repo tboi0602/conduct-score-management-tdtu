@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { CheckInMode, EventType } from "@prisma/client";
+import { CheckInMode, EventDeliveryMode, EventType } from "@prisma/client";
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
 import { sanitizeEventDescription } from "@utils/eventDescription";
@@ -46,6 +46,11 @@ function parseInput(req: Request): events.EventInput {
       body.checkInMode === undefined ? CheckInMode.ONE_WAY : body.checkInMode,
       Object.values(CheckInMode),
       "checkInMode",
+    ),
+    deliveryMode: enumInput(
+      body.deliveryMode === undefined ? EventDeliveryMode.OFFLINE : body.deliveryMode,
+      Object.values(EventDeliveryMode),
+      "deliveryMode",
     ),
   };
 }

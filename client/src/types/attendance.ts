@@ -12,6 +12,17 @@ export type AttendanceSession = {
   openedAt: string;
   closedAt: string | null;
 };
+export type StudentAttendanceAttempt = {
+  found: boolean;
+  request: {
+    id: string;
+    status: AttendanceScanStatus;
+    rejectionReason: string | null;
+    processedAt: string | null;
+    direction: AttendanceDirection;
+    event: { id: string; name: string; timeEnd: string };
+  } | null;
+};
 export type AttendanceQr = {
   token: string;
   scanUrl: string;

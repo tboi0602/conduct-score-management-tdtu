@@ -7,7 +7,16 @@ import { StudentCheckIn } from "@/components/student/StudentCheckIn";
 
 function CheckInContent() {
   const search = useSearchParams();
-  return <StudentCheckIn token={search.get("token") ?? ""} />;
+  const direction = search.get("direction");
+  return (
+    <StudentCheckIn
+      token={search.get("token") ?? ""}
+      eventId={search.get("eventId") ?? ""}
+      eventName={search.get("eventName") ?? ""}
+      eventEnd={search.get("eventEnd") ?? ""}
+      direction={direction === "CHECK_IN" || direction === "CHECK_OUT" ? direction : null}
+    />
+  );
 }
 
 export default function StudentCheckInPage() {
