@@ -1,0 +1,234 @@
+erDiagram
+    faculties {
+        String id PK ""
+        String code UK ""
+        String name ""
+    }
+    majors {
+        String id PK ""
+        String code UK ""
+        String name ""
+        String facultyId FK "faculties.id"
+    }
+    faculties ||..o{ majors : "facultyId"
+    classes {
+        String id PK ""
+        String code UK ""
+        String name ""
+        String majorId FK "majors.id"
+    }
+    majors ||..o{ classes : "majorId"
+    attendance_records {
+        String id PK ""
+        String studentId FK "students.id"
+        String eventId FK "events.id"
+        AttendanceDirection direction ""
+        DateTime timeChecking "nullable; "
+        AttendanceStatus status ""
+        Int pointsEarned ""
+        String scanRequestId FK,UK "nullable; attendance_scan_requests.id"
+    }
+    students ||..o{ attendance_records : "studentId"
+    events ||..o{ attendance_records : "eventId"
+    attendance_scan_requests |o..o| attendance_records : "scanRequestId"
+    attendance_sessions {
+        String id PK ""
+        String eventId FK "events.id"
+        AttendanceDirection direction ""
+        AttendanceSessionStatus status ""
+        Int radiusMeters ""
+        String openedByUserId FK "users.id"
+        String closedByUserId FK "nullable; users.id"
+    }
+    events ||..o{ attendance_sessions : "eventId"
+    users ||..o{ attendance_sessions : "openedByUserId"
+    users |o..o{ attendance_sessions : "closedByUserId"
+    attendance_scan_requests {
+        String id PK ""
+        String eventId FK "events.id"
+        String sessionId FK "nullable; attendance_sessions.id"
+        String studentId FK "students.id"
+        String submittedByUserId FK "users.id"
+        AttendanceDirection direction ""
+        AttendanceScanSource source ""
+        AttendanceStatus requestedStatus ""
+        AttendanceScanStatus status ""
+        String rejectionReason "nullable; "
+    }
+    events ||..o{ attendance_scan_requests : "eventId"
+    attendance_sessions |o..o{ attendance_scan_requests : "sessionId"
+    students ||..o{ attendance_scan_requests : "studentId"
+    users ||..o{ attendance_scan_requests : "submittedByUserId"
+    outbox_events {
+        String id PK ""
+        String aggregateType ""
+        String aggregateId ""
+        String eventType ""
+        DateTime publishedAt "nullable; "
+    }
+    permissions {
+        String id PK ""
+        String permission UK ""
+    }
+    roles {
+        String id PK ""
+        String name UK ""
+    }
+    role_permissions {
+        String id PK ""
+        String roleId FK "roles.id"
+        String permissionId FK "permissions.id"
+    }
+    roles ||..o{ role_permissions : "roleId"
+    permissions ||..o{ role_permissions : "permissionId"
+    user_roles {
+        String userId PK,FK "users.id"
+        String roleId PK,FK "roles.id"
+    }
+    users ||..o{ user_roles : "userId"
+    roles ||..o{ user_roles : "roleId"
+    users {
+        String id PK ""
+        String email UK ""
+        String name ""
+        UserStatus status ""
+        String primaryFacultyId FK "nullable; faculties.id"
+    }
+    faculties |o..o{ users : "primaryFacultyId"
+    semesters {
+        String id PK ""
+        Int year ""
+        SemesterType type ""
+    }
+    conduct_scores {
+        String id PK ""
+        String studentId FK "students.id"
+        String semesterId FK "semesters.id"
+        Int totalScore ""
+        Ranking ranking ""
+        ConductScoreStatus status ""
+        String finalizedByUserId FK "nullable; users.id"
+    }
+    students ||..o{ conduct_scores : "studentId"
+    semesters ||..o{ conduct_scores : "semesterId"
+    users |o..o{ conduct_scores : "finalizedByUserId"
+    conduct_score_entries {
+        String id PK ""
+        String conductScoreId FK "conduct_scores.id"
+        String criteriaId FK "nullable; criteria.id"
+        String eventId FK "nullable; events.id"
+        Int points ""
+        String result ""
+        ConductScoreEntrySource source ""
+        String reason "nullable; "
+        String createdByUserId FK "nullable; users.id"
+        String reversalOfId FK "nullable; conduct_score_entries.id"
+        String idempotencyKey UK ""
+    }
+    conduct_scores ||..o{ conduct_score_entries : "conductScoreId"
+    criteria |o..o{ conduct_score_entries : "criteriaId"
+    events |o..o{ conduct_score_entries : "eventId"
+    users |o..o{ conduct_score_entries : "createdByUserId"
+    conduct_score_entries |o..o{ conduct_score_entries : "reversalOfId"
+    conduct_score_criterion_totals {
+        String id PK ""
+        String conductScoreId FK "conduct_scores.id"
+        String criteriaId FK "criteria.id"
+        Int rawScore ""
+        Int cappedScore ""
+    }
+    conduct_scores ||..o{ conduct_score_criterion_totals : "conductScoreId"
+    criteria ||..o{ conduct_score_criterion_totals : "criteriaId"
+    conduct_score_status_history {
+        String id PK ""
+        String conductScoreId FK "conduct_scores.id"
+        ConductScoreStatusAction action ""
+        String reason "nullable; "
+        String actorUserId FK "nullable; users.id"
+    }
+    conduct_scores ||..o{ conduct_score_status_history : "conductScoreId"
+    users |o..o{ conduct_score_status_history : "actorUserId"
+    organizing_units {
+        String id PK ""
+        OrganizingUnitType type ""
+        String code UK ""
+        String name "nullable; "
+        String facultyId FK "nullable; faculties.id"
+        String classId FK,UK "nullable; classes.id"
+    }
+    faculties |o..o{ organizing_units : "facultyId"
+    classes |o..o| organizing_units : "classId"
+    criteria {
+        String id PK ""
+        String title ""
+        Int maxPoints ""
+        Int defaultPoints ""
+    }
+    events {
+        String id PK ""
+        String criteriaId FK "criteria.id"
+        String semesterId FK "semesters.id"
+        String name ""
+        String location ""
+        String organizerId FK "nullable; organizing_units.id"
+        DateTime timeStart ""
+        DateTime timeEnd ""
+        Int points ""
+        CheckInMode checkInMode ""
+        Int capacity "nullable; "
+        DateTime registrationStart ""
+        DateTime registrationEnd ""
+    }
+    criteria ||..o{ events : "criteriaId"
+    semesters ||..o{ events : "semesterId"
+    organizing_units |o..o{ events : "organizerId"
+    event_registrations {
+        String id PK ""
+        String eventId FK "events.id"
+        String studentId FK "students.id"
+        EventRegistrationStatus status ""
+        DateTime registeredAt ""
+        DateTime cancelledAt "nullable; "
+        String registeredByUserId FK "nullable; users.id"
+        String cancelledByUserId FK "nullable; users.id"
+    }
+    events ||..o{ event_registrations : "eventId"
+    students ||..o{ event_registrations : "studentId"
+    users |o..o{ event_registrations : "registeredByUserId"
+    users |o..o{ event_registrations : "cancelledByUserId"
+    notifications {
+        String id PK ""
+        String eventId FK "events.id"
+        String title ""
+    }
+    events ||..o{ notifications : "eventId"
+    class_sessions {
+        String id PK ""
+        String name ""
+        DateTime startTime ""
+        DateTime endTime ""
+    }
+    schedules {
+        String id PK ""
+        String classSessionId FK "class_sessions.id"
+        String studentId FK "students.id"
+        Int dayOfWeek ""
+    }
+    class_sessions ||..o{ schedules : "classSessionId"
+    students ||..o{ schedules : "studentId"
+    free_times {
+        String id PK ""
+        String classSessionId FK "class_sessions.id"
+        String studentId FK "students.id"
+        Int dayOfWeek ""
+    }
+    class_sessions ||..o{ free_times : "classSessionId"
+    students ||..o{ free_times : "studentId"
+    students {
+        String id PK ""
+        String userId FK,UK "users.id"
+        String classId FK "nullable; classes.id"
+        String studentCode UK ""
+    }
+    users ||..o| students : "userId"
+    classes |o..o{ students : "classId"

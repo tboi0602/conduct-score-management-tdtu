@@ -9,13 +9,17 @@ import { attendanceMessages } from "@/i18n/attendance-messages";
 import {
   attendanceFailureStore,
   failureCategoryForRejection,
+  incidentPayload,
+  qrRetryExpiry,
+  sha256,
+  tokenFingerprint,
 } from "@/lib/attendance-failure-store";
 import { getAuthSession } from "@/lib/auth-storage";
 import { env } from "@/lib/env";
 import { queryKeys } from "@/lib/query-keys";
 import { attendanceService } from "@/services/attendance";
 import { HttpError } from "@/services/http";
-import type { AttendanceFailureCategory } from "@/types/attendance-failure";
+import type { AttendanceFailureCategory, AttendanceFailureDraft } from "@/types/attendance-failure";
 
 function locate() {
   return new Promise<GeolocationPosition>((resolve, reject) =>
@@ -58,11 +62,13 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
   const { showToast } = useToast();
   const client = useQueryClient();
   const attemptId = useRef(crypto.randomUUID());
+  const localDraft = useRef<AttendanceFailureDraft | null>(null);
   const session = getAuthSession();
   const mutation = useMutation({
     mutationFn: async () => {
+      let position: GeolocationPosition | null = null;
       try {
-        const position = await locate();
+        position = await locate();
         const response = await attendanceService.studentQr({
           token,
           clientAttemptId: attemptId.current,
@@ -71,7 +77,7 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
           accuracyMeters: position.coords.accuracy,
         });
         if (session && response.data.event) {
-          await attendanceFailureStore.put({
+          const draft: AttendanceFailureDraft = {
             clientAttemptId: attemptId.current,
             userId: session.user.id,
             eventId: response.data.event.id,
@@ -82,12 +88,14 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
             requestId: response.data.requestId,
             failureCategory: "OTHER",
             status: "PENDING",
-          });
+          };
+          localDraft.current = draft;
+          await attendanceFailureStore.put(draft);
         }
         return response;
       } catch (error) {
         if (session && context.eventId && context.eventEnd) {
-          await attendanceFailureStore.put({
+          const draft: AttendanceFailureDraft = {
             clientAttemptId: attemptId.current,
             userId: session.user.id,
             eventId: context.eventId,
@@ -98,7 +106,20 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
             requestId: null,
             failureCategory: failureCategory(error),
             status: "UNSENT",
-          });
+            retryExpiresAt: qrRetryExpiry(token),
+            retryPayload: position
+              ? {
+                  token,
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  accuracyMeters: position.coords.accuracy,
+                }
+              : undefined,
+            tokenFingerprint: token ? await tokenFingerprint(token) : null,
+          };
+          draft.digest = await sha256(incidentPayload(draft));
+          localDraft.current = draft;
+          await attendanceFailureStore.put(draft);
         }
         throw error;
       }
@@ -137,7 +158,9 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
       return;
     }
     if (request.data.status === "REJECTED" && context.eventId && context.eventEnd) {
-      void attendanceFailureStore.put({
+      const existing = localDraft.current;
+      const draft: AttendanceFailureDraft = {
+        ...existing,
         clientAttemptId: attemptId.current,
         userId: session.user.id,
         eventId: context.eventId,
@@ -148,7 +171,12 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
         requestId,
         failureCategory: failureCategoryForRejection(request.data.rejectionReason),
         status: "FAILED",
-      });
+      };
+      void (async () => {
+        draft.digest = await sha256(incidentPayload(draft));
+        localDraft.current = draft;
+        await attendanceFailureStore.put(draft);
+      })();
     }
   }, [
     context.direction,

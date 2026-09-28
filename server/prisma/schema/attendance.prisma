@@ -25,6 +25,7 @@ enum AttendanceScanSource {
   STUDENT_QR
   STAFF_BARCODE
   MANUAL_ENTRY
+  BULK_IMPORT
 }
 
 // Nhật ký điểm danh: MỖI LƯỢT QUÉT là một bản ghi, phân biệt chiều
@@ -128,4 +129,64 @@ model OutboxEvent {
   @@index([publishedAt, nextAttemptAt, createdAt, id])
   @@index([aggregateType, aggregateId, createdAt])
   @@map("outbox_events")
+}
+
+enum AttendanceIncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+model AttendanceClientIncident {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  clientAttemptId    String                   @unique @db.Uuid
+  studentId          String                   @db.Uuid
+  eventId            String                   @db.Uuid
+  direction          AttendanceDirection?
+  failureCategory    AttendanceFailureCategory
+  failedAt           DateTime
+  latitude           Float?
+  longitude          Float?
+  accuracyMeters     Float?
+  tokenFingerprint   String?                  @db.VarChar(64)
+  clientOnline       Boolean
+  userAgent          String?                  @db.VarChar(500)
+  payload            Json
+  digest             String                   @db.VarChar(64)
+  status             AttendanceIncidentStatus @default(OPEN)
+  resolutionNote     String?                  @db.VarChar(1000)
+  resolvedByUserId   String?                  @db.Uuid
+  resolvedAt         DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  event      Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  resolvedBy User?   @relation("AttendanceIncidentResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status, failedAt, id])
+  @@index([studentId, failedAt, id])
+  @@map("attendance_client_incidents")
+}
+
+model AttendanceAccessAudit {
+  id              String    @id @default(uuid()) @db.Uuid
+  requestId       String    @unique @db.VarChar(100)
+  clientAttemptId String?   @db.Uuid
+  userId          String?   @db.Uuid
+  studentId       String?   @db.Uuid
+  eventId         String?   @db.Uuid
+  method          String    @db.VarChar(10)
+  path            String    @db.VarChar(255)
+  statusCode      Int
+  durationMs      Int
+  instance        String    @db.VarChar(100)
+  createdAt       DateTime  @default(now())
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  event   Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt, id])
+  @@index([clientAttemptId, createdAt])
+  @@index([userId, createdAt])
+  @@map("attendance_access_audits")
 }

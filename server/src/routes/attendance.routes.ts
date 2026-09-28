@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as controller from "@controllers/attendance/attendance.controller";
 import { authenticate, requirePermission } from "@middleware";
 import { rateLimitByStudent } from "@middleware/rateLimiter.middleware";
+import { auditAttendanceAccess } from "@middleware/attendanceAudit.middleware";
 import { asyncHandler } from "@utils/asyncHandler";
 import { attendanceScanHttpDuration } from "@metrics";
 
@@ -39,7 +40,13 @@ router.post(
   "/scan/qr",
   requirePermission("attendance.create"),
   rateLimitByStudent,
+  auditAttendanceAccess,
   asyncHandler(controller.studentQr),
+);
+router.post(
+  "/incidents",
+  requirePermission("attendance.create"),
+  asyncHandler(controller.submitIncident),
 );
 router.post(
   "/events/:eventId/sse-ticket",
@@ -69,12 +76,29 @@ router.get(
 router.post(
   "/events/:eventId/scan",
   requirePermission("attendance.manage"),
+  auditAttendanceAccess,
   asyncHandler(controller.managedScan),
+);
+router.post(
+  "/events/:eventId/import",
+  requirePermission("attendance.manage"),
+  auditAttendanceAccess,
+  asyncHandler(controller.bulkImport),
 );
 router.get(
   "/events/:eventId/requests",
   requirePermission("attendance.read"),
   asyncHandler(controller.requests),
+);
+router.get(
+  "/events/:eventId/reconciliation",
+  requirePermission("attendance.manage"),
+  asyncHandler(controller.reconciliationList),
+);
+router.patch(
+  "/events/:eventId/reconciliation/:incidentId",
+  requirePermission("attendance.manage"),
+  asyncHandler(controller.resolveIncident),
 );
 router.patch(
   "/events/:eventId/records/:recordId",

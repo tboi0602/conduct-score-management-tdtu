@@ -1,0 +1,74 @@
+@startuml
+title Organizer – Take Attendance
+hide footbox
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam maxMessageSize 230
+skinparam ParticipantPadding 12
+skinparam sequence {
+  ArrowColor #154a9b
+  ParticipantBorderColor #154a9b
+  ParticipantBackgroundColor #edf3fc
+  GroupBorderColor #8a9eb8
+  LifeLineBorderColor #8a9eb8
+}
+
+actor "Organizer" as U
+boundary "User Interface" as UI
+control "Attendance API" as API
+database "PostgreSQL" as DB
+participant "Background Processing\nOutbox / RabbitMQ / Worker" as BG
+
+U -> UI : 1: Choose direction and status; enter student code
+alt [Barcode scanner]
+  UI -> UI : 1.1: Detect input and auto-submit
+else [Manual input]
+  U -> UI : 1.2: Press Enter to submit
+end
+
+UI -> API : 2: Submit student code, source and status
+activate API
+API -> API : 2.1: Validate permission, event scope,\nattendance direction and service availability
+break [Invalid request or service unavailable]
+  API --> UI : 2.2: Return error
+  UI --> U : 2.3: Display error
+end
+alt [STAFF_BARCODE]
+  API -> DB : 2.4: Find actively registered student
+else [MANUAL_ENTRY]
+  API -> DB : 2.5: Find student; registration not required
+end
+break [Student or required registration not found]
+  API --> UI : 2.6: Reject request
+end
+API -> DB : 2.7: Save PENDING request + Outbox\nin one transaction
+break [Persistence fails]
+  API --> UI : 2.8: Return error; request not accepted
+end
+API --> UI : 2.9: 202 – Accepted for processing
+deactivate API
+
+BG -> DB : 3: Relay reads Outbox; delivers request\nvia RabbitMQ to worker
+BG -> DB : 3.1: Worker revalidates conditions\n(MANUAL_ENTRY bypasses registration)
+alt [Validation passes]
+  BG -> DB : 3.2: Record attendance if absent;\nsave ACCEPTED + processed Outbox
+  BG -> DB : 3.3: Sync Conduct Score after commit
+else [Validation fails]
+  BG -> DB : 3.4: Save REJECTED, reason\nand processed Outbox
+end
+BG ->> API : 3.5: Publish result via Redis Pub/Sub
+API ->> UI : 4: Notify change via SSE
+UI -> API : 4.1: Refresh list on the current page
+API -> DB : 4.2: Read requests within authorized scope
+DB --> API : 4.3: Request list
+API --> UI : 4.4: Return result
+UI --> U : 4.5: Display attendance status
+
+note over U,API
+  Direct attendance requires neither GPS nor a QR session.
+  The hook infers input source from typing speed.
+  Opening a QR session is a separate action; see the detailed diagram.
+end note
+@enduml

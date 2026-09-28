@@ -10,12 +10,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 type Toast = { id: number; message: string; tone: "success" | "error" };
 type ToastContextValue = { showToast: (message: string, tone?: Toast["tone"]) => void };
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-function ToastItem({ toast, close }: { toast: Toast; close: () => void }) {
+function ToastItem({
+  toast,
+  close,
+  closeLabel,
+}: {
+  toast: Toast;
+  close: () => void;
+  closeLabel: string;
+}) {
   useEffect(() => {
     const timer = window.setTimeout(close, 5000);
     return () => window.clearTimeout(timer);
@@ -37,7 +46,7 @@ function ToastItem({ toast, close }: { toast: Toast; close: () => void }) {
       <button
         type="button"
         onClick={close}
-        aria-label="Close notification"
+        aria-label={closeLabel}
         className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#718096] transition hover:bg-[#eef3f8] hover:text-[#102a50]"
       >
         <X size={15} />
@@ -47,6 +56,7 @@ function ToastItem({ toast, close }: { toast: Toast; close: () => void }) {
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { locale } = useLanguage();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const showToast = useCallback((message: string, tone: Toast["tone"] = "success") => {
     const id = Date.now() + Math.random();
@@ -61,6 +71,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <ToastItem
             key={toast.id}
             toast={toast}
+            closeLabel={locale === "vi" ? "Đóng thông báo" : "Close notification"}
             close={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
           />
         ))}

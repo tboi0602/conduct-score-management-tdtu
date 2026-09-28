@@ -20,6 +20,9 @@ model Student {
   eventRegistrations     EventRegistration[]
   attendanceAppeals      AttendanceAppeal[]
   attendanceAppealAttempts AttendanceAppealAttempt[]
+  conductScoreWarnings     ConductScoreWarning[]
+  attendanceClientIncidents AttendanceClientIncident[]
+  attendanceAccessAudits   AttendanceAccessAudit[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 

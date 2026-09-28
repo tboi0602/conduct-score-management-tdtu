@@ -23,6 +23,32 @@ enum AttendanceFailureCategory {
 enum UserNotificationType {
   APPEAL_APPROVED
   APPEAL_REJECTED
+  CONDUCT_SCORE_WARNING
+}
+
+enum ConductScoreWarningStatus {
+  ACTIVE
+  RESOLVED
+}
+
+model ConductScoreWarning {
+  id            String                    @id @default(uuid()) @db.Uuid
+  studentId     String                    @db.Uuid
+  semesterId    String                    @db.Uuid
+  observedScore Int
+  threshold     Int                       @default(80)
+  status        ConductScoreWarningStatus @default(ACTIVE)
+  resolvedAt    DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, semesterId])
+  @@index([studentId, status, createdAt, id])
+  @@index([semesterId, status, observedScore, id])
+  @@map("conduct_score_warnings")
 }
 
 model AttendanceAppeal {

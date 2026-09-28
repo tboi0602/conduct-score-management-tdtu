@@ -8,7 +8,10 @@ import type {
   AttendanceSession,
   StudentAttendanceAttempt,
   DashboardSummary,
+  AttendanceImportResult,
+  AttendanceReconciliationRow,
 } from "@/types/attendance";
+import type { AttendanceIncidentPayload } from "@/types/attendance-failure";
 
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
@@ -54,6 +57,18 @@ export const attendanceService = {
       `/api/v1/attendance/events/${eventId}/scan`,
       json("POST", payload),
     ),
+  importAttendance: (
+    eventId: string,
+    payload: {
+      studentCodes: string[];
+      direction: AttendanceDirection;
+      status: "ATTENDED" | "LATE";
+    },
+  ) =>
+    authHttp<{ ok: true; data: AttendanceImportResult }>(
+      `/api/v1/attendance/events/${eventId}/import`,
+      json("POST", payload),
+    ),
   requests: (eventId: string, page: number, search = "", status = "") => {
     const query = new URLSearchParams({ page: String(page), limit: "20", search, status });
     return authHttp<PaginatedResponse<AttendanceRequest>>(
@@ -80,7 +95,29 @@ export const attendanceService = {
         direction: AttendanceDirection;
         event: { id: string; name: string; timeEnd: string };
       };
-    }>("/api/v1/attendance/scan/qr", json("POST", payload)),
+    }>("/api/v1/attendance/scan/qr", {
+      ...json("POST", payload),
+      headers: {
+        "Content-Type": "application/json",
+        "X-Client-Attempt-ID": payload.clientAttemptId,
+      },
+    }),
+  submitIncident: (payload: AttendanceIncidentPayload, digest: string) =>
+    authHttp<{
+      ok: true;
+      data: { id: string; clientAttemptId: string; status: "OPEN" | "RESOLVED" };
+    }>("/api/v1/attendance/incidents", json("POST", { ...payload, digest })),
+  reconciliation: (eventId: string, page: number, search = "", state = "") => {
+    const query = new URLSearchParams({ page: String(page), limit: "20", search, state });
+    return authHttp<PaginatedResponse<AttendanceReconciliationRow>>(
+      `/api/v1/attendance/events/${eventId}/reconciliation?${query}`,
+    );
+  },
+  resolveIncident: (eventId: string, incidentId: string, note: string) =>
+    authHttp<{ ok: true; data: { id: string; status: "RESOLVED"; resolutionNote: string } }>(
+      `/api/v1/attendance/events/${eventId}/reconciliation/${incidentId}`,
+      json("PATCH", { note }),
+    ),
   myRequest: (requestId: string) =>
     authHttp<{
       ok: true;

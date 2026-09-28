@@ -53,6 +53,7 @@ const permissionDescriptions = {
   "appeal.read-own": "Xem khiếu nại điểm danh của bản thân",
   "appeal.read": "Xem khiếu nại điểm danh trong phạm vi quản lý",
   "appeal.manage": "Duyệt hoặc từ chối khiếu nại điểm danh",
+  "notification.read-own": "Xem và cập nhật thông báo của bản thân",
 } as const;
 
 const conductScorePermissionDescriptions = {
@@ -149,6 +150,7 @@ const permissionsByRole = {
     "schedule.update-own",
     "appeal.create-own",
     "appeal.read-own",
+    "notification.read-own",
   ],
 } as const;
 

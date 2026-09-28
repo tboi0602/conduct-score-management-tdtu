@@ -75,6 +75,7 @@ model User {
   conductScoreStatusActions  ConductScoreStatusHistory[] @relation("ConductScoreStatusActor")
   attendanceAppealsReviewed  AttendanceAppeal[]           @relation("AttendanceAppealReviewedBy")
   notifications              UserNotification[]
+  attendanceIncidentsResolved AttendanceClientIncident[] @relation("AttendanceIncidentResolvedBy")
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
 

@@ -15,6 +15,10 @@ import {
   reconcileApprovedAppealScores,
 } from "@services/appeals/appeal.service";
 import { syncEndedEventConductScores } from "@services/conduct-score/conduct-score.service";
+import {
+  cleanupAttendanceEvidence,
+  evaluateConductScoreWarnings,
+} from "@services/warnings/warning.service";
 
 // Port cho server health/metrics của worker.
 const HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "9101", 10);
@@ -79,6 +83,21 @@ function startEndedEventScoreSync(): void {
   setInterval(run, intervalMs).unref();
 }
 
+function startWarningMaintenance(): void {
+  const intervalMs = Number(process.env.WARNING_MAINTENANCE_INTERVAL_MS ?? 24 * 60 * 60 * 1000);
+  const run = () =>
+    evaluateConductScoreWarnings()
+      .then((created) => cleanupAttendanceEvidence().then((cleaned) => ({ created, cleaned })))
+      .then(({ created, cleaned }) => {
+        if (created || cleaned) logger.info(`[warnings] created=${created} cleaned=${cleaned}`);
+      })
+      .catch((error: unknown) =>
+        logger.error(`[warnings] maintenance failed: ${(error as Error).message}`),
+      );
+  void run();
+  setInterval(run, intervalMs).unref();
+}
+
 async function bootstrap(): Promise<void> {
   redisClient.connect();
   await prisma.$connect();
@@ -88,10 +107,7 @@ async function bootstrap(): Promise<void> {
   startOutboxRelay();
   startAppealCleanup();
   startEndedEventScoreSync();
-
-  // TODO: consume("attendance.scan.queue", handler) - logic xử lý
-  // điểm danh (idempotency, geofence, ghi DB, rule engine...)
-  // sẽ được bổ sung tại đây theo nghiệp vụ của bạn.
+  startWarningMaintenance();
 
   await new Promise<void>((resolve) => healthServer.listen(HEALTH_PORT, resolve));
   trackConnectionGauges();

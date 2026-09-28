@@ -95,37 +95,21 @@ export async function updateCurrentStudentProfile(
     phone: string | null;
     address: string | null;
     dateOfBirth: Date | null;
-    studentCode: string;
-    classId: string;
   },
 ) {
   const student = await prisma.student.findUnique({ where: { userId }, select: { id: true } });
   if (!student) throw new ApiError(409, "Student profile is required");
-  const academicClass = await prisma.class.findUnique({
-    where: { id: input.classId },
-    select: { id: true },
-  });
-  if (!academicClass) throw new ApiError(400, "Class does not exist");
-  try {
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: userId }, data: { name: input.name } }),
-      prisma.student.update({
-        where: { id: student.id },
-        data: {
-          studentCode: input.studentCode,
-          classId: input.classId,
-          phone: input.phone,
-          address: input.address,
-          dateOfBirth: input.dateOfBirth,
-        },
-      }),
-    ]);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new ApiError(409, "Student code is already in use");
-    }
-    throw error;
-  }
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { name: input.name } }),
+    prisma.student.update({
+      where: { id: student.id },
+      data: {
+        phone: input.phone,
+        address: input.address,
+        dateOfBirth: input.dateOfBirth,
+      },
+    }),
+  ]);
   return getCurrentUser(userId);
 }
 

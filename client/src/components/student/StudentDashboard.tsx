@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Award, CalendarDays, GraduationCap, QrCode, UserRound } from "lucide-react";
+import {
+  ArrowUpRight,
+  Award,
+  CalendarDays,
+  GraduationCap,
+  QrCode,
+  TriangleAlert,
+  UserRound,
+} from "lucide-react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useMyWarnings } from "@/hooks/warnings/useMyWarnings";
 import { studentEventMessages } from "@/i18n/student-event-messages";
 
 export function StudentDashboard() {
   const { locale } = useLanguage();
   const t = studentEventMessages[locale];
   const access = useAdminAccess();
+  const warningQuery = useMyWarnings(access.can("conduct-score.read-own"));
   if (access.isLoading) return <PageLoadingSkeleton />;
   const profile = access.profile;
   const modules = [
@@ -51,7 +61,7 @@ export function StudentDashboard() {
         <span className="absolute -right-12 -top-16 h-48 w-48 rounded-full border-[32px] border-white/10" />
         <div className="relative max-w-2xl">
           <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[.16em] text-white/70">
-            <span className="h-px w-7 bg-white/60" /> TDTU Student
+            <span className="h-px w-7 bg-white/60" /> {t.studentPortal}
           </div>
           <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-4xl">
             {t.dashboardGreeting}, {profile?.name ?? t.student}
@@ -60,22 +70,40 @@ export function StudentDashboard() {
         </div>
       </header>
 
+      {(warningQuery.data?.length ?? 0) > 0 ? (
+        <Link
+          href="/conduct-scores"
+          className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 transition hover:border-amber-300"
+        >
+          <TriangleAlert className="mt-0.5 shrink-0 text-amber-700" size={20} />
+          <span className="min-w-0 flex-1">
+            <strong className="block">{t.conductScoreWarningTitle}</strong>
+            <span className="mt-1 block text-sm leading-6 text-amber-800">
+              {t.conductScoreWarningDescription
+                .replace("{score}", String(warningQuery.data?.[0]?.observedScore ?? 0))
+                .replace("{threshold}", String(warningQuery.data?.[0]?.threshold ?? 80))}
+            </span>
+          </span>
+          <ArrowUpRight size={18} className="shrink-0" />
+        </Link>
+      ) : null}
+
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_.72fr]">
         <div className="grid gap-4 sm:grid-cols-2">
           {modules.map(({ href, label, description, icon: Icon }, index) => (
             <Link
               key={href}
               href={href}
-              className={`group relative overflow-hidden rounded-[24px] border border-[#eadde0] bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#d8a5ac] ${index === 0 && modules.length === 3 ? "sm:col-span-2" : ""}`}
+              className={`group relative overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(16,42,80,.55)] transition duration-200 hover:-translate-y-1 hover:border-[#b9cbe0] ${index === 0 && modules.length === 3 ? "sm:col-span-2" : ""}`}
             >
-              <span className="absolute inset-x-0 top-0 h-1 bg-[#b42332] opacity-80" />
+              <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-85" />
               <div className="flex items-start justify-between gap-4">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#fff1f3] text-[#b42332] transition group-hover:bg-[#b42332] group-hover:text-white">
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#edf4fc] text-[#154a9b] transition group-hover:bg-[#154a9b] group-hover:text-white">
                   <Icon size={20} />
                 </span>
                 <ArrowUpRight
                   size={18}
-                  className="text-[#aa9298] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#b42332]"
+                  className="text-[#8a9db3] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#154a9b]"
                 />
               </div>
               <h2 className="mt-6 text-lg font-bold tracking-[-.02em] text-[#102a50]">{label}</h2>

@@ -1,6 +1,16 @@
 "use client";
 
-import { CalendarDays, ChevronDown, MapPin, Search, SlidersHorizontal, Users } from "lucide-react";
+import {
+  Building2,
+  CalendarClock,
+  CalendarDays,
+  ChevronDown,
+  MapPin,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Modal } from "@/components/ui/Modal";
@@ -311,6 +321,7 @@ export function StudentEvents() {
         open={Boolean(state.detailId)}
         onClose={() => state.setDetailId(null)}
         title={t.details}
+        size="xl"
       >
         {state.detailQuery.isPending ? (
           <div className="h-48 animate-pulse rounded-xl bg-[#edf2f7]" />
@@ -343,43 +354,94 @@ function EventDetail({
   t: (typeof studentEventMessages)["vi"] | (typeof studentEventMessages)["en"];
 }) {
   return (
-    <div className="space-y-4 text-sm text-[#52647d]">
-      <h2 className="text-xl font-bold text-[#102a50]">{event.name}</h2>
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="font-semibold">{t.organizer}</dt>
-          <dd>{event.organizer ? organizerLabel(event.organizer) : "TDTU"}</dd>
+    <div className="text-sm text-[#52647d]">
+      <div className="rounded-[22px] bg-[#f3f7fb] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-[#102a50]">{event.name}</h2>
+            <p className="mt-2 flex items-center gap-2">
+              <MapPin size={17} className="text-[#154a9b]" />
+              {event.location || t.locationPending}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-sm">
+            <strong className="block text-2xl text-[#154a9b]">{event.points}</strong>
+            <span className="text-xs">{t.points}</span>
+          </div>
         </div>
-        <div>
-          <dt className="font-semibold">{t.location}</dt>
-          <dd>{event.location || t.locationPending}</dd>
-        </div>
-        <div>
-          <dt className="font-semibold">{t.criterion}</dt>
-          <dd>{event.criteria.title}</dd>
-        </div>
-        <div>
-          <dt className="font-semibold">{t.starts}</dt>
-          <dd>{formatDate(event.timeStart, locale)}</dd>
-        </div>
-        <div>
-          <dt className="font-semibold">{t.ends}</dt>
-          <dd>{formatDate(event.timeEnd, locale)}</dd>
-        </div>
-        <div>
-          <dt className="font-semibold">{t.registrationTime}</dt>
-          <dd>
-            {formatDate(event.registrationStart, locale)} –{" "}
-            {formatDate(event.registrationEnd, locale)}
-          </dd>
-        </div>
+      </div>
+      <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <DetailField
+          icon={CalendarClock}
+          label={t.starts}
+          value={formatDate(event.timeStart, locale)}
+        />
+        <DetailField icon={CalendarDays} label={t.ends} value={formatDate(event.timeEnd, locale)} />
+        <DetailField
+          icon={Users}
+          label={t.capacity}
+          value={
+            event.capacity === null ? t.unlimited : `${event.registeredCount}/${event.capacity}`
+          }
+        />
+        <DetailField
+          icon={Building2}
+          label={t.organizer}
+          value={event.organizer ? organizerLabel(event.organizer) : "TDTU"}
+        />
+        <DetailField icon={ShieldCheck} label={t.criterion} value={event.criteria.title} />
+        <DetailField
+          icon={ShieldCheck}
+          label={t.eventType}
+          value={
+            { UNIVERSITY: t.university, FACULTY: t.facultyType, CLASS: t.classType, CLUB: t.club }[
+              event.type
+            ]
+          }
+        />
+        <DetailField icon={ShieldCheck} label={t.deliveryMode} value={t[event.deliveryMode]} />
+        <DetailField
+          icon={ShieldCheck}
+          label={t.checkInMode}
+          value={event.checkInMode === "ONE_WAY" ? t.oneWay : t.twoWay}
+        />
+        <DetailField
+          icon={CalendarDays}
+          label={t.semester}
+          value={`${event.semester.type} · ${event.semester.year}`}
+        />
       </dl>
+      <div className="mt-4 rounded-2xl border border-[#e1e8f0] p-4">
+        <p className="text-xs font-semibold text-[#718096]">{t.registrationTime}</p>
+        <p className="mt-2 font-semibold text-[#263b58]">
+          {formatDate(event.registrationStart, locale)} –{" "}
+          {formatDate(event.registrationEnd, locale)}
+        </p>
+      </div>
       {event.description ? (
         <div
-          className="event-rich-content border-t border-[#e6ebf2] pt-4"
+          className="event-rich-content mt-5 rounded-2xl border border-[#e1e8f0] p-5"
           dangerouslySetInnerHTML={{ __html: event.description }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function DetailField({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof CalendarDays;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e1e8f0] p-4">
+      <Icon size={18} className="text-[#154a9b]" />
+      <dt className="mt-3 text-xs font-semibold text-[#718096]">{label}</dt>
+      <dd className="mt-1 font-bold text-[#263b58]">{value}</dd>
     </div>
   );
 }

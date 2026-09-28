@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { RouteTitle } from "@/components/layout/RouteTitle";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 
 import "./globals.css";
 
@@ -19,6 +20,9 @@ export const metadata: Metadata = {
       },
     ],
   },
+  manifest: "/manifest.webmanifest",
+  themeColor: "#154a9b",
+  appleWebApp: { capable: true, title: "TDTU Conduct", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <QueryProvider>
           <LanguageProvider>
+            <ServiceWorkerRegistration />
             <RouteTitle />
             <ToastProvider>{children}</ToastProvider>
           </LanguageProvider>

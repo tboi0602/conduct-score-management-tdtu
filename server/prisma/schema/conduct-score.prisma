@@ -40,6 +40,7 @@ model Semester {
   conductScores      ConductScore[]
   schedules          Schedule[]
   scheduleExceptions ScheduleException[]
+  conductScoreWarnings ConductScoreWarning[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 

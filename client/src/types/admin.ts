@@ -96,8 +96,6 @@ export type CurrentUserProfile = {
 
 export type StudentProfilePayload = {
   name: string;
-  studentCode: string;
-  classId: string;
   phone: string | null;
   address: string | null;
   dateOfBirth: string | null;

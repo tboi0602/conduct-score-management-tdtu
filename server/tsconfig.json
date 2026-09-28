@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "Node16",
     "lib": ["ES2022"],
-    "moduleResolution": "node",
+    "moduleResolution": "Node16",
     "outDir": "./dist",
     "rootDir": "./src",
-    // Alias để import ngắn gọn: @config/auth thay vì ../config/auth
-    "baseUrl": "./src",
     "paths": {
-      "@*": ["*"]
+      "@workers": ["./src/workers/index.ts"],
+      "@*": ["./src/*"]
     },
     "strict": true,
     "esModuleInterop": true,

@@ -40,7 +40,10 @@ export const RABBITMQ_CONFIG = {
         deadLetterExchange: DLX_EXCHANGE,
         deadLetterRoutingKey: DLQ_ROUTING_KEY,
       },
-      bindings: [{ routingKey: "attendance.scan.requested.v1", exchange: MAIN_EXCHANGE }],
+      bindings: [
+        { routingKey: "attendance.scan.requested.v1", exchange: MAIN_EXCHANGE },
+        { routingKey: "attendance.access.audited.v1", exchange: MAIN_EXCHANGE },
+      ],
     },
     retry5s: {
       name: "attendance.scan.retry.5s",

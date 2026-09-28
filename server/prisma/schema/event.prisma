@@ -104,6 +104,8 @@ model Event {
   notifications          Notification[]
   attendanceAppeals      AttendanceAppeal[]
   attendanceAppealAttempts AttendanceAppealAttempt[]
+  attendanceClientIncidents AttendanceClientIncident[]
+  attendanceAccessAudits   AttendanceAccessAudit[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 

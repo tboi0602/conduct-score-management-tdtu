@@ -5,6 +5,7 @@ export const attendanceRoutingKeys = {
   scanProcessed: "attendance.scan.processed.v1",
   sessionOpened: "attendance.session.opened.v1",
   sessionClosed: "attendance.session.closed.v1",
+  accessAudited: "attendance.access.audited.v1",
 } as const;
 
 export function publishAttendanceEvent(

@@ -33,7 +33,7 @@ export const messages = {
       invalidCredentials: "Tên đăng nhập hoặc mật khẩu không đúng.",
       loginError: "Không thể đăng nhập. Vui lòng thử lại.",
       orGoogle: "Hoặc tiếp tục bằng Google",
-      back: "Quay lại đăng nhập Google",
+      back: "Quay lại đăng nhập sinh viên",
     },
   },
   en: {
@@ -68,7 +68,7 @@ export const messages = {
       invalidCredentials: "The username or password is incorrect.",
       loginError: "Unable to sign in. Please try again.",
       orGoogle: "Or continue with Google",
-      back: "Back to Google sign in",
+      back: "Back to student sign in",
     },
   },
 } as const;

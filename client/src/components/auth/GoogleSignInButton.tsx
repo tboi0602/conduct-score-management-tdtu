@@ -32,7 +32,6 @@ export function GoogleSignInButton({ mode }: { mode: LoginMode }) {
       size: "large",
       text: "continue_with",
       shape: "rectangular",
-      width: Math.floor(container.getBoundingClientRect().width),
       locale,
     });
   }, [handleCredential, locale]);

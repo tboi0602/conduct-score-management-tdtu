@@ -12,6 +12,7 @@ import { redisClient } from "@redis";
 import { sseHub } from "@realtime/sse";
 import { invalidateDashboardCache } from "@services/dashboard/dashboard.service";
 import { syncEventConductScore } from "@services/conduct-score/conduct-score.service";
+import { recordAccessAudit } from "@services/attendance/attendance-reconciliation.service";
 
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
@@ -41,7 +42,8 @@ type LoadedRequest = AttendanceScanRequest & {
 };
 
 function rejection(request: LoadedRequest, registered: boolean): string | null {
-  if (!registered && request.source !== "MANUAL_ENTRY") return "NOT_REGISTERED";
+  if (!registered && request.source !== "MANUAL_ENTRY" && request.source !== "BULK_IMPORT")
+    return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")
     return "DIRECTION_NOT_ALLOWED";
   if (request.source !== "STUDENT_QR") return null;
@@ -101,28 +103,18 @@ async function processLocked(requestId: string): Promise<void> {
   const finalStatus = reason ? "REJECTED" : "ACCEPTED";
   await prisma.$transaction(async (tx) => {
     if (!reason) {
-      const existing = await tx.attendanceRecord.findUnique({
-        where: {
-          studentId_eventId_direction: {
-            studentId: request.studentId,
-            eventId: request.eventId,
-            direction: request.direction,
-          },
+      await tx.attendanceRecord.createMany({
+        data: {
+          studentId: request.studentId,
+          eventId: request.eventId,
+          direction: request.direction,
+          timeChecking: processedAt,
+          status: request.requestedStatus,
+          pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
+          scanRequestId: request.id,
         },
-        select: { id: true },
+        skipDuplicates: true,
       });
-      if (!existing)
-        await tx.attendanceRecord.create({
-          data: {
-            studentId: request.studentId,
-            eventId: request.eventId,
-            direction: request.direction,
-            timeChecking: processedAt,
-            status: request.requestedStatus,
-            pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
-            scanRequestId: request.id,
-          },
-        });
     }
     await tx.attendanceScanRequest.update({
       where: { id: request.id },
@@ -190,6 +182,27 @@ async function processLocked(requestId: string): Promise<void> {
 }
 
 export async function handleAttendanceMessage(payload: Record<string, unknown>): Promise<void> {
+  if (
+    payload.schemaVersion === 1 &&
+    typeof payload.requestId === "string" &&
+    typeof payload.path === "string" &&
+    typeof payload.statusCode === "number"
+  ) {
+    await recordAccessAudit({
+      requestId: payload.requestId,
+      clientAttemptId: typeof payload.clientAttemptId === "string" ? payload.clientAttemptId : null,
+      userId: typeof payload.userId === "string" ? payload.userId : null,
+      eventId: typeof payload.eventId === "string" ? payload.eventId : null,
+      method: typeof payload.method === "string" ? payload.method : "POST",
+      path: payload.path,
+      statusCode: payload.statusCode,
+      durationMs: typeof payload.durationMs === "number" ? payload.durationMs : 0,
+      instance: typeof payload.instance === "string" ? payload.instance : "unknown",
+      createdAt:
+        typeof payload.createdAt === "string" ? payload.createdAt : new Date().toISOString(),
+    });
+    return;
+  }
   const requestId = payload.requestId;
   if (typeof requestId !== "string") {
     const error = new Error("Attendance message is missing requestId") as Error & {
@@ -207,7 +220,8 @@ export async function handleAttendanceMessage(payload: Record<string, unknown>):
     if (
       payload.source === "STUDENT_QR" ||
       payload.source === "STAFF_BARCODE" ||
-      payload.source === "MANUAL_ENTRY"
+      payload.source === "MANUAL_ENTRY" ||
+      payload.source === "BULK_IMPORT"
     )
       source = payload.source;
     if (payload.direction === "CHECK_OUT") direction = "CHECK_OUT";

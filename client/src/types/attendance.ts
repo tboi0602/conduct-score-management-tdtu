@@ -2,7 +2,33 @@ import type { CheckInMode, ManagedEvent } from "@/types/events";
 
 export type AttendanceDirection = "CHECK_IN" | "CHECK_OUT";
 export type AttendanceScanStatus = "PENDING" | "ACCEPTED" | "REJECTED";
-export type AttendanceSource = "STUDENT_QR" | "STAFF_BARCODE" | "MANUAL_ENTRY";
+export type AttendanceSource = "STUDENT_QR" | "STAFF_BARCODE" | "MANUAL_ENTRY" | "BULK_IMPORT";
+export type AttendanceImportResult = {
+  requested: number;
+  queued: number;
+  duplicateCodes: string[];
+  notFoundCodes: string[];
+};
+export type AttendanceReconciliationState = "MATCHED" | "CLIENT_ONLY" | "SERVER_ONLY" | "RESOLVED";
+export type AttendanceReconciliationRow = {
+  incidentId: string | null;
+  auditId: string | null;
+  clientAttemptId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  failureCategory: string | null;
+  failedAt: string | null;
+  digest: string | null;
+  incidentStatus: "OPEN" | "RESOLVED" | null;
+  resolutionNote: string | null;
+  requestId: string | null;
+  httpStatus: number | null;
+  durationMs: number | null;
+  instance: string | null;
+  scanStatus: AttendanceScanStatus | null;
+  rejectionReason: string | null;
+  attendanceStatus: "ATTENDED" | "LATE" | "ABSENT" | null;
+};
 export type AttendanceSession = {
   id: string;
   eventId: string;

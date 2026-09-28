@@ -1,0 +1,65 @@
+@startuml
+title Student – Check in to Event
+hide footbox
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam maxMessageSize 230
+skinparam ParticipantPadding 12
+skinparam sequence {
+  ArrowColor #154a9b
+  ParticipantBorderColor #154a9b
+  ParticipantBackgroundColor #edf3fc
+  GroupBorderColor #8a9eb8
+  LifeLineBorderColor #8a9eb8
+}
+
+actor "Student" as U
+boundary "User Interface" as UI
+control "Attendance API" as API
+database "PostgreSQL" as DB
+participant "Background Processing\nOutbox / RabbitMQ / Worker" as BG
+
+U -> UI : 1: Confirm QR check-in
+UI -> UI : 1.1: Get device location
+break [Location unavailable]
+  UI --> U : 1.2: Display error; end attempt
+end
+
+UI -> API : 2: Submit QR token and location
+activate API
+API -> API : 2.1: Validate permission, GPS, QR,\nsession and student profile
+break [Invalid request or service unavailable]
+  API --> UI : 2.2: Return error
+  UI --> U : 2.3: Display error
+end
+API -> DB : 2.4: Save PENDING request + Outbox\nin one transaction
+break [Persistence fails]
+  API --> UI : 2.5: Return error; request not accepted
+end
+API --> UI : 2.6: 202 – Accepted for processing
+deactivate API
+
+BG -> DB : 3: Relay reads Outbox; delivers request\nvia RabbitMQ to worker
+BG -> DB : 3.1: Worker checks request, registration,\nsession, direction and GPS
+alt [Validation passes]
+  BG -> DB : 3.2: Record attendance if absent;\nsave ACCEPTED + processed Outbox
+  BG -> DB : 3.3: Sync Conduct Score after commit
+else [Validation fails]
+  BG -> DB : 3.4: Save REJECTED, reason\nand processed Outbox
+end
+BG ->> API : 3.5: Publish result via Redis Pub/Sub
+
+API ->> UI : 4: Notify change via SSE
+UI -> API : 4.1: Fetch request status
+API -> DB : 4.2: Read this student's own result
+DB --> API : 4.3: Status and reason
+API --> UI : 4.4: Return result
+UI --> U : 4.5: Display accepted / rejected result
+
+note over UI,API
+  While PENDING, the client also polls every 1.5 seconds.
+  SSE and background processing are independent; 202 is not final attendance success.
+end note
+@enduml

@@ -1,0 +1,1 @@
+ALTER TYPE "AttendanceScanSource" ADD VALUE IF NOT EXISTS 'BULK_IMPORT';

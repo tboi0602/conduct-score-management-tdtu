@@ -77,14 +77,6 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
   const phone = optionalText(body.phone, "phone", 20);
   if (phone && !/^[+0-9 ()-]{7,20}$/.test(phone)) throw new ApiError(400, "phone is invalid");
   const address = optionalText(body.address, "address", 255);
-  const studentCode = optionalText(body.studentCode, "studentCode", 20);
-  if (!studentCode) throw new ApiError(400, "studentCode must contain 1 to 20 characters");
-  if (
-    typeof body.classId !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.classId)
-  ) {
-    throw new ApiError(400, "classId is invalid");
-  }
   let dateOfBirth: Date | null = null;
   if (body.dateOfBirth !== null && body.dateOfBirth !== undefined && body.dateOfBirth !== "") {
     if (typeof body.dateOfBirth !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth))
@@ -100,8 +92,6 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
       phone,
       address,
       dateOfBirth,
-      studentCode: studentCode.toUpperCase(),
-      classId: body.classId,
     }),
   });
 }

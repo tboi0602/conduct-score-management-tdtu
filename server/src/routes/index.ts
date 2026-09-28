@@ -14,6 +14,7 @@ import { conductScoreRoutes } from "@routes/conduct-score.routes";
 import { scheduleRoutes } from "@routes/schedule.routes";
 import { appealRoutes } from "@routes/appeal.routes";
 import { notificationRoutes } from "@routes/notification.routes";
+import { warningRoutes } from "@routes/warning.routes";
 
 const router = Router();
 router.use("/auth", authRoutes);
@@ -31,10 +32,6 @@ router.use("/conduct-scores", conductScoreRoutes);
 router.use("/schedules", scheduleRoutes);
 router.use("/appeals", appealRoutes);
 router.use("/notifications", notificationRoutes);
-
-// TODO: khai báo các endpoint nghiệp vụ tại đây, ví dụ:
-//   router.use("/attendance", attendanceRoutes);
-//   router.use("/students", studentRoutes);
-// Flow: route -> controller (@controllers/*) -> service (@services/*)
+router.use("/warnings", warningRoutes);
 
 export { router };

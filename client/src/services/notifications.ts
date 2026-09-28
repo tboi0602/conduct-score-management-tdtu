@@ -3,7 +3,7 @@ import type { PaginationMeta } from "@/types/admin";
 
 export type UserNotification = {
   id: string;
-  type: "APPEAL_APPROVED" | "APPEAL_REJECTED";
+  type: "APPEAL_APPROVED" | "APPEAL_REJECTED" | "CONDUCT_SCORE_WARNING";
   title: string;
   message: string;
   entityId: string | null;
@@ -12,13 +12,13 @@ export type UserNotification = {
 };
 
 export const notificationService = {
-  mine: () =>
+  mine: (page = 1, limit = 20) =>
     authHttp<{
       ok: true;
       data: UserNotification[];
       unread: number;
       pagination: PaginationMeta;
-    }>("/api/v1/notifications/me?page=1&limit=20"),
+    }>(`/api/v1/notifications/me?page=${page}&limit=${limit}`),
   markRead: (id: string) =>
     authHttp<{ ok: true; data: UserNotification }>(`/api/v1/notifications/me/${id}/read`, {
       method: "PATCH",

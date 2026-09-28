@@ -79,6 +79,8 @@ export const queryKeys = {
     requests: (eventId: string, search: string, status: string) =>
       ["admin", "attendance", eventId, "requests", search, status] as const,
     request: (requestId: string) => ["student", "attendance", "request", requestId] as const,
+    reconciliation: (eventId: string, search: string, state: string, page: number) =>
+      ["admin", "attendance", eventId, "reconciliation", search, state, page] as const,
   },
   conductScores: {
     all: ["conduct-scores"] as const,
@@ -103,6 +105,8 @@ export const queryKeys = {
     pending: ["appeals", "managed", "PENDING"] as const,
   },
   notifications: {
-    mine: ["student", "notifications"] as const,
+    all: ["student", "notifications"] as const,
+    mine: (page: number) => ["student", "notifications", page] as const,
   },
+  warnings: { mine: ["student", "warnings", "mine"] as const },
 };

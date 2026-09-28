@@ -5,139 +5,206 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
+  Award,
+  Bell,
   CalendarDays,
   CalendarRange,
+  LayoutDashboard,
   LogOut,
+  Menu,
+  MessageSquareWarning,
   QrCode,
   UserRound,
-  Award,
-  MessageSquareWarning,
+  X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { studentEventMessages } from "@/i18n/student-event-messages";
+import { AttendanceFailureWatcher } from "@/components/student/AttendanceFailureWatcher";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
-import { StudentNotifications } from "@/components/student/StudentNotifications";
-import { AttendanceFailureWatcher } from "@/components/student/AttendanceFailureWatcher";
+import { useStudentNavigation } from "@/hooks/layout/useStudentNavigation";
+import { studentEventMessages } from "@/i18n/student-event-messages";
 
 export function StudentShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { profile } = useAdminAccess();
   const { locale } = useLanguage();
   const t = studentEventMessages[locale];
   const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
+  const has = (permission: string) =>
+    profile?.permissions.some(
+      (item) => item.permission === "*" || item.permission === permission,
+    ) ?? false;
+  const canAppeal = has("appeal.read-own");
+  const canReadNotifications = has("notification.read-own");
+  const navigation = useStudentNavigation(canAppeal, canReadNotifications);
+  useEffect(() => setMobileOpen(false), [pathname]);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileOpen]);
+
   const links = [
-    { href: "/profile", label: t.studentInformation, icon: UserRound },
-    { href: "/schedule", label: t.schedule, icon: CalendarRange },
-    ...(profile?.permissions.some(
-      (item) => item.permission === "*" || item.permission === "conduct-score.read-own",
-    )
+    { href: "/dashboard", label: t.overview, icon: LayoutDashboard },
+    ...(has("event.read") ? [{ href: "/events", label: t.events, icon: CalendarDays }] : []),
+    ...(has("conduct-score.read-own")
       ? [{ href: "/conduct-scores", label: t.conductScoreResults, icon: Award }]
       : []),
-    ...(profile?.permissions.some(
-      (item) => item.permission === "*" || item.permission === "event.read",
-    )
-      ? [{ href: "/events", label: t.events, icon: CalendarDays }]
-      : []),
     { href: "/qr-scan", label: t.qrScanner, icon: QrCode },
-    ...(profile?.permissions.some(
-      (item) => item.permission === "*" || item.permission === "appeal.read-own",
-    )
+    { href: "/schedule", label: t.schedule, icon: CalendarRange },
+    { href: "/profile", label: t.studentInformation, icon: UserRound },
+    ...(canAppeal
       ? [
           {
             href: "/appeals",
-            label: locale === "vi" ? "Khiếu nại" : "Appeals",
+            label: t.appeals,
             icon: MessageSquareWarning,
+            badge: navigation.pendingAppeals,
+          },
+        ]
+      : []),
+    ...(canReadNotifications
+      ? [
+          {
+            href: "/notifications",
+            label: t.notifications,
+            icon: Bell,
+            badge: navigation.unreadNotifications,
           },
         ]
       : []),
   ];
-  return (
-    <div className="min-h-[100dvh] bg-[#fcf8f9] md:grid md:grid-cols-[280px_1fr]">
-      <AttendanceFailureWatcher />
-      <aside className="sticky top-0 z-30 flex h-[68px] items-center bg-[#b42332] px-4 text-white shadow-lg md:h-[100dvh] md:min-h-0 md:flex-col md:items-stretch md:px-4 md:py-5">
-        <div className="flex min-w-0 shrink-0 items-center gap-3 md:h-16 md:justify-between">
-          <Link href="/dashboard" aria-label={t.brand} className="rounded-lg bg-white p-1">
-            <Image
-              src="/images/logo.png"
-              alt="TDTU"
-              width={612}
-              height={338}
-              priority
-              className="h-auto w-24 object-contain"
-            />
-          </Link>
-          <div className="hidden md:block">
-            <LanguageSwitcher />
-          </div>
-        </div>
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col auto-cols-fr border-t border-[#eadde0] bg-white px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lg md:static md:mt-[60px] md:flex md:min-h-0 md:flex-1 md:flex-col md:justify-start md:gap-4 md:overflow-y-auto md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-          {links.map(({ href, label, icon: Icon }) => (
+
+  const sidebar = (
+    <aside className="flex h-full min-h-0 w-[276px] flex-col border-r border-[#d8e2ed] bg-[#fbfcfe] px-3 py-4 shadow-[12px_0_38px_-30px_rgba(16,42,80,.55)]">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-3 px-1 pt-2">
+        <Link href="/dashboard" aria-label={t.brand} className="overflow-hidden rounded-xl">
+          <Image
+            src="/images/logo.png"
+            alt="TDTU"
+            width={612}
+            height={338}
+            priority
+            className="w-28 object-contain"
+          />
+        </Link>
+        <LanguageSwitcher />
+      </div>
+      <nav
+        className="mt-7 min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1"
+        aria-label={t.brand}
+      >
+        {links.map(({ href, label, icon: Icon, badge }) => {
+          const active =
+            pathname === href || (href === "/events" && pathname.startsWith("/events/"));
+          return (
             <Link
               key={href}
               href={href}
-              aria-current={pathname === href ? "page" : undefined}
-              className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition duration-200 md:min-h-11 md:flex-row md:justify-start md:gap-3 md:px-3 md:py-2.5 md:text-sm ${pathname === href ? "bg-[#fae7ea] text-[#b42332] md:bg-white md:shadow-sm" : "text-[#765f66] hover:bg-[#fff1f3] hover:text-[#b42332] md:text-white/80 md:hover:bg-white/15 md:hover:text-white"}`}
+              aria-current={active ? "page" : undefined}
+              className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition active:scale-[.98] ${active ? "bg-[#e9f1fb] text-[#154a9b] shadow-[inset_3px_0_0_#154a9b]" : "text-[#53657d] hover:bg-[#f1f5fa] hover:text-[#102a50]"}`}
             >
-              <Icon size={19} strokeWidth={pathname === href ? 2.3 : 2} />
-              <span className="max-w-full truncate">{label}</span>
+              <Icon size={18} strokeWidth={2} />
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {badge ? (
+                <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-[#b42332] px-1 text-[10px] font-bold text-white">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null}
             </Link>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-1.5 md:ml-0 md:mt-auto md:block md:border-t md:border-white/20 md:pt-4">
-          <StudentNotifications />
-          <div className="md:hidden">
-            <LanguageSwitcher compact />
-          </div>
-          <Link
-            href="/profile"
-            aria-label={t.profile}
-            className="grid h-10 w-10 place-items-center rounded-xl transition hover:bg-white/15 md:flex md:h-auto md:w-auto md:items-center md:gap-3 md:p-2"
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold text-[#b42332] md:h-10 md:w-10">
-              {profile?.name?.trim().charAt(0).toUpperCase() || "S"}
+          );
+        })}
+      </nav>
+      <div className="shrink-0 space-y-2 border-t border-[#e4eaf1] bg-white pt-4">
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 rounded-2xl bg-[#f2f6fb] p-3 transition hover:bg-[#eaf1f9]"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#154a9b] text-sm font-bold text-white">
+            {profile?.name?.trim().charAt(0).toUpperCase() || "S"}
+          </span>
+          <span className="min-w-0">
+            <strong className="block truncate text-sm text-[#102a50]">
+              {profile?.name ?? t.profile}
+            </strong>
+            <span className="block truncate text-xs text-[#718096]">
+              {profile?.student?.studentCode ?? profile?.email}
             </span>
-            <span className="hidden min-w-0 flex-1 md:block">
-              <strong className="block truncate text-sm text-white">
-                {profile?.name ?? t.profile}
-              </strong>
-              <span className="block truncate text-xs text-white/70">
-                {profile?.student?.studentCode ?? profile?.email}
-              </span>
-            </span>
-          </Link>
-          {workspace.canUseManagementWorkspace ? (
-            <button
-              type="button"
-              disabled={workspace.isSwitching}
-              aria-label={t.managementWorkspace}
-              onClick={() => workspace.switchWorkspace("ADMIN")}
-              className="grid h-10 w-10 place-items-center rounded-xl text-white transition hover:bg-white/15 focus-visible:ring-4 focus-visible:ring-white/30 disabled:cursor-wait disabled:opacity-60 md:mt-2 md:h-9 md:w-full md:grid-cols-[36px_1fr] md:justify-items-start md:px-1"
-            >
-              <span className="grid h-9 w-9 place-items-center">
-                <ArrowLeftRight size={18} />
-              </span>
-              <span className="hidden text-left text-sm font-semibold md:block">
-                {workspace.isSwitching ? t.switchingWorkspace : t.managementWorkspace}
-              </span>
-            </button>
-          ) : null}
+          </span>
+        </Link>
+        {workspace.canUseManagementWorkspace ? (
           <button
             type="button"
-            aria-label={t.logout}
-            onClick={workspace.logout}
-            className="grid h-10 w-10 place-items-center rounded-xl text-white/80 transition hover:bg-white/15 hover:text-white focus-visible:ring-4 focus-visible:ring-white/30 md:mt-2 md:h-9 md:w-full md:grid-cols-[36px_1fr] md:justify-items-start md:px-1"
+            disabled={workspace.isSwitching}
+            onClick={() => workspace.switchWorkspace("ADMIN")}
+            className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#53657d] transition hover:bg-[#f1f5fa] hover:text-[#154a9b] disabled:opacity-50"
           >
-            <span className="grid h-9 w-9 place-items-center">
-              <LogOut size={18} />
-            </span>
-            <span className="hidden text-sm font-semibold md:block">{t.logout}</span>
+            <ArrowLeftRight size={18} />{" "}
+            {workspace.isSwitching ? t.switchingWorkspace : t.managementWorkspace}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={workspace.logout}
+          className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#53657d] transition hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut size={18} /> {t.logout}
+        </button>
+      </div>
+    </aside>
+  );
+
+  return (
+    <div className="min-h-[100dvh] bg-[#f5f7fa] lg:grid lg:grid-cols-[276px_1fr]">
+      <AttendanceFailureWatcher />
+      <div className="sticky top-0 hidden h-[100dvh] min-h-0 lg:block">{sidebar}</div>
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#d8e2ed] bg-white/95 px-4 backdrop-blur lg:hidden">
+        <Link href="/dashboard">
+          <Image
+            src="/images/logo.png"
+            alt="TDTU"
+            width={612}
+            height={338}
+            className="w-24 object-contain"
+          />
+        </Link>
+        <button
+          type="button"
+          aria-label={t.openMenu}
+          onClick={() => setMobileOpen(true)}
+          className="grid h-10 w-10 place-items-center rounded-xl border border-[#d5dfeb] text-[#154a9b]"
+        >
+          <Menu size={20} />
+        </button>
+      </header>
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label={t.closeMenu}
+            className="absolute inset-0 bg-[#0b1f3a]/45 backdrop-blur-[2px]"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 max-w-[88vw] animate-[slide-in_.25s_ease-out]">
+            {sidebar}
+          </div>
+          <button
+            type="button"
+            aria-label={t.closeMenu}
+            onClick={() => setMobileOpen(false)}
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-xl bg-white text-[#154a9b] shadow-lg"
+          >
+            <X size={19} />
           </button>
         </div>
-      </aside>
-      <main className="min-w-0 px-4 pb-28 pt-6 sm:px-7 md:px-8 md:pb-10 md:pt-8 lg:px-10">
+      ) : null}
+      <main id="main-content" className="min-w-0 px-4 pb-10 pt-6 sm:px-7 lg:px-10 lg:pt-8">
         {children}
       </main>
     </div>

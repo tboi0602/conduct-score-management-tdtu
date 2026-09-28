@@ -10,6 +10,8 @@ import { useAttendanceWorkspace } from "@/hooks/attendance/useAttendanceWorkspac
 import { attendanceMessages } from "@/i18n/attendance-messages";
 import { formatDate } from "@/lib/event-form";
 import type { AttendanceDirection } from "@/types/attendance";
+import { AttendanceImportAction } from "@/components/admin/attendance/AttendanceImportAction";
+import { AttendanceReconciliation } from "@/components/admin/attendance/AttendanceReconciliation";
 
 export function AttendanceWorkspace({ eventId }: { eventId: string }) {
   const { locale } = useAdminTranslations();
@@ -44,9 +46,14 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
               {event.location}
             </p>
           </div>
-          <span className="rounded-xl bg-[#edf4fc] px-3 py-2 text-sm font-bold text-[#154a9b]">
-            {event.registeredCount}/{event.capacity ?? "∞"}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {event.deliveryMode === "ONLINE" ? (
+              <AttendanceImportAction eventId={eventId} checkInMode={event.checkInMode} />
+            ) : null}
+            <span className="rounded-xl bg-[#edf4fc] px-3 py-2 text-sm font-bold text-[#154a9b]">
+              {event.registeredCount}/{event.capacity ?? "∞"}
+            </span>
+          </div>
         </div>
       </header>
       <div className="mt-5 grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
@@ -182,7 +189,7 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
                       <p className="text-xs text-[#718096]">{item.student.studentCode}</p>
                     </td>
                     <td>{item.direction === "CHECK_IN" ? t.checkIn : t.checkOut}</td>
-                    <td>{item.source}</td>
+                    <td>{t[item.source]}</td>
                     <td>
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-bold ${item.status === "ACCEPTED" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}
@@ -248,6 +255,7 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
           ) : null}
         </div>
       </div>
+      <AttendanceReconciliation eventId={eventId} />
     </section>
   );
 }

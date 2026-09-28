@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1055" height="1491" viewBox="0 0 1055 1491" role="img" aria-labelledby="title description">
+<title id="title">TDTU Conduct Score Management System — Conceptual Entity–Relationship Diagram</title>
+<desc id="description">Layout recreated from the supplied reference. Corrected Student score and attendance links, Event ownership, optional scan result, and min/max cardinalities. Attributes and audit links are omitted in this high-level overview. OutboxEvent has no relational foreign key.</desc>
+<defs><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1158ac"/><stop offset="1" stop-color="#154a9b"/></linearGradient></defs>
+<style>text{font-family:'Arial Narrow',Arial,Helvetica,sans-serif;text-anchor:middle}.entity rect{fill:url(#blue);stroke:#0c4a92;stroke-width:1}.entity text{fill:white;font-weight:700}.relationship polygon{fill:#fff2c7;stroke:#f39a13;stroke-width:1.3}.relationship text{fill:#292719;font-weight:700}.links path{fill:none;stroke:#17458a;stroke-width:1.4;stroke-linejoin:round}.cards text{fill:#103c7b;font-size:12px;font-weight:700;paint-order:stroke;stroke:white;stroke-width:3}</style>
+<rect width="1055" height="1491" fill="white"/>
+<text x="527.5" y="34" fill="#153e83" font-family="Arial" font-size="28" font-weight="800">TDTU Conduct Score Management System</text>
+<text x="527.5" y="64" fill="#154a9b" font-size="22" font-weight="700">Conceptual Entity–Relationship Diagram</text>
+<g class="links"><path d="M65,642 L65,222 L177.5,222" style="stroke:white;stroke-width:4"/><path d="M65,642 L65,222 L177.5,222"/>
+<path d="M322.5,222 L355,222 L355,184 L1034,184 L1034,166" style="stroke:white;stroke-width:4"/><path d="M322.5,222 L355,222 L355,184 L1034,184 L1034,166"/>
+<path d="M108,642 L108,303 L177.5,303" style="stroke:white;stroke-width:4"/><path d="M108,642 L108,303 L177.5,303"/>
+<path d="M322.5,303 L430,303 L430,331 L913,331 L913,486 L929,486" style="stroke:white;stroke-width:4"/><path d="M322.5,303 L430,303 L430,331 L913,331 L913,486 L929,486"/>
+<path d="M558.5,951 L570,951 L570,878 L770,878 L770,853 L783,853" style="stroke:white;stroke-width:4"/><path d="M558.5,951 L570,951 L570,878 L770,878 L770,853 L783,853"/>
+<path d="M865,883 L865,977 L806,977 L806,1004" style="stroke:white;stroke-width:4"/><path d="M865,883 L865,977 L806,977 L806,1004"/>
+<path d="M115,137 L144,137" style="stroke:white;stroke-width:4"/><path d="M115,137 L144,137"/>
+<path d="M270,137 L297,137" style="stroke:white;stroke-width:4"/><path d="M270,137 L297,137"/>
+<path d="M381,137 L414,137" style="stroke:white;stroke-width:4"/><path d="M381,137 L414,137"/>
+<path d="M536,137 L567,137" style="stroke:white;stroke-width:4"/><path d="M536,137 L567,137"/>
+<path d="M677,137 L713,137" style="stroke:white;stroke-width:4"/><path d="M677,137 L713,137"/>
+<path d="M885,137 L919,137" style="stroke:white;stroke-width:4"/><path d="M885,137 L919,137"/>
+<path d="M622,166 L622,211" style="stroke:white;stroke-width:4"/><path d="M622,166 L622,211"/>
+<path d="M623,293 L623,387" style="stroke:white;stroke-width:4"/><path d="M623,293 L623,387"/>
+<path d="M979,166 L979,190" style="stroke:white;stroke-width:4"/><path d="M979,166 L979,190"/>
+<path d="M979,254 L979,277" style="stroke:white;stroke-width:4"/><path d="M979,254 L979,277"/>
+<path d="M979,328 L979,352" style="stroke:white;stroke-width:4"/><path d="M979,328 L979,352"/>
+<path d="M979,416 L979,439" style="stroke:white;stroke-width:4"/><path d="M979,416 L979,439"/>
+<path d="M684,417 L750,417" style="stroke:white;stroke-width:4"/><path d="M684,417 L750,417"/>
+<path d="M876,417 L895,417 L895,467 L929,467" style="stroke:white;stroke-width:4"/><path d="M876,417 L895,417 L895,467 L929,467"/>
+<path d="M319,417 L369,417" style="stroke:white;stroke-width:4"/><path d="M319,417 L369,417"/>
+<path d="M479,417 L550,417" style="stroke:white;stroke-width:4"/><path d="M479,417 L550,417"/>
+<path d="M579,447 L579,457 L533,457 L533,472" style="stroke:white;stroke-width:4"/><path d="M579,447 L579,457 L533,457 L533,472"/>
+<path d="M533,548 L533,566 L551,566" style="stroke:white;stroke-width:4"/><path d="M533,548 L533,566 L551,566"/>
+<path d="M657,447 L657,457 L702,457 L702,472" style="stroke:white;stroke-width:4"/><path d="M657,447 L657,457 L702,457 L702,472"/>
+<path d="M702,548 L702,588 L683,588" style="stroke:white;stroke-width:4"/><path d="M702,548 L702,588 L683,588"/>
+<path d="M247,445 L247,507 L262,507" style="stroke:white;stroke-width:4"/><path d="M247,445 L247,507 L262,507"/>
+<path d="M262,580 L280,580 L280,613 L436,613 L436,641" style="stroke:white;stroke-width:4"/><path d="M262,580 L280,580 L280,613 L436,613 L436,641"/>
+<path d="M145,670 L179,670" style="stroke:white;stroke-width:4"/><path d="M145,670 L179,670"/>
+<path d="M341,670 L391,670" style="stroke:white;stroke-width:4"/><path d="M341,670 L391,670"/>
+<path d="M549,670 L650,670" style="stroke:white;stroke-width:4"/><path d="M549,670 L650,670"/>
+<path d="M819,667 L896,667" style="stroke:white;stroke-width:4"/><path d="M819,667 L896,667"/>
+<path d="M413,699 L413,711 L400,711 L400,737 L330,737" style="stroke:white;stroke-width:4"/><path d="M413,699 L413,711 L400,711 L400,737 L330,737"/>
+<path d="M330,802 L330,811 L285,811 L285,823" style="stroke:white;stroke-width:4"/><path d="M330,802 L330,811 L285,811 L285,823"/>
+<path d="M533,699 L533,711 L550,711 L550,726 L569,726" style="stroke:white;stroke-width:4"/><path d="M533,699 L533,711 L550,711 L550,726 L569,726"/>
+<path d="M569,803 L569,808 L657,808 L657,823" style="stroke:white;stroke-width:4"/><path d="M569,803 L569,808 L657,808 L657,823"/>
+<path d="M470,699 L470,814" style="stroke:white;stroke-width:4"/><path d="M470,699 L470,814"/>
+<path d="M470,892 L470,924" style="stroke:white;stroke-width:4"/><path d="M470,892 L470,924"/>
+<path d="M549,691 L676,691 L676,720 L749,720 L749,881 L759,881" style="stroke:white;stroke-width:4"/><path d="M549,691 L676,691 L676,720 L749,720 L749,881 L759,881"/>
+<path d="M759,957 L759,1004" style="stroke:white;stroke-width:4"/><path d="M759,957 L759,1004"/>
+<path d="M821,1033 L838,1033" style="stroke:white;stroke-width:4"/><path d="M821,1033 L838,1033"/>
+<path d="M986,1033 L1028,1033 L1028,479 L1010,479 L1010,458 L674,458 L674,447" style="stroke:white;stroke-width:4"/><path d="M986,1033 L1028,1033 L1028,479 L1010,479 L1010,458 L674,458 L674,447"/>
+<path d="M561,445 L561,462 L181,462 L181,857" style="stroke:white;stroke-width:4"/><path d="M561,445 L561,462 L181,462 L181,857"/>
+<path d="M181,933 L181,1037 L340,1037" style="stroke:white;stroke-width:4"/><path d="M181,933 L181,1037 L340,1037"/>
+<path d="M285,875 L285,912 L301,912" style="stroke:white;stroke-width:4"/><path d="M285,875 L285,912 L301,912"/>
+<path d="M301,990 L301,1004 L340,1004 L340,1018" style="stroke:white;stroke-width:4"/><path d="M301,990 L301,1004 L340,1004 L340,1018"/>
+<path d="M657,875 L657,911 L638,911" style="stroke:white;stroke-width:4"/><path d="M657,875 L657,911 L638,911"/>
+<path d="M638,989 L638,1022 L509,1022" style="stroke:white;stroke-width:4"/><path d="M638,989 L638,1022 L509,1022"/>
+<path d="M363,1062 L363,1077 L330,1077 L330,1094" style="stroke:white;stroke-width:4"/><path d="M363,1062 L363,1077 L330,1077 L330,1094"/>
+<path d="M330,1174 L330,1277" style="stroke:white;stroke-width:4"/><path d="M330,1174 L330,1277"/>
+<path d="M487,1062 L487,1078 L560,1078 L560,1095" style="stroke:white;stroke-width:4"/><path d="M487,1062 L487,1078 L560,1078 L560,1095"/>
+<path d="M560,1173 L560,1220" style="stroke:white;stroke-width:4"/><path d="M560,1173 L560,1220"/>
+<path d="M750,1062 L750,1092" style="stroke:white;stroke-width:4"/><path d="M750,1062 L750,1092"/>
+<path d="M750,1170 L750,1206" style="stroke:white;stroke-width:4"/><path d="M750,1170 L750,1206"/>
+<path d="M704,1258 L704,1277 L715,1277" style="stroke:white;stroke-width:4"/><path d="M704,1258 L704,1277 L715,1277"/>
+<path d="M633,1318 L613,1318 L613,1090 L840,1090 L840,490 L662,490 L662,447" style="stroke:white;stroke-width:4"/><path d="M633,1318 L613,1318 L613,1090 L840,1090 L840,490 L662,490 L662,447"/>
+<path d="M802,1258 L802,1280 L903,1280" style="stroke:white;stroke-width:4"/><path d="M802,1258 L802,1280 L903,1280"/>
+<path d="M976,1318 L1041,1318 L1041,718 L529,718 L529,699" style="stroke:white;stroke-width:4"/><path d="M976,1318 L1041,1318 L1041,718 L529,718 L529,699"/>
+<path d="M399,1305 L431,1305" style="stroke:white;stroke-width:4"/><path d="M399,1305 L431,1305"/>
+<path d="M583,1305 L597,1305 L597,1195 L213,1195 L213,849 L233,849" style="stroke:white;stroke-width:4"/><path d="M583,1305 L597,1305 L597,1195 L213,1195 L213,849 L233,849"/>
+<path d="M346,1333 L346,1389 L370,1389" style="stroke:white;stroke-width:4"/><path d="M346,1333 L346,1389 L370,1389"/>
+<path d="M536,1389 L590,1389 L590,1467 L26,1467 L26,744 L391,744 L391,685" style="stroke:white;stroke-width:4"/><path d="M536,1389 L590,1389 L590,1467 L26,1467 L26,744 L391,744 L391,685"/>
+<path d="M267,1277 L267,1270 L147,1270 L147,1273" style="stroke:white;stroke-width:4"/><path d="M267,1277 L267,1270 L147,1270 L147,1273"/>
+<path d="M150,1347 L150,1358 L257,1358 L257,1333" style="stroke:white;stroke-width:4"/><path d="M150,1347 L150,1358 L257,1358 L257,1333"/></g>
+<g class="entity" id="Permission"><rect x="15" y="109" width="100" height="56" rx="6"/><text x="65" y="142" font-size="14">Permission</text></g>
+<g class="entity" id="Role"><rect x="297" y="109" width="84" height="56" rx="6"/><text x="339" y="142" font-size="14">Role</text></g>
+<g class="entity" id="User"><rect x="567" y="108" width="110" height="58" rx="6"/><text x="622" y="142" font-size="14">User</text></g>
+<g class="entity" id="Faculty"><rect x="919" y="108" width="120" height="58" rx="6"/><text x="979" y="142" font-size="14">Faculty</text></g>
+<g class="entity" id="Major"><rect x="927.5" y="277.5" width="103" height="51" rx="6"/><text x="979" y="308" font-size="14">Major</text></g>
+<g class="entity" id="Student"><rect x="550.5" y="387.5" width="133" height="59" rx="6"/><text x="617" y="422" font-size="14">Student</text></g>
+<g class="entity" id="Class"><rect x="928.5" y="439" width="101" height="56" rx="6"/><text x="979" y="472" font-size="14">Class</text></g>
+<g class="entity" id="ClassSession"><rect x="551" y="563" width="132" height="50" rx="6"/><text x="617" y="593" font-size="14">ClassSession</text></g>
+<g class="entity" id="EventRegistration"><rect x="164.5" y="389" width="155" height="56" rx="6"/><text x="242" y="422" font-size="14">EventRegistration</text></g>
+<g class="entity" id="OrganizingUnit"><rect x="15.5" y="642" width="129" height="56" rx="6"/><text x="80" y="675" font-size="14">OrganizingUnit</text></g>
+<g class="entity" id="Event"><rect x="391" y="641.5" width="158" height="57" rx="6"/><text x="470" y="675" font-size="14">Event</text></g>
+<g class="entity" id="Notification"><rect x="896" y="638.5" width="116" height="57" rx="6"/><text x="954" y="672" font-size="14">Notification</text></g>
+<g class="entity" id="Criteria"><rect x="233" y="823.5" width="104" height="51" rx="6"/><text x="285" y="854" font-size="14">Criteria</text></g>
+<g class="entity" id="Semester"><rect x="594" y="823.5" width="126" height="51" rx="6"/><text x="657" y="854" font-size="14">Semester</text></g>
+<g class="entity" id="AttendanceSession"><rect x="383.5" y="924.5" width="175" height="53" rx="6"/><text x="471" y="956" font-size="14">AttendanceSession</text></g>
+<g class="entity" id="ConductScore"><rect x="339.5" y="1004" width="169" height="58" rx="6"/><text x="424" y="1038" font-size="14">ConductScore</text></g>
+<g class="entity" id="AttendanceScanRequest"><rect x="655" y="1004" width="166" height="58" rx="6"/><text x="738" y="1038" font-size="12">AttendanceScanRequest</text></g>
+<g class="entity" id="AttendanceRecord"><rect x="670.5" y="1206.5" width="161" height="51" rx="6"/><text x="751" y="1237" font-size="14">AttendanceRecord</text></g>
+<g class="entity" id="ConductScoreEntry"><rect x="237" y="1277" width="162" height="56" rx="6"/><text x="318" y="1310" font-size="14">ConductScoreEntry</text></g>
+<g class="entity" id="ConductScoreStatusHistory"><rect x="422.5" y="1220" width="195" height="46" rx="6"/><text x="520" y="1248" font-size="11">ConductScoreStatusHistory</text></g>
+<g class="entity" id="OutboxEvent"><rect x="875" y="1395" width="144" height="58" rx="6"/><text x="947" y="1429" font-size="14">OutboxEvent</text></g>
+<g class="relationship"><polygon points="177.5,222 250,192 322.5,222 250,252"/><text x="250" y="225" font-size="9.5">UNIT_OF_FACULTY</text></g>
+<g class="relationship"><polygon points="177.5,303 250,273 322.5,303 250,333"/><text x="250" y="306" font-size="9.5">UNIT_OF_CLASS</text></g>
+<g class="relationship"><polygon points="783,853 865,823 947,853 865,883"/><text x="865" y="856" font-size="9.5">SCANNED_IN_SESSION</text></g>
+<g class="relationship"><polygon points="144,137 207,100 270,137 207,174"/><text x="207" y="140" font-size="9.5">HAS_PERMISSION</text></g>
+<g class="relationship"><polygon points="414.5,137 475,100 535.5,137 475,174"/><text x="475" y="140" font-size="9.5">ASSIGNED_ROLE</text></g>
+<g class="relationship"><polygon points="713,137 799,99 885,137 799,175"/><text x="799" y="140" font-size="9.5">BELONGS_TO_FACULTY</text></g>
+<g class="relationship"><polygon points="536,252 623,211 710,252 623,293"/><text x="623" y="255" font-size="9.5">HAS_STUDENT_PROFILE</text></g>
+<g class="relationship"><polygon points="930.5,222 979,190 1027.5,222 979,254"/><text x="979" y="225" font-size="9.5">OFFERS</text></g>
+<g class="relationship"><polygon points="933,384 979,352 1025,384 979,416"/><text x="979" y="387" font-size="9.5">INCLUDES</text></g>
+<g class="relationship"><polygon points="750,417 813,383 876,417 813,451"/><text x="813" y="420" font-size="9.5">ENROLLED_IN</text></g>
+<g class="relationship"><polygon points="369.5,417 424,385 478.5,417 424,449"/><text x="424" y="420" font-size="9.5">MADE_BY</text></g>
+<g class="relationship"><polygon points="464.5,510 533,472.5 601.5,510 533,547.5"/><text x="533" y="513" font-size="9.5">STUDIES_DURING</text></g>
+<g class="relationship"><polygon points="630.5,510 702,472.5 773.5,510 702,547.5"/><text x="702" y="513" font-size="9.5">AVAILABLE_DURING</text></g>
+<g class="relationship"><polygon points="183.5,543 262,506.5 340.5,543 262,579.5"/><text x="262" y="546" font-size="9.5">HAS_REGISTRATION</text></g>
+<g class="relationship"><polygon points="179,670 260,633.5 341,670 260,706.5"/><text x="260" y="673" font-size="9.5">ORGANIZED_BY</text></g>
+<g class="relationship"><polygon points="649.5,667 734,631.5 818.5,667 734,702.5"/><text x="734" y="670" font-size="9.5">HAS_NOTIFICATION</text></g>
+<g class="relationship"><polygon points="252,764 330,726.5 408,764 330,801.5"/><text x="330" y="767" font-size="9.5">CATEGORIZED_BY</text></g>
+<g class="relationship"><polygon points="504.5,764 569,725.5 633.5,764 569,802.5"/><text x="569" y="767" font-size="9.5">HELD_IN</text></g>
+<g class="relationship"><polygon points="378.5,853 470,814.5 561.5,853 470,891.5"/><text x="470" y="856" font-size="8.7">HAS_ATTENDANCE_SESSION</text></g>
+<g class="relationship"><polygon points="694,919 759,881.5 824,919 759,956.5"/><text x="759" y="922" font-size="9.5">SCANNED_FOR</text></g>
+<g class="relationship"><polygon points="838.5,1033 912,995 985.5,1033 912,1071"/><text x="912" y="1036" font-size="9.5">SCANNED_STUDENT</text></g>
+<g class="relationship"><polygon points="114,895 181,857.5 248,895 181,932.5"/><text x="181" y="898" font-size="9.5">HAS_SCORE</text></g>
+<g class="relationship"><polygon points="223.5,951 301,912.5 378.5,951 301,989.5"/><text x="301" y="954" font-size="9.5">TOTAL_BY_CRITERIA</text></g>
+<g class="relationship"><polygon points="574,950 638,911.5 702,950 638,988.5"/><text x="638" y="953" font-size="9.5">ASSESSED_IN</text></g>
+<g class="relationship"><polygon points="246.5,1134 330,1094.5 413.5,1134 330,1173.5"/><text x="330" y="1137" font-size="9.5">CONTAINS_ENTRY</text></g>
+<g class="relationship"><polygon points="476,1134 560,1095 644,1134 560,1173"/><text x="560" y="1137" font-size="9.5">HAS_STATUS_HISTORY</text></g>
+<g class="relationship"><polygon points="687.5,1131 750,1092.5 812.5,1131 750,1169.5"/><text x="750" y="1134" font-size="9.5">RESULTS_FROM</text></g>
+<g class="relationship"><polygon points="633,1318 715,1277 797,1318 715,1359"/><text x="715" y="1321" font-size="9.5">RECORDS_STUDENT</text></g>
+<g class="relationship"><polygon points="831,1318 903,1279 975,1318 903,1357"/><text x="903" y="1321" font-size="9.5">RECORDS_EVENT</text></g>
+<g class="relationship"><polygon points="431,1305 507,1267 583,1305 507,1343"/><text x="507" y="1308" font-size="9.5">APPLIES_CRITERIA</text></g>
+<g class="relationship"><polygon points="370,1389 453,1353 536,1389 453,1425"/><text x="453" y="1392" font-size="9.5">EARNED_FROM</text></g>
+<g class="relationship"><polygon points="93,1310 150,1273.5 207,1310 150,1346.5"/><text x="150" y="1313" font-size="9.5">REVERSES</text></g>
+<g class="cards"><text x="65" y="610">(0,N)</text>
+<text x="1030" y="187">(0,1)</text>
+<text x="113" y="610">(0,1)</text>
+<text x="914" y="488">(0,1)</text>
+<text x="548" y="973">(0,1)</text>
+<text x="812" y="992">(0,N)</text>
+<text x="134" y="123">(0,N)</text>
+<text x="279" y="123">(0,N)</text>
+<text x="404" y="123">(0,N)</text>
+<text x="551" y="123">(0,N)</text>
+<text x="697" y="123">(0,N)</text>
+<text x="903" y="123">(0,1)</text>
+<text x="646" y="192">(1,1)</text>
+<text x="646" y="316">(0,1)</text>
+<text x="1000" y="181">(1,1)</text>
+<text x="1000" y="271">(0,N)</text>
+<text x="1000" y="348">(1,1)</text>
+<text x="1000" y="433">(0,N)</text>
+<text x="709" y="404">(0,N)</text>
+<text x="906" y="441">(0,1)</text>
+<text x="344" y="404">(0,N)</text>
+<text x="522" y="404">(1,1)</text>
+<text x="509" y="467">(0,N)</text>
+<text x="518" y="562">(0,N)</text>
+<text x="694" y="467">(0,N)</text>
+<text x="718" y="562">(0,N)</text>
+<text x="276" y="490">(0,N)</text>
+<text x="359" y="629">(1,1)</text>
+<text x="163" y="653">(0,1)</text>
+<text x="360" y="653">(0,N)</text>
+<text x="591" y="654">(1,1)</text>
+<text x="850" y="654">(0,N)</text>
+<text x="363" y="721">(0,N)</text>
+<text x="294" y="804">(1,1)</text>
+<text x="568" y="721">(0,N)</text>
+<text x="657" y="804">(1,1)</text>
+<text x="495" y="809">(1,1)</text>
+<text x="495" y="912">(0,N)</text>
+<text x="716" y="740">(1,1)</text>
+<text x="771" y="979">(0,N)</text>
+<text x="831" y="1020">(0,N)</text>
+<text x="1012" y="984">(1,1)</text>
+<text x="167" y="842">(1,1)</text>
+<text x="232" y="1026">(0,N)</text>
+<text x="310" y="903">(0,N)</text>
+<text x="316" y="998">(0,N)</text>
+<text x="681" y="903">(1,1)</text>
+<text x="589" y="1006">(0,N)</text>
+<text x="365" y="1084">(1,1)</text>
+<text x="355" y="1219">(0,N)</text>
+<text x="526" y="1084">(1,1)</text>
+<text x="585" y="1211">(0,N)</text>
+<text x="773" y="1084">(0,1)</text>
+<text x="776" y="1188">(0,1)</text>
+<text x="667" y="1292">(0,N)</text>
+<text x="878" y="507">(1,1)</text>
+<text x="834" y="1292">(0,N)</text>
+<text x="1006" y="1275">(1,1)</text>
+<text x="417" y="1291">(0,N)</text>
+<text x="220" y="857">(0,1)</text>
+<text x="371" y="1361">(0,N)</text>
+<text x="378" y="754">(0,1)</text>
+<text x="218" y="1267">(0,N)</text>
+<text x="212" y="1355">(0,1)</text></g>
+</svg>
