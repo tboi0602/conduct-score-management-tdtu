@@ -1,6 +1,6 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import type { AuthContext } from "@middleware/auth.middleware";
-import { getDashboardInsights } from "@services/dashboard/dashboard-insights.service";
+import { getDashboardInsights } from "@modules/dashboard";
 import { optionalQuery, uuidInput } from "@utils/crudValidation";
 
 export async function summary(req: Request, res: Response) {

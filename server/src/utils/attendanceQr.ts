@@ -2,13 +2,14 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "@config/logger";
 import { attendanceQrValidationTotal } from "@metrics";
 import { ApiError } from "@utils/ApiError";
+import { env } from "@config/env";
 
 const PERIOD_MS = 5 * 60 * 1000;
 const GRACE_MS = 30 * 1000;
 const SECRET = (() => {
-  const value = process.env.ATTENDANCE_QR_SECRET;
+  const value = env.attendanceQrSecret;
   if (value) return value;
-  if (process.env.NODE_ENV === "production")
+  if (env.nodeEnv === "production")
     throw new Error("ATTENDANCE_QR_SECRET is required in production");
   logger.warn("[attendance] using insecure development QR secret");
   return "change_me_attendance_qr_secret";
@@ -38,13 +39,13 @@ export function verifyAttendanceQrToken(token: string, now = Date.now()): string
     (slot !== current && !previousAllowed)
   ) {
     attendanceQrValidationTotal.inc({ result: "expired" });
-    throw new ApiError(409, "QR token is invalid or expired");
+    throw new ApiError(409, "QR token is invalid or expired", "QR_EXPIRED");
   }
   const expected = Buffer.from(signature(sessionId, slot));
   const actual = Buffer.from(supplied);
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     attendanceQrValidationTotal.inc({ result: "invalid" });
-    throw new ApiError(409, "QR token is invalid or expired");
+    throw new ApiError(409, "QR token is invalid or expired", "QR_INVALID");
   }
   attendanceQrValidationTotal.inc({ result: "valid" });
   return sessionId;

@@ -5,9 +5,10 @@ import { redisClient } from "@redis";
 import { sseHub } from "@realtime/sse";
 import { eventScope, type EventAccess } from "@services/events/event-access.service";
 import { ApiError } from "@utils/ApiError";
+import { env } from "@config/env";
 
 const ticketKey = (ticket: string) => `attendance:sse-ticket:${ticket}`;
-const ticketTtlSeconds = Number(process.env.ATTENDANCE_SSE_TICKET_TTL_SECONDS ?? 60);
+const ticketTtlSeconds = env.attendanceSseTicketTtlSeconds;
 async function issue(channels: string[]) {
   const ticket = randomUUID();
   await redisClient
@@ -31,7 +32,8 @@ export async function consumeTicket(ticket: string): Promise<string[]> {
   const script =
     "local value = redis.call('get', KEYS[1]); if value then redis.call('del', KEYS[1]); end; return value";
   const raw = await redisClient.getClient().eval(script, 1, ticketKey(ticket));
-  if (typeof raw !== "string") throw new ApiError(401, "SSE ticket is invalid or expired");
+  if (typeof raw !== "string")
+    throw new ApiError(401, "SSE ticket is invalid or expired", "SSE_TICKET_EXPIRED");
   const parsed = JSON.parse(raw) as unknown;
   if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string"))
     throw new ApiError(401, "Invalid SSE ticket");

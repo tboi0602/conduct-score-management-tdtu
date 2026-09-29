@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { AuthContext } from "@middleware/auth.middleware";
 import { attendanceRoutingKeys, publishAttendanceEvent } from "@producers/attendance.producer";
+import { env } from "@config/env";
 
 export function auditAttendanceAccess(req: Request, res: Response, next: NextFunction): void {
   const started = process.hrtime.bigint();
@@ -25,7 +26,7 @@ export function auditAttendanceAccess(req: Request, res: Response, next: NextFun
       path: req.baseUrl + req.path,
       statusCode: res.statusCode,
       durationMs: Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000)),
-      instance: process.env.HOSTNAME ?? "local-api",
+      instance: env.hostname,
       createdAt: new Date().toISOString(),
     };
     void publishAttendanceEvent(attendanceRoutingKeys.accessAudited, payload, {

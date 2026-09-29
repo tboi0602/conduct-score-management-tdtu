@@ -41,7 +41,7 @@ export async function assertOrganizerAccess(organizerId: string, access: EventAc
   const organizer = await prisma.organizingUnit.findUnique({ where: { id: organizerId } });
   if (!organizer) throw new ApiError(409, "Organizing unit does not exist");
   if (!access.manageAnyUnit && (!access.facultyId || organizer.facultyId !== access.facultyId)) {
-    throw new ApiError(403, "Organizing unit is outside your faculty scope");
+    throw new ApiError(403, "Organizing unit is outside your faculty scope", "OUTSIDE_SCOPE");
   }
   return organizer;
 }

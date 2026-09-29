@@ -3,7 +3,7 @@ import { EventRegistrationStatus, OrganizingUnitType } from "@prisma/client";
 
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
-import * as registrations from "@services/events/event-registration.service";
+import * as registrations from "@modules/events";
 import {
   dateInput,
   enumInput,

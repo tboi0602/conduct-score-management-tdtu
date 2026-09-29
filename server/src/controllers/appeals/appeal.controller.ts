@@ -1,10 +1,10 @@
-import { AttendanceAppealStatus, AttendanceFailureCategory } from "@prisma/client";
+﻿import { AttendanceAppealStatus, AttendanceFailureCategory } from "@prisma/client";
 import type { Request, Response } from "express";
 
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
-import * as appeals from "@services/appeals/appeal.service";
-import { createEvidenceUpload } from "@services/appeals/evidence.service";
+import * as appeals from "@modules/appeals";
+import { createEvidenceUpload } from "@modules/appeals";
 import {
   enumInput,
   integerInput,

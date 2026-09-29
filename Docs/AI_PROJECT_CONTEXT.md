@@ -77,6 +77,8 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Docker-published PostgreSQL, Redis, and RabbitMQ ports bind to `127.0.0.1`.
 - Nginx fronts multiple API producers in the container topology.
 - Redis stores refresh-session hashes, rate-limit state, locks, idempotency data, and selected caches.
+- Refresh tokens are delivered only through an HttpOnly cookie. Redis stores the token hash by session
+  identifier; refresh rotates the session and access tokens remain in client memory.
 - RabbitMQ decouples high-volume attendance work from API request latency.
 - SSE is the existing realtime transport in `server/src/realtime/sse.ts`; do not describe it as Socket.IO.
 - Attendance scan submission uses a PostgreSQL transactional outbox. Confirm-channel producers publish
@@ -123,6 +125,10 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Do not cache a complete, frequently changing user list in Redis by default. The Admin client already
   uses TanStack Query for short-lived view caching.
 - Normal user/RBAC CRUD should remain synchronous; a worker adds complexity without benefit there.
+- Scheduled worker maintenance uses Redis distributed locks so horizontally scaled workers do not run
+  warning, appeal-cleanup, or ended-event score synchronization jobs concurrently.
+- API errors use a stable code/message/fields envelope and include `requestId`; the client temporarily
+  accepts both this envelope and the earlier string error shape during migration.
 
 ## Environment files
 

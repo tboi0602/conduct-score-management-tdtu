@@ -5,11 +5,46 @@ import {
   loginAdmin,
   loginWithGoogle,
   refreshAccessToken,
+  revokeRefreshToken,
   switchAccessMode,
   updateCurrentStudentProfile,
 } from "@services/auth/auth.service";
 import type { AuthContext } from "@middleware/auth.middleware";
 import { ApiError } from "@utils/ApiError";
+import { env } from "@config/env";
+
+const REFRESH_COOKIE = "refresh_token";
+const cookieOptions = {
+  httpOnly: true,
+  secure: env.nodeEnv === "production",
+  sameSite: "lax" as const,
+  path: "/api/v1/auth",
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
+
+function cookie(req: Request, name: string): string | null {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  for (const item of header.split(";")) {
+    const [key, ...parts] = item.trim().split("=");
+    if (key === name) return decodeURIComponent(parts.join("="));
+  }
+  return null;
+}
+
+function sendSession(
+  res: Response,
+  result: {
+    accessToken: string;
+    refreshToken: string;
+    sessionId: string;
+    user: { id: string; email: string; name: string; role: string };
+  },
+): void {
+  res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions);
+  const { refreshToken: _refreshToken, sessionId: _sessionId, ...publicSession } = result;
+  res.status(200).json({ ok: true, data: publicSession });
+}
 
 export async function googleLogin(req: Request, res: Response): Promise<void> {
   const idToken = req.body?.idToken ?? req.body?.credential;
@@ -23,7 +58,7 @@ export async function googleLogin(req: Request, res: Response): Promise<void> {
   }
 
   const result = await loginWithGoogle(idToken, mode);
-  res.status(200).json({ ok: true, data: result });
+  sendSession(res, result);
 }
 
 export async function switchMode(req: Request, res: Response): Promise<void> {
@@ -32,7 +67,7 @@ export async function switchMode(req: Request, res: Response): Promise<void> {
     throw new ApiError(400, "mode must be STUDENT or ADMIN");
   }
   const auth = res.locals.auth as AuthContext;
-  res.json({ ok: true, data: await switchAccessMode(auth.sub, mode) });
+  sendSession(res, await switchAccessMode(auth.sub, mode));
 }
 
 export async function adminLogin(req: Request, res: Response): Promise<void> {
@@ -41,15 +76,22 @@ export async function adminLogin(req: Request, res: Response): Promise<void> {
     throw new ApiError(400, "Email and password are required");
   }
   const result = await loginAdmin(email, password);
-  res.status(200).json({ ok: true, data: result });
+  sendSession(res, result);
 }
 
 export async function refreshToken(req: Request, res: Response): Promise<void> {
-  if (typeof req.body?.refreshToken !== "string" || !req.body.refreshToken) {
-    throw new ApiError(400, "Refresh token is required");
-  }
-  const result = await refreshAccessToken(req.body.refreshToken);
-  res.status(200).json({ ok: true, data: result });
+  const token = cookie(req, REFRESH_COOKIE);
+  if (!token) throw new ApiError(401, "Refresh session is required");
+  const result = await refreshAccessToken(token);
+  res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions);
+  res.json({ ok: true, data: { accessToken: result.accessToken } });
+}
+
+export async function logout(req: Request, res: Response): Promise<void> {
+  const token = cookie(req, REFRESH_COOKIE);
+  if (token) await revokeRefreshToken(token);
+  res.clearCookie(REFRESH_COOKIE, cookieOptions);
+  res.status(204).end();
 }
 
 export async function me(_req: Request, res: Response): Promise<void> {

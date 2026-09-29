@@ -1,4 +1,4 @@
-import type { AttendanceScanRequest, AttendanceScanSource } from "@prisma/client";
+﻿import type { AttendanceScanRequest, AttendanceScanSource } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { logger } from "@config/logger";
 import {
@@ -10,19 +10,13 @@ import {
 import { attendanceRoutingKeys } from "@producers/attendance.producer";
 import { redisClient } from "@redis";
 import { sseHub } from "@realtime/sse";
-import { invalidateDashboardCache } from "@services/dashboard/dashboard.service";
-import { syncEventConductScore } from "@services/conduct-score/conduct-score.service";
-import { recordAccessAudit } from "@services/attendance/attendance-reconciliation.service";
-
-function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const radians = (degrees: number) => (degrees * Math.PI) / 180;
-  const dLat = radians(bLat - aLat);
-  const dLng = radians(bLng - aLng);
-  const value =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(radians(aLat)) * Math.cos(radians(bLat)) * Math.sin(dLng / 2) ** 2;
-  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
-}
+import { invalidateDashboardCache } from "@modules/dashboard";
+import { syncEventConductScore } from "@modules/conduct-score";
+import { recordAccessAudit } from "@modules/attendance";
+import {
+  distanceMeters,
+  isInsideAttendanceRadius,
+} from "@modules/attendance/services/geofence.service";
 
 type LoadedRequest = AttendanceScanRequest & {
   event: {
@@ -41,7 +35,10 @@ type LoadedRequest = AttendanceScanRequest & {
   student: { userId: string };
 };
 
-function rejection(request: LoadedRequest, registered: boolean): string | null {
+export function attendanceRejectionReason(
+  request: LoadedRequest,
+  registered: boolean,
+): string | null {
   if (!registered && request.source !== "MANUAL_ENTRY" && request.source !== "BULK_IMPORT")
     return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")
@@ -62,10 +59,13 @@ function rejection(request: LoadedRequest, registered: boolean): string | null {
     request.latitude,
     request.longitude,
   );
-  return distance >
-    request.session.radiusMeters + request.accuracyMeters + request.session.centerAccuracyMeters
-    ? "OUTSIDE_GEOFENCE"
-    : null;
+  return isInsideAttendanceRadius(
+    distance,
+    request.session.radiusMeters,
+    request.accuracyMeters + request.session.centerAccuracyMeters,
+  )
+    ? null
+    : "OUTSIDE_GEOFENCE";
 }
 
 async function processLocked(requestId: string): Promise<void> {
@@ -96,7 +96,7 @@ async function processLocked(requestId: string): Promise<void> {
     where: { eventId_studentId: { eventId: request.eventId, studentId: request.studentId } },
     select: { status: true },
   });
-  const reason = rejection(request, registration?.status === "REGISTERED");
+  const reason = attendanceRejectionReason(request, registration?.status === "REGISTERED");
   if (reason?.startsWith("LOCATION") || reason === "OUTSIDE_GEOFENCE")
     attendanceGeofenceRejections.inc({ reason });
   const processedAt = new Date();

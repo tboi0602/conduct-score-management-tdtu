@@ -2,7 +2,7 @@ import type { Ranking } from "@prisma/client";
 import type { Request, Response } from "express";
 
 import type { AuthContext } from "@middleware/auth.middleware";
-import * as service from "@services/conduct-score/conduct-score.service";
+import * as service from "@modules/conduct-score";
 import { ApiError } from "@utils/ApiError";
 import {
   objectInput,

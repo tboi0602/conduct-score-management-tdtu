@@ -27,7 +27,6 @@ import {
   MessageSquareWarning,
 } from "lucide-react";
 import { type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -35,8 +34,7 @@ import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminSidebar } from "@/hooks/layout/useAdminSidebar";
 import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
-import { appealService } from "@/services/appeals";
-import { queryKeys } from "@/lib/query-keys";
+import { usePendingAppealsCount } from "@/hooks/appeals/usePendingAppealsCount";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const {
@@ -89,12 +87,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           attendance: "Attendance",
         };
   const { can, profile } = useAdminAccess();
-  const pendingAppeals = useQuery({
-    queryKey: queryKeys.appeals.pending,
-    queryFn: () => appealService.list("PENDING"),
-    enabled: can("appeal.read"),
-    staleTime: 30_000,
-  });
+  const pendingAppealsCount = usePendingAppealsCount(can("appeal.read"));
   const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
   if (!user) return <PageLoadingSkeleton />;
   const canManageAcademicCatalog =
@@ -352,7 +345,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               "/admin/appeals",
               locale === "vi" ? "Khiếu nại" : "Appeals",
               <MessageSquareWarning size={18} strokeWidth={2} />,
-              pendingAppeals.data?.pagination.total,
+              pendingAppealsCount,
             )
           : null}
         {can("user.read") || can("student.read") || can("faculty-staff.read")

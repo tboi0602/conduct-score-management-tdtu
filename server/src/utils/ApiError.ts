@@ -1,12 +1,16 @@
-/**
- * Lỗi nghiệp vụ kèm HTTP status. Service ném lỗi này, error middleware
- * sẽ đọc `.status` để trả về mã HTTP tương ứng.
- */
-export class ApiError extends Error {
-  status: number;
+﻿export type ApiErrorFields = Record<string, string[]>;
 
-  constructor(status: number, message: string) {
+/** Expected application error translated by the central HTTP error middleware. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly fields?: ApiErrorFields;
+
+  constructor(status: number, message: string, code = "REQUEST_FAILED", fields?: ApiErrorFields) {
     super(message);
+    this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.fields = fields;
   }
 }

@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { redisClient } from "@redis";
 import { attendanceRateLimitRejectionsTotal } from "@metrics";
 import { ApiError } from "@utils/ApiError";
+import { env } from "@config/env";
 
 export function rateLimit(prefix: string, max: number, windowSec: number) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -46,12 +47,12 @@ export function rateLimitAuthenticatedUser(prefix: string, max: number, windowSe
 
 export const rateLimitByStudent = rateLimit(
   "attendance:student",
-  Number(process.env.REDIS_RATE_LIMIT_MAX ?? 10),
-  Number(process.env.REDIS_RATE_LIMIT_WINDOW ?? 10),
+  env.redisRateLimitMax,
+  env.redisRateLimitWindow,
 );
 
 export const eventRegistrationRateLimit = rateLimitAuthenticatedUser(
   "event-registration:user",
-  Number(process.env.EVENT_REGISTRATION_RATE_LIMIT_MAX ?? 6),
-  Number(process.env.EVENT_REGISTRATION_RATE_LIMIT_WINDOW ?? 10),
+  env.eventRegistrationRateLimitMax,
+  env.eventRegistrationRateLimitWindow,
 );

@@ -1,6 +1,6 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import { listSemesterOptions } from "@services/events/event-options.service";
-import { listCriteria } from "@services/criteria/criteria.service";
+import { listCriteria } from "@modules/criteria";
 import { integerQuery, optionalQuery, searchInput } from "@utils/crudValidation";
 import { parsePagination } from "@utils/pagination";
 

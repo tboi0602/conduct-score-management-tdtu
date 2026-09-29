@@ -5,21 +5,26 @@ import helmet from "helmet";
 import cors from "cors";
 
 import { logger } from "@config/logger";
+import { env, validateRuntimeEnv } from "@config/env";
 import { redisClient } from "@redis";
 import { rabbitClient } from "@rabbitmq";
 import { prisma } from "@config/prisma";
 import { registry } from "@metrics";
-import { errorHandler, metricsMiddleware } from "@middleware";
+import { errorHandler, metricsMiddleware, requestContext } from "@middleware";
 import { router } from "@routes";
 import { sseHub } from "@realtime/sse";
-
-const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
 const app = express();
 // Chỉ tin một reverse proxy trực tiếp (Nginx) để req.ip dùng đúng client IP.
 app.set("trust proxy", 1);
+app.use(requestContext);
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: env.clientOrigin,
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "1mb" }));
 
 // Đo lường Prometheus + endpoint scrape (chỉ nội bộ:
@@ -44,11 +49,12 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 async function main(): Promise<void> {
+  validateRuntimeEnv();
   redisClient.connect();
   await prisma.$connect();
   await rabbitClient.connect();
-  server.listen(PORT, () => {
-    logger.info(`[api] listening on :${PORT}`);
+  server.listen(env.apiPort, () => {
+    logger.info(`[api] listening on :${env.apiPort}`);
   });
 }
 

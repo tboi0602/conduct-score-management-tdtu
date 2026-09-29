@@ -1,12 +1,13 @@
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { logger } from "@config/logger";
+import { env } from "@config/env";
 
 const SECRET = (() => {
-  const secret = process.env.JWT_SECRET;
+  const secret = env.jwtSecret;
   if (!secret) {
     // Production bắt buộc có secret, không cho dùng default không an toàn.
-    if (process.env.NODE_ENV === "production") {
+    if (env.nodeEnv === "production") {
       throw new Error("[auth] JWT_SECRET is required in production");
     }
     logger.warn("[auth] JWT_SECRET not set - using insecure dev default");
@@ -14,10 +15,10 @@ const SECRET = (() => {
   }
   return secret;
 })();
-const ACCESS_EXPIRES = (process.env.JWT_EXPIRES_IN ?? "15m") as NonNullable<
+const ACCESS_EXPIRES = env.jwtExpiresIn as NonNullable<
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
-const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES_IN ?? "30d") as NonNullable<
+const REFRESH_EXPIRES = env.jwtRefreshExpiresIn as NonNullable<
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
 
@@ -29,6 +30,7 @@ export interface JwtPayload {
   tokenType: "access" | "refresh";
   iat?: number;
   exp?: number;
+  jti?: string;
 }
 
 type TokenIdentity = Pick<JwtPayload, "sub" | "role">;
@@ -37,10 +39,10 @@ export function signAccessToken(payload: TokenIdentity): string {
   return jwt.sign({ ...payload, tokenType: "access" }, SECRET, { expiresIn: ACCESS_EXPIRES });
 }
 
-export function signRefreshToken(payload: TokenIdentity): string {
+export function signRefreshToken(payload: TokenIdentity, sessionId: string): string {
   return jwt.sign({ ...payload, tokenType: "refresh" }, SECRET, {
     expiresIn: REFRESH_EXPIRES,
-    jwtid: randomUUID(),
+    jwtid: sessionId,
   });
 }
 

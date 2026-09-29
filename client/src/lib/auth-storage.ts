@@ -1,29 +1,33 @@
 import type { AuthSession } from "@/services/auth";
+import type { AuthUser } from "@/types/auth";
 
-const AUTH_SESSION_KEY = "auth.session";
+const AUTH_USER_KEY = "auth.user";
+let accessToken: string | null = null;
 
 export function saveAuthSession(session: AuthSession) {
-  window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  accessToken = session.accessToken;
+  window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));
 }
 
 export function getAuthSession(): AuthSession | null {
-  const value = window.localStorage.getItem(AUTH_SESSION_KEY);
+  const value = window.localStorage.getItem(AUTH_USER_KEY);
   if (!value) return null;
 
   try {
-    return JSON.parse(value) as AuthSession;
+    return { accessToken: accessToken ?? "", user: JSON.parse(value) as AuthUser };
   } catch {
-    window.localStorage.removeItem(AUTH_SESSION_KEY);
+    window.localStorage.removeItem(AUTH_USER_KEY);
+    accessToken = null;
     return null;
   }
 }
 
 export function clearAuthSession() {
-  window.localStorage.removeItem(AUTH_SESSION_KEY);
+  accessToken = null;
+  window.localStorage.removeItem(AUTH_USER_KEY);
+  window.localStorage.removeItem("auth.session");
 }
 
-export function updateAuthTokens(accessToken: string, refreshToken: string) {
-  const session = getAuthSession();
-  if (!session) return;
-  saveAuthSession({ ...session, accessToken, refreshToken });
+export function updateAccessToken(token: string) {
+  accessToken = token;
 }

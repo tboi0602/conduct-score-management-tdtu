@@ -11,6 +11,13 @@ export const appealService = {
       headers: json,
       body: JSON.stringify({ mime }),
     }),
+  uploadEvidenceFile: async (upload: EvidenceUpload, file: File) => {
+    const form = new FormData();
+    Object.entries(upload.fields).forEach(([key, value]) => form.append(key, value));
+    form.append("file", file);
+    const response = await fetch(upload.url, { method: "POST", body: form });
+    if (!response.ok) throw new Error("EVIDENCE_UPLOAD_FAILED");
+  },
   create: (payload: {
     eventId: string;
     explanation: string;

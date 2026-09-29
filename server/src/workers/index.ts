@@ -1,31 +1,25 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import http from "http";
 
 import { logger } from "@config/logger";
+import { env, validateRuntimeEnv } from "@config/env";
 import { redisClient } from "@redis";
+import { withLock } from "@redis/stores/lock.store";
 import { rabbitClient } from "@rabbitmq";
 import { registry, rabbitConnected, redisConnected } from "@metrics";
 import { RABBITMQ_CONFIG } from "@rabbitmq";
 import { handleAttendanceMessage } from "@workers/attendance.worker";
-import { startOutboxRelay } from "@services/infrastructure/outbox.service";
+import { startOutboxRelay } from "@modules/infrastructure";
 import { prisma } from "@config/prisma";
 import { sseHub } from "@realtime/sse";
-import {
-  cleanupResolvedAppeals,
-  reconcileApprovedAppealScores,
-} from "@services/appeals/appeal.service";
-import { syncEndedEventConductScores } from "@services/conduct-score/conduct-score.service";
-import {
-  cleanupAttendanceEvidence,
-  evaluateConductScoreWarnings,
-} from "@services/warnings/warning.service";
+import { cleanupResolvedAppeals, reconcileApprovedAppealScores } from "@modules/appeals";
+import { syncEndedEventConductScores } from "@modules/conduct-score";
+import { cleanupAttendanceEvidence, evaluateConductScoreWarnings } from "@modules/warnings";
 
-// Port cho server health/metrics của worker.
-const HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "9101", 10);
-
+// Port cho server health/metrics cá»§a worker.
 // ============================================================
 // Endpoint health cho Docker healthcheck + /metrics cho Prometheus.
-// Worker chỉ "khỏe" khi cả RabbitMQ và Redis đều đã nối.
+// Worker chá»‰ "khá»e" khi cáº£ RabbitMQ vÃ  Redis Ä‘á»u Ä‘Ã£ ná»‘i.
 // ============================================================
 const healthServer = http.createServer(async (req, res) => {
   if (req.url === "/health") {
@@ -47,7 +41,7 @@ const healthServer = http.createServer(async (req, res) => {
   res.writeHead(404).end();
 });
 
-// Cập nhật gauge trạng thái kết nối định kỳ để Prometheus scrape.
+// Cáº­p nháº­t gauge tráº¡ng thÃ¡i káº¿t ná»‘i Ä‘á»‹nh ká»³ Ä‘á»ƒ Prometheus scrape.
 function trackConnectionGauges(): void {
   setInterval(() => {
     rabbitConnected.set(rabbitClient.isConnected() ? 1 : 0);
@@ -55,50 +49,49 @@ function trackConnectionGauges(): void {
   }, 5_000).unref();
 }
 
+function runExclusiveJob(name: string, ttlMs: number, task: () => Promise<void>): void {
+  void withLock(`worker-job:${name}`, ttlMs, task).catch((error: unknown) =>
+    logger.error(`[${name}] scheduled job failed: ${(error as Error).message}`),
+  );
+}
+
 function startAppealCleanup(): void {
-  const intervalMs = Number(process.env.APPEAL_CLEANUP_INTERVAL_MS ?? 60 * 60 * 1000);
+  const intervalMs = env.appealCleanupIntervalMs;
   const run = () =>
-    reconcileApprovedAppealScores()
-      .then(() => cleanupResolvedAppeals())
-      .then((count) => count > 0 && logger.info(`[appeals] cleaned ${count} resolved appeals`))
-      .catch((error: unknown) =>
-        logger.error(`[appeals] cleanup failed: ${(error as Error).message}`),
-      );
-  void run();
+    runExclusiveJob("appeals", Math.min(intervalMs, 30 * 60 * 1000), async () => {
+      await reconcileApprovedAppealScores();
+      const count = await cleanupResolvedAppeals();
+      if (count > 0) logger.info(`[appeals] cleaned ${count} resolved appeals`);
+    });
+  run();
   setInterval(run, intervalMs).unref();
 }
 
 function startEndedEventScoreSync(): void {
-  const intervalMs = Number(process.env.CONDUCT_SCORE_EVENT_SYNC_INTERVAL_MS ?? 30_000);
+  const intervalMs = env.conductScoreSyncIntervalMs;
   const run = () =>
-    syncEndedEventConductScores()
-      .then(
-        (count) =>
-          count > 0 && logger.info(`[conduct-score] synchronized ${count} ended event scores`),
-      )
-      .catch((error: unknown) =>
-        logger.error(`[conduct-score] ended event sync failed: ${(error as Error).message}`),
-      );
-  void run();
+    runExclusiveJob("conduct-score-sync", Math.min(intervalMs, 25_000), async () => {
+      const count = await syncEndedEventConductScores();
+      if (count > 0) logger.info(`[conduct-score] synchronized ${count} ended event scores`);
+    });
+  run();
   setInterval(run, intervalMs).unref();
 }
 
 function startWarningMaintenance(): void {
-  const intervalMs = Number(process.env.WARNING_MAINTENANCE_INTERVAL_MS ?? 24 * 60 * 60 * 1000);
+  const intervalMs = env.warningMaintenanceIntervalMs;
   const run = () =>
-    evaluateConductScoreWarnings()
-      .then((created) => cleanupAttendanceEvidence().then((cleaned) => ({ created, cleaned })))
-      .then(({ created, cleaned }) => {
-        if (created || cleaned) logger.info(`[warnings] created=${created} cleaned=${cleaned}`);
-      })
-      .catch((error: unknown) =>
-        logger.error(`[warnings] maintenance failed: ${(error as Error).message}`),
-      );
-  void run();
+    runExclusiveJob("warning-maintenance", Math.min(intervalMs, 60 * 60 * 1000), async () => {
+      const created = await evaluateConductScoreWarnings();
+      const cleaned = await cleanupAttendanceEvidence();
+      if (created || cleaned) logger.info(`[warnings] created=${created} cleaned=${cleaned}`);
+    });
+  run();
   setInterval(run, intervalMs).unref();
 }
 
 async function bootstrap(): Promise<void> {
+  validateRuntimeEnv();
   redisClient.connect();
   await prisma.$connect();
   await rabbitClient.connect();
@@ -109,13 +102,13 @@ async function bootstrap(): Promise<void> {
   startEndedEventScoreSync();
   startWarningMaintenance();
 
-  await new Promise<void>((resolve) => healthServer.listen(HEALTH_PORT, resolve));
+  await new Promise<void>((resolve) => healthServer.listen(env.workerHealthPort, resolve));
   trackConnectionGauges();
-  logger.info(`[worker] consumer bootstrap - ready (health on :${HEALTH_PORT})`);
+  logger.info(`[worker] consumer bootstrap - ready (health on :${env.workerHealthPort})`);
 }
 
-// Graceful shutdown: ngừng nhặt message TRƯỚC rồi mới đóng kết nối,
-// message dở dang chưa ack sẽ được RabbitMQ giao lại cho worker khác.
+// Graceful shutdown: ngá»«ng nháº·t message TRÆ¯á»šC rá»“i má»›i Ä‘Ã³ng káº¿t ná»‘i,
+// message dá»Ÿ dang chÆ°a ack sáº½ Ä‘Æ°á»£c RabbitMQ giao láº¡i cho worker khÃ¡c.
 async function shutdown(signal: string): Promise<void> {
   logger.info(`[worker] ${signal} received - starting graceful shutdown`);
 

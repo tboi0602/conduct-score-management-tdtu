@@ -1,10 +1,10 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import { AttendanceDirection, AttendanceScanStatus, AttendanceStatus } from "@prisma/client";
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
-import * as attendance from "@services/attendance/attendance.service";
+import * as attendance from "@modules/attendance";
 import * as realtime from "@services/attendance/attendance-realtime.service";
-import * as reconciliation from "@services/attendance/attendance-reconciliation.service";
+import * as reconciliation from "@modules/attendance";
 import {
   enumInput,
   objectInput,

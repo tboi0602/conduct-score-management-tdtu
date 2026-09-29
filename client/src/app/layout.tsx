@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -21,8 +21,11 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/manifest.webmanifest",
-  themeColor: "#154a9b",
   appleWebApp: { capable: true, title: "TDTU Conduct", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#154a9b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 import type { Options } from "amqplib";
 
 import { logger } from "@config/logger";
+import { env } from "@config/env";
 
 export type QueueConfig = {
   name: string;
@@ -11,23 +12,23 @@ export type QueueConfig = {
 export const DLX_EXCHANGE = "conduct-score.dlx";
 export const RETRY_EXCHANGE = "conduct-score.retry";
 export const DLQ_ROUTING_KEY = "attendance.scan.dead.v1";
-const MAIN_EXCHANGE = process.env.RABBITMQ_EXCHANGE ?? "conduct-score.events";
+const MAIN_EXCHANGE = env.rabbitExchange;
 
 export const RABBITMQ_CONFIG = {
   url: (() => {
-    const url = process.env.RABBITMQ_URL;
+    const url = env.rabbitUrl;
     if (url) return url;
-    if (process.env.NODE_ENV === "production") {
+    if (env.nodeEnv === "production") {
       throw new Error("[rabbitmq] RABBITMQ_URL is required in production");
     }
     logger.warn("[rabbitmq] RABBITMQ_URL not set - using local development default");
     return "amqp://guest:guest@localhost:5672";
   })(),
   exchange: MAIN_EXCHANGE,
-  prefetch: Number(process.env.RABBITMQ_PREFETCH ?? 20),
-  maxRetries: Number(process.env.RABBITMQ_MAX_RETRIES ?? 3),
+  prefetch: env.rabbitPrefetch,
+  maxRetries: env.rabbitMaxRetries,
   reconnect: {
-    retries: Number(process.env.RABBITMQ_RETRIES ?? 10),
+    retries: env.rabbitConnectionRetries,
     baseDelayMs: 2000,
     maxDelayMs: 30000,
   },

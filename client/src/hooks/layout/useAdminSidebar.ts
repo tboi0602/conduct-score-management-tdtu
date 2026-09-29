@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearAuthSession, getAuthSession } from "@/lib/auth-storage";
 import type { AuthUser } from "@/types/auth";
+import { logoutSession } from "@/services/auth";
 
 export function useAdminSidebar() {
   const pathname = usePathname();
@@ -29,7 +30,8 @@ export function useAdminSidebar() {
       window.localStorage.setItem("admin.sidebar.collapsed", String(!value));
       return !value;
     });
-  const signOut = () => {
+  const signOut = async () => {
+    await logoutSession().catch(() => undefined);
     queryClient.clear();
     clearAuthSession();
     router.replace("/admin");

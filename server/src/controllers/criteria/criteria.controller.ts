@@ -1,5 +1,5 @@
-import type { Request, Response } from "express";
-import * as criteria from "@services/criteria/criteria.service";
+﻿import type { Request, Response } from "express";
+import * as criteria from "@modules/criteria";
 import { ApiError } from "@utils/ApiError";
 import { parsePagination } from "@utils/pagination";
 import {

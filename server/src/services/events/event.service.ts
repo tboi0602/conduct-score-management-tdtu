@@ -1,4 +1,4 @@
-import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
+﻿import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
 import { mapCrudError } from "@utils/crudError";
@@ -8,7 +8,7 @@ import {
   eventScope,
   type EventAccess,
 } from "@services/events/event-access.service";
-import { invalidateDashboardCache } from "@services/dashboard/dashboard.service";
+import { invalidateDashboardCache } from "@modules/dashboard";
 import { eventDescriptionPreview } from "@utils/eventDescription";
 
 export type EventInput = {

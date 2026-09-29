@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { clearAuthSession, saveAuthSession } from "@/lib/auth-storage";
-import { switchAccessMode, type LoginMode } from "@/services/auth";
+import { logoutSession, switchAccessMode, type LoginMode } from "@/services/auth";
 
 const MANAGEMENT_ROLES = new Set(["ADMIN", "STUDENT_AFFAIRS", "EVENT_ORGANIZER"]);
 
@@ -47,7 +47,8 @@ export function useWorkspaceSwitch(roleNames: string[]) {
     canUseManagementWorkspace: roleNames.some((role) => MANAGEMENT_ROLES.has(role)),
     isSwitching: mutation.isPending,
     switchWorkspace: mutation.mutate,
-    logout: () => {
+    logout: async () => {
+      await logoutSession().catch(() => undefined);
       queryClient.clear();
       clearAuthSession();
       router.replace("/login");

@@ -3,7 +3,6 @@ import type { AuthUser } from "@/types/auth";
 
 export type AuthSession = {
   accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 };
 
@@ -42,4 +41,8 @@ export async function switchAccessMode(mode: LoginMode) {
   });
 
   return response.data;
+}
+
+export async function logoutSession() {
+  await http<void>("/api/v1/auth/logout", { method: "POST" });
 }

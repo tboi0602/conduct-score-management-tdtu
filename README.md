@@ -194,5 +194,9 @@ Server:
 ```powershell
 cd server
 npm.cmd run typecheck
-npm.cmd run build
+npm.cmd run build:check
 ```
+
+`build:check` biên dịch vào thư mục tạm rồi tự dọn, vì vậy có thể chạy khi thư mục `dist`
+đang được tiến trình development sử dụng. CI cũng chạy Prisma validate, migration trên PostgreSQL sạch,
+format check, typecheck và production build của client.

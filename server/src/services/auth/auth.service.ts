@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import bcrypt from "bcryptjs";
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash, randomUUID, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import { Prisma } from "@prisma/client";
 
@@ -8,6 +8,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken, type AppRole } f
 import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { ApiError } from "@utils/ApiError";
+import { env } from "@config/env";
 
 const googleClient = new OAuth2Client();
 const MANAGEMENT_ROLES = ["ADMIN", "STUDENT_AFFAIRS", "EVENT_ORGANIZER"] as const;
@@ -129,17 +130,18 @@ function hashRefreshToken(token: string): string {
 async function issueTokenPair(userId: string, role: AppRole) {
   const identity = { sub: userId, role };
   const accessToken = signAccessToken(identity);
-  const refreshToken = signRefreshToken(identity);
+  const sessionId = randomUUID();
+  const refreshToken = signRefreshToken(identity, sessionId);
   const decoded = jwt.decode(refreshToken) as { exp?: number } | null;
   if (!decoded?.exp) throw new ApiError(500, "Unable to create refresh token");
 
   const ttlSec = Math.max(decoded.exp - Math.floor(Date.now() / 1000), 1);
   await redisClient.setRefreshSession(
-    userId,
-    { tokenHash: hashRefreshToken(refreshToken), role },
+    sessionId,
+    { tokenHash: hashRefreshToken(refreshToken), role, userId },
     ttlSec,
   );
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, sessionId };
 }
 
 export async function refreshAccessToken(refreshToken: string) {
@@ -150,7 +152,8 @@ export async function refreshAccessToken(refreshToken: string) {
     throw new ApiError(401, "Invalid or expired refresh token");
   }
 
-  const session = await redisClient.getRefreshSession(payload.sub);
+  if (!payload.jti) throw new ApiError(401, "Invalid refresh session");
+  const session = await redisClient.getRefreshSession(payload.jti);
   if (!session) throw new ApiError(401, "Refresh token has been revoked");
 
   const receivedHash = Buffer.from(hashRefreshToken(refreshToken), "hex");
@@ -159,9 +162,10 @@ export async function refreshAccessToken(refreshToken: string) {
     throw new ApiError(401, "Refresh token has been revoked");
   }
 
+  if (session.userId !== payload.sub) throw new ApiError(401, "Invalid refresh session");
   const currentRole = session.role as AppRole;
   if (!["ADMIN", "STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].includes(currentRole)) {
-    await redisClient.revokeRefreshSession(payload.sub);
+    await redisClient.revokeRefreshSession(payload.jti);
     throw new ApiError(401, "Invalid refresh session");
   }
   const activeUser = await prisma.user.findFirst({
@@ -173,11 +177,21 @@ export async function refreshAccessToken(refreshToken: string) {
     select: { id: true },
   });
   if (!activeUser) {
-    await redisClient.revokeRefreshSession(payload.sub);
+    await redisClient.revokeRefreshSession(payload.jti);
     throw new ApiError(401, "Account is disabled or unavailable");
   }
 
+  await redisClient.revokeRefreshSession(payload.jti);
   return issueTokenPair(payload.sub, currentRole);
+}
+
+export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+    if (payload.jti) await redisClient.revokeRefreshSession(payload.jti);
+  } catch {
+    // Logout remains idempotent for expired or malformed cookies.
+  }
 }
 
 export async function loginAdmin(email: string, password: string) {
@@ -213,7 +227,7 @@ function resolveLoginRole(assignedRoles: string[], mode: LoginMode): AppRole | n
 }
 
 export async function loginWithGoogle(idToken: string, mode: LoginMode) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = env.googleClientId;
   if (!clientId) throw new ApiError(500, "GOOGLE_CLIENT_ID is not configured");
 
   let payload;

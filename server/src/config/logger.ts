@@ -1,5 +1,6 @@
 // Minimal structured JSON logger. Swap for pino/winston if preferred.
 type Level = "debug" | "info" | "warn" | "error";
+import { env } from "@config/env";
 
 const LEVELS: Record<Level, number> = {
   debug: 10,
@@ -9,7 +10,7 @@ const LEVELS: Record<Level, number> = {
 };
 
 function emit(level: Level, message: string, extra?: unknown): void {
-  const threshold = LEVELS[(process.env.LOG_LEVEL as Level) ?? "info"] ?? 20;
+  const threshold = LEVELS[env.logLevel as Level] ?? 20;
   if (LEVELS[level] < threshold) return;
   const base = {
     ts: new Date()
