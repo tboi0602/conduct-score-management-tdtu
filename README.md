@@ -1,202 +1,328 @@
-# TDTU Conduct Score Management System
+<div align="center">
+  <img src="client/public/images/logo.png" alt="TDTU" width="118" />
+  <h1>TDTU Conduct Score Management System</h1>
+  <p><strong>Nền tảng quản lý điểm rèn luyện, sự kiện và điểm danh sinh viên theo thời gian thực</strong></p>
+  <p>
+    Một hệ thống thống nhất cho sinh viên, Ban tổ chức, Công tác sinh viên và quản trị viên — từ đăng ký sự kiện đến điểm danh, đối soát và chốt điểm rèn luyện.
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/Next.js-14-111827?style=flat-square&logo=next.js" alt="Next.js 14" />
+    <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white" alt="Redis" />
+    <img src="https://img.shields.io/badge/RabbitMQ-EDA-FF6600?style=flat-square&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
+    <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
+  </p>
+</div>
 
-Hệ thống quản lý điểm rèn luyện, sự kiện và điểm danh sinh viên theo kiến trúc hướng sự kiện. Client sử dụng Next.js 14; API và worker sử dụng Node.js/Express; PostgreSQL được quản lý bằng Prisma; Redis phục vụ cache, phiên và realtime; RabbitMQ xử lý điểm danh bất đồng bộ.
+---
 
-## Địa chỉ mặc định
+## Một hệ thống cho toàn bộ hành trình rèn luyện
 
-| Thành phần | Chạy local | Chạy bằng Docker |
-| --- | --- | --- |
-| Giao diện | <http://localhost:3001> | <http://localhost> |
-| API/Health | <http://localhost:3000/health> | <http://localhost/health> |
-| RabbitMQ Management | <http://localhost:15672> | <http://localhost:15672> |
-| Prometheus | Không khởi động mặc định | <http://localhost:9090> |
-| Grafana | Không khởi động mặc định | <http://localhost:3001> |
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>🎓 Sinh viên</h3>
+      <p>Tìm kiếm và đăng ký sự kiện, quét QR điểm danh có kiểm tra vị trí, xem lịch học, thông báo, khiếu nại và kết quả điểm rèn luyện.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h3>📅 Ban tổ chức</h3>
+      <p>Quản lý sự kiện, sức chứa và danh sách đăng ký; mở phiên QR động; quét barcode, nhập MSSV hoặc import Excel cho sự kiện online.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h3>📊 Công tác sinh viên</h3>
+      <p>Quản lý sinh viên trong khoa, lớp học, nhân sự tổ chức, điểm danh, điều chỉnh và chốt điểm rèn luyện.</p>
+    </td>
+  </tr>
+</table>
 
-## Chạy trên máy local
+### Điểm nổi bật
 
-Ở chế độ này, **PostgreSQL phải được cài và chạy trực tiếp trên máy**, không sử dụng container PostgreSQL. Redis và RabbitMQ có thể chạy bằng Docker vì đây là hạ tầng hỗ trợ, không phải database chính.
+- **Điểm danh đa phương thức:** QR động, barcode MSSV, nhập thủ công và import Excel.
+- **Xử lý bất đồng bộ:** Transactional Outbox, RabbitMQ, retry queue, DLQ và worker có thể mở rộng độc lập.
+- **Chống ghi trùng:** Redis idempotency kết hợp unique constraint PostgreSQL.
+- **Kiểm tra vị trí:** GPS, độ chính xác thiết bị và công thức Haversine.
+- **Realtime:** Server-Sent Events cập nhật kết quả điểm danh cho sinh viên và Ban tổ chức.
+- **Conduct Score ledger:** bút toán sự kiện, điều chỉnh, đảo điểm, giới hạn tiêu chí, chốt và mở lại bảng điểm.
+- **RBAC theo phạm vi:** bốn vai trò, permission chi tiết và giới hạn dữ liệu theo khoa.
+- **Song ngữ và PWA:** giao diện Việt/Anh, responsive, manifest, service worker và hàng đợi sự cố ngoại tuyến.
+- **Quan sát hệ thống:** health check, structured log, Prometheus metrics và Grafana.
 
-### 1. Yêu cầu
+## Vai trò và phạm vi
 
-- Node.js 20 trở lên và npm.
-- PostgreSQL 16 cài trực tiếp trên máy.
-- Docker Desktop để chạy Redis và RabbitMQ, hoặc tự cài hai dịch vụ này trên máy.
+| Vai trò | Phạm vi chính |
+|---|---|
+| `ADMIN` | Toàn quyền hệ thống, dữ liệu toàn trường và RBAC |
+| `STUDENT_AFFAIRS` | Sự kiện, điểm danh, sinh viên, lớp, nhân sự tổ chức và điểm rèn luyện trong khoa |
+| `EVENT_ORGANIZER` | Quản lý sự kiện, đăng ký và điểm danh trong khoa được gán |
+| `STUDENT` | Hồ sơ cá nhân, sự kiện, đăng ký, điểm danh, khiếu nại và điểm rèn luyện cá nhân |
 
-Tạo database rỗng trong PostgreSQL local, ví dụ:
+## Kiến trúc hệ thống
 
-```sql
-CREATE DATABASE conduct_score_db;
+```mermaid
+flowchart LR
+    U[Web / PWA] --> N[Nginx]
+    N --> C[Next.js Client]
+    N --> A1[Express API 1]
+    N --> A2[Express API 2]
+
+    A1 --> P[(PostgreSQL)]
+    A2 --> P
+    A1 <--> R[(Redis)]
+    A2 <--> R
+
+    A1 --> O[Transactional Outbox]
+    A2 --> O
+    O --> Q[RabbitMQ]
+    Q --> W1[Attendance Worker]
+    Q --> W2[Attendance Worker]
+    W1 --> P
+    W2 --> P
+    W1 --> R
+    W2 --> R
+
+    A1 -. SSE .-> U
+    A2 -. SSE .-> U
+    A1 --> M[Prometheus]
+    A2 --> M
+    W1 --> M
+    W2 --> M
+    M --> G[Grafana]
 ```
 
-### 2. Tạo file môi trường
+Luồng điểm danh QR được tiếp nhận nhanh bằng HTTP `202`. API ghi `AttendanceScanRequest` và `OutboxEvent` trong cùng transaction; worker sau đó kiểm tra QR, đăng ký, GPS và idempotency trước khi ghi `AttendanceRecord` và phát kết quả realtime.
 
-Sao chép các file mẫu:
+## Công nghệ
 
-```powershell
-Copy-Item server/.env.example server/.env
-Copy-Item client/.env.example client/.env.local
-```
+| Lớp | Công nghệ |
+|---|---|
+| Client | Next.js 14 App Router, React 18, Tailwind CSS, TanStack Query, Tiptap, Recharts |
+| API | Node.js, Express, TypeScript strict, Zod |
+| Database | PostgreSQL 16, Prisma ORM |
+| Cache & realtime | Redis, Pub/Sub, SSE |
+| Message broker | RabbitMQ, Confirm Channel, retry queue, DLQ |
+| Proxy | Nginx reverse proxy, load balancing, TLS, rate limiting |
+| Observability | Prometheus, Grafana, structured logging |
+| Testing | Vitest, k6, PostgreSQL/Redis/RabbitMQ thật trong Docker |
 
-Trong `server/.env`, cấu hình các giá trị local tối thiểu:
+## Quick start với Docker
 
-```dotenv
-NODE_ENV=development
-PORT=3000
-DATABASE_URL=postgresql://postgres:<mat-khau-postgres>@127.0.0.1:5432/conduct_score_db?schema=public&connection_limit=15&pool_timeout=10
-REDIS_URL=redis://:redis_secret@127.0.0.1:6379
-RABBITMQ_URL=amqp://attendance:mq_secret@127.0.0.1:5672
-CLIENT_ORIGIN=http://localhost:3001
-JWT_SECRET=<chuoi-bi-mat-dai-va-ngau-nhien>
-ATTENDANCE_QR_SECRET=<chuoi-bi-mat-dai-va-ngau-nhien>
-GOOGLE_CLIENT_ID=<google-oauth-client-id-neu-su-dung>
-```
+### Yêu cầu
 
-Trong `client/.env.local`:
+- Docker Desktop đang chạy.
+- Docker Compose v2.
+- Các cổng `80`, `443`, `5432`, `6379`, `5672`, `15672`, `3001` và `9090` chưa bị dịch vụ khác chiếm, hoặc đã được đổi trong `.env.docker`.
 
-```dotenv
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3001
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=<google-oauth-client-id-neu-su-dung>
-```
+### Khởi động toàn bộ bằng một lệnh
 
-Không commit `server/.env` hoặc `client/.env.local`.
-
-### 3. Khởi động Redis và RabbitMQ
-
-Từ thư mục gốc:
-
-```powershell
-docker compose --env-file .env.docker up -d redis rabbitmq
-```
-
-Nếu Redis và RabbitMQ đã được cài trực tiếp, chỉ cần bảo đảm URL của chúng trong `server/.env` là chính xác.
-
-### 4. Cài dependency và chuẩn bị database
-
-```powershell
-cd server
-npm.cmd install
-npm.cmd run prisma:generate
-npm.cmd run prisma:migrate
-npm.cmd run seed
-cd ../client
-npm.cmd install
-cd ..
-```
-
-Migration và seed chỉ cần chạy khi cài đặt lần đầu hoặc khi schema/seed thay đổi. Seed được thiết kế để chạy lặp mà không tạo dữ liệu trùng.
-
-### 5. Khởi động ứng dụng
-
-Mở ba terminal tại thư mục dự án:
-
-```powershell
-# Terminal 1 - API
-cd server
-npm.cmd run dev
-```
-
-```powershell
-# Terminal 2 - attendance worker
-cd server
-npm.cmd run dev:worker
-```
-
-```powershell
-# Terminal 3 - client
-cd client
-npm.cmd run dev
-```
-
-Truy cập <http://localhost:3001>. API chạy tại <http://localhost:3000>.
-
-### 6. Dừng hạ tầng hỗ trợ
-
-```powershell
-docker compose --env-file .env.docker stop redis rabbitmq
-```
-
-Lệnh này không tác động đến PostgreSQL local.
-
-## Chạy toàn bộ bằng Docker với một lệnh
-
-Docker Compose khởi động PostgreSQL, Redis, RabbitMQ, chạy Prisma migration và seed, dựng hai API instance, worker, client, Nginx, Prometheus và Grafana.
-
-### 1. Cấu hình
-
-Kiểm tra `.env.docker` tại thư mục gốc và thay các giá trị bí mật trước khi dùng ngoài môi trường phát triển:
-
-- `POSTGRES_PASSWORD`
-- `REDIS_PASSWORD`
-- `RABBITMQ_PASSWORD`
-- `JWT_SECRET`
-- `ATTENDANCE_QR_SECRET`
-- `GRAFANA_ADMIN_PASSWORD`
-- `GOOGLE_CLIENT_ID` nếu dùng Google Sign-In
-
-`ATTENDANCE_QR_SECRET` là bắt buộc. Thêm một chuỗi ngẫu nhiên dài vào `.env.docker`, ví dụ tạo chuỗi bằng trình quản lý mật khẩu rồi cấu hình:
-
-```dotenv
-ATTENDANCE_QR_SECRET=<chuoi-ngau-nhien-toi-thieu-32-ky-tu>
-```
-
-API sẽ từ chối tạo mã QR trong môi trường production nếu biến này chưa được đặt.
-
-Các URL trong file Docker phải dùng hostname service (`postgres`, `redis`, `rabbitmq`), không dùng `127.0.0.1` cho kết nối giữa container.
-
-### 2. Khởi động bằng một lệnh
-
-Từ thư mục gốc dự án:
+Kiểm tra `.env.docker`, thay các secret mẫu khi cần, sau đó chạy:
 
 ```powershell
 docker compose --env-file .env.docker up -d --build
 ```
 
-Sau khi các health check hoàn tất, truy cập <http://localhost>. Lần chạy đầu sẽ lâu hơn vì Docker cần tải image, build source, migrate và seed database.
+Compose sẽ khởi động PostgreSQL, Redis, RabbitMQ, migration/seed, hai API, worker, client, Nginx, Prometheus và Grafana.
 
-### Kiểm tra trạng thái và log
+| Dịch vụ | Địa chỉ mặc định |
+|---|---|
+| Ứng dụng qua Nginx | <http://localhost> |
+| Health API | <http://localhost/health> |
+| RabbitMQ Management | <http://localhost:15672> |
+| Prometheus | <http://localhost:9090> |
+| Grafana | <http://localhost:3001> |
+
+Kiểm tra trạng thái:
 
 ```powershell
 docker compose --env-file .env.docker ps
 docker compose --env-file .env.docker logs -f api worker client
 ```
 
-### Dừng hệ thống
+Dừng hệ thống nhưng giữ dữ liệu:
 
 ```powershell
 docker compose --env-file .env.docker down
 ```
 
-Lệnh trên giữ lại dữ liệu trong Docker volumes. Chỉ dùng `docker compose down -v` khi chủ động muốn xóa toàn bộ dữ liệu PostgreSQL, Redis, RabbitMQ, Prometheus và Grafana của môi trường Docker.
+> Chỉ thêm `-v` khi chủ động muốn xóa toàn bộ Docker volume và dữ liệu.
 
-## Tài khoản và đăng nhập
+## Chạy local để phát triển
 
-Seed tạo dữ liệu RBAC và tài khoản quản trị phục vụ phát triển. Kiểm tra cấu hình seed hiện tại trước khi đăng nhập và đổi thông tin xác thực khi dùng ngoài máy phát triển.
+Ở chế độ này, **PostgreSQL chạy trực tiếp trên máy**, không dùng container. Redis và RabbitMQ có thể chạy bằng Docker.
 
-Google Sign-In yêu cầu cùng một OAuth Web Client ID trong `GOOGLE_CLIENT_ID` của server và `NEXT_PUBLIC_GOOGLE_CLIENT_ID` của client. Thêm các origin local cần thiết trong Google Cloud Console:
+### 1. Chuẩn bị
 
-- `http://localhost:3001` khi chạy local.
-- `http://localhost` khi chạy toàn bộ bằng Docker.
+- Node.js 20 trở lên và npm.
+- PostgreSQL 16 local.
+- Docker Desktop nếu dùng Redis/RabbitMQ container.
 
-## Kiểm tra mã nguồn
+Tạo database:
 
-Client:
-
-```powershell
-cd client
-npm.cmd run format:check
-npx.cmd tsc --noEmit
-npm.cmd run build
+```sql
+CREATE DATABASE conduct_score_db;
 ```
 
-Server:
+Tạo file môi trường:
+
+```powershell
+Copy-Item server/.env.example server/.env
+Copy-Item client/.env.example client/.env.local
+```
+
+Các URL local quan trọng:
+
+```dotenv
+# server/.env
+DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/conduct_score_db?schema=public
+REDIS_URL=redis://:<redis-password>@127.0.0.1:6379
+RABBITMQ_URL=amqp://<rabbit-user>:<rabbit-password>@127.0.0.1:5672/
+CLIENT_ORIGIN=http://localhost:3001
+JWT_SECRET=<random-secret>
+ATTENDANCE_QR_SECRET=<random-secret-at-least-32-characters>
+```
+
+```dotenv
+# client/.env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3001
+```
+
+Không commit `.env`, `.env.local` hoặc secret thật.
+
+### 2. Khởi động hạ tầng hỗ trợ
+
+```powershell
+docker compose --env-file .env.docker up -d redis rabbitmq
+```
+
+### 3. Cài dependency và chuẩn bị database
 
 ```powershell
 cd server
+npm.cmd install
+npm.cmd run prisma:generate
+npm.cmd run prisma:migrate:local
+npm.cmd run seed:local
+
+cd ../client
+npm.cmd install
+cd ..
+```
+
+### 4. Chạy ba tiến trình
+
+```powershell
+# Terminal 1 — API, port 3000
+cd server
+npm.cmd run dev
+```
+
+```powershell
+# Terminal 2 — Attendance Worker
+cd server
+npm.cmd run dev:worker
+```
+
+```powershell
+# Terminal 3 — Next.js, port 3001
+cd client
+npm.cmd run dev
+```
+
+Mở <http://localhost:3001>.
+
+## Kiểm thử điểm danh và hiệu suất
+
+Khởi động topology test:
+
+```powershell
+docker compose --env-file .env.docker `
+  -f docker-compose.yml `
+  -f docker-compose.attendance-test.yml `
+  up -d --build
+```
+
+Chạy unit, integration, QR 1.000 sinh viên và barcode 2/3 scanner:
+
+```powershell
+.\run-attendance-tests.cmd
+```
+
+Chạy nhanh với fixture nhỏ:
+
+```powershell
+.\run-attendance-tests.cmd -StudentCount 20
+```
+
+Mỗi lần chạy sinh một báo cáo Word duy nhất:
+
+```text
+Docs/testing-results/<run-id>/ATTENDANCE_TEST_REPORT.docx
+```
+
+Xem chi tiết tại [kịch bản kiểm thử](Docs/Kichban.md).
+
+## Kiểm tra mã nguồn
+
+```powershell
+# Client
+cd client
+npm.cmd run format:check
 npm.cmd run typecheck
+npm.cmd run build
+
+# Server
+cd ../server
+npm.cmd run format:check
+npm.cmd run typecheck
+npm.cmd run typecheck:tests
 npm.cmd run build:check
 ```
 
-`build:check` biên dịch vào thư mục tạm rồi tự dọn, vì vậy có thể chạy khi thư mục `dist`
-đang được tiến trình development sử dụng. CI cũng chạy Prisma validate, migration trên PostgreSQL sạch,
-format check, typecheck và production build của client.
+`build:check` biên dịch vào thư mục tạm và tự dọn, hữu ích khi `server/dist` đang được tiến trình development sử dụng.
+
+## Cấu trúc repository
+
+```text
+smart-conduct-score-management-system/
+├── client/                  # Next.js Web/PWA cho Student và Admin
+├── server/
+│   ├── prisma/              # Schema, migrations và seed
+│   ├── src/
+│   │   ├── modules/         # Module nghiệp vụ
+│   │   ├── routes/          # REST routes và middleware composition
+│   │   ├── rabbitmq/        # Connection, topology, publisher, consumer
+│   │   ├── redis/           # Connection và stores
+│   │   └── workers/         # Attendance consumer
+│   └── tests/attendance/    # Unit, integration và k6
+├── docker/                  # Nginx, PostgreSQL, Redis, Prometheus, Grafana
+├── scripts/                 # Test runner và script vận hành
+├── Docs/                    # Kiến trúc, ERD/RDM, sequence và báo cáo
+└── docker-compose.yml       # Topology hệ thống đầy đủ
+```
+
+## Tài liệu kỹ thuật
+
+- [Kiến trúc Server](Docs/Agents/SERVER_ARCHITECTURE.md)
+- [Tài liệu kỹ thuật Server](Docs/Agents/SERVER_TECHNICAL_DOCUMENTATION_VI.md)
+- [Kịch bản kiểm thử điểm danh](Docs/Kichban.md)
+- [Sequence Diagram](Docs/Sequence/plantuml/README.md)
+- [ERD và RDM](Docs/ERD/)
+- [API Event và Criteria](Docs/Agents/EVENT_CRITERIA_API.md)
+- [Lưu trữ bằng chứng khiếu nại](Docs/Agents/AWS_S3_APPEAL_EVIDENCE.md)
+
+## Nguyên tắc dữ liệu và bảo mật
+
+- PostgreSQL là nguồn dữ liệu chuẩn; Redis không thay thế dữ liệu nghiệp vụ lâu dài.
+- Refresh session được lưu phía server trong Redis; không ghi token hoặc secret vào log.
+- Client không quyết định role, permission hoặc phạm vi khoa.
+- Mọi thao tác quản lý đều được kiểm tra permission và phạm vi tại server.
+- HTML mô tả sự kiện được sanitize trước khi lưu.
+- QR token, tọa độ đầy đủ, mật khẩu và token OAuth không xuất hiện trong báo cáo kiểm thử.
+
+---
+
+<div align="center">
+  <strong>Tôn Đức Thắng University · Conduct Score Management</strong><br />
+  <sub>Event-driven attendance · Realtime operations · Verifiable conduct score</sub>
+</div>
