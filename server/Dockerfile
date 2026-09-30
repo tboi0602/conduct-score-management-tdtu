@@ -5,6 +5,7 @@
 # ---------- Stage 1: deps ----------
 FROM node:20-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 RUN npm ci || npm install
@@ -12,6 +13,7 @@ RUN npm ci || npm install
 # ---------- Stage 2: build ----------
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
@@ -20,6 +22,7 @@ RUN npm run build
 # ---------- Stage 3: runtime shared ----------
 FROM node:20-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache openssl
 ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
