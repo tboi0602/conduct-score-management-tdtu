@@ -35,6 +35,7 @@ export function rateLimitAuthenticatedUser(prefix: string, max: number, windowSe
       res.setHeader("X-RateLimit-Limit", max);
       res.setHeader("X-RateLimit-Remaining", result.remaining);
       if (!result.allowed) {
+        if (prefix.startsWith("attendance:")) attendanceRateLimitRejectionsTotal.inc();
         res.setHeader("Retry-After", result.retryAfterSec);
         return next(new ApiError(429, "Too many requests; please try again later"));
       }
@@ -45,10 +46,10 @@ export function rateLimitAuthenticatedUser(prefix: string, max: number, windowSe
   };
 }
 
-export const rateLimitByStudent = rateLimit(
+export const rateLimitByStudent = rateLimitAuthenticatedUser(
   "attendance:student",
-  env.redisRateLimitMax,
-  env.redisRateLimitWindow,
+  env.attendanceStudentRateLimitMax,
+  env.attendanceRateLimitWindow,
 );
 
 export const eventRegistrationRateLimit = rateLimitAuthenticatedUser(

@@ -8,7 +8,7 @@ import { withLock } from "@redis/stores/lock.store";
 import { rabbitClient } from "@rabbitmq";
 import { registry, rabbitConnected, redisConnected } from "@metrics";
 import { RABBITMQ_CONFIG } from "@rabbitmq";
-import { handleAttendanceMessage } from "@workers/attendance.worker";
+import { handleAttendanceMessage } from "./attendance.worker";
 import { startOutboxRelay } from "@modules/infrastructure";
 import { prisma } from "@config/prisma";
 import { sseHub } from "@realtime/sse";

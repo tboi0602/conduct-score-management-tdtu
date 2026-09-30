@@ -18,7 +18,7 @@ import {
   isInsideAttendanceRadius,
 } from "@modules/attendance/services/geofence.service";
 
-type LoadedRequest = AttendanceScanRequest & {
+export type LoadedAttendanceRequest = AttendanceScanRequest & {
   event: {
     checkInMode: "ONE_WAY" | "TWO_WAY";
     points: number;
@@ -36,7 +36,7 @@ type LoadedRequest = AttendanceScanRequest & {
 };
 
 export function attendanceRejectionReason(
-  request: LoadedRequest,
+  request: LoadedAttendanceRequest,
   registered: boolean,
 ): string | null {
   if (!registered && request.source !== "MANUAL_ENTRY" && request.source !== "BULK_IMPORT")
