@@ -11,7 +11,7 @@ ALTER SYSTEM SET work_mem = '32MB';
 ALTER SYSTEM SET maintenance_work_mem = '128MB';
 ALTER SYSTEM SET synchronous_commit = off;
 ALTER SYSTEM SET max_wal_size = '2GB';
-ALTER SYSTEM SET checkpointer_timeout = '300s';
+ALTER SYSTEM SET checkpoint_timeout = '300s';
 
 -- Health check role used by docker-compose healthcheck.
 DO $$

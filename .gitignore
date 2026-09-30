@@ -20,3 +20,9 @@ tmp/
 # Misc
 coverage/
 *.tsbuildinfo
+
+# Generated attendance test artifacts
+server/tests/.artifacts/
+Docs/testing-results/*/
+
+.tools

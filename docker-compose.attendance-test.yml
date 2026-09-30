@@ -1,0 +1,16 @@
+services:
+  api:
+    environment:
+      ATTENDANCE_STUDENT_RATE_LIMIT_MAX: 100
+      ATTENDANCE_MANAGER_RATE_LIMIT_MAX: 1000
+  api-2:
+    environment:
+      ATTENDANCE_STUDENT_RATE_LIMIT_MAX: 100
+      ATTENDANCE_MANAGER_RATE_LIMIT_MAX: 1000
+  nginx:
+    volumes:
+      - ./docker/nginx/nginx.attendance-test.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/snippets:/etc/nginx/snippets:ro
+  worker:
+    deploy:
+      replicas: ${ATTENDANCE_TEST_WORKERS:-3}
