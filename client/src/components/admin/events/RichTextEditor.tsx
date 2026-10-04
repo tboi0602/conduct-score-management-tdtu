@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 const sizes = [12, 14, 16, 18, 20, 24, 28, 32];
 const colors = ["#102a50", "#154a9b", "#bd3343", "#1f7a4d", "#7c3aed", "#b45309"];
@@ -19,6 +20,8 @@ export function RichTextEditor({
   onChange: (html: string) => void;
   disabled?: boolean;
 }) {
+  const { message } = useLanguage();
+  const t = message.editor;
   const editor = useEditor({
     immediatelyRender: false,
     editable: !disabled,
@@ -42,7 +45,7 @@ export function RichTextEditor({
     "rounded-lg border border-[#d9e2ed] bg-white px-2.5 py-1.5 text-xs font-bold text-[#263b58] hover:border-[#9fb7d5] disabled:opacity-40";
   const link = () => {
     const current = editor.getAttributes("link").href as string | undefined;
-    const href = window.prompt("Liên kết (http, https hoặc mailto)", current ?? "https://");
+    const href = window.prompt(t.linkPrompt, current ?? "https://");
     if (href === null) return;
     if (!href.trim()) editor.chain().focus().unsetLink().run();
     else
@@ -85,13 +88,13 @@ export function RichTextEditor({
           <s>S</s>
         </button>
         <select
-          aria-label="Cỡ chữ"
+          aria-label={t.fontSize}
           className={button}
           defaultValue=""
           onChange={(e) => editor.chain().focus().setFontSize(`${e.target.value}px`).run()}
         >
           <option value="" disabled>
-            Cỡ chữ
+            {t.fontSize}
           </option>
           {sizes.map((size) => (
             <option key={size} value={size}>
@@ -110,7 +113,7 @@ export function RichTextEditor({
           />
         ))}
         <input
-          aria-label="Chọn màu chữ"
+          aria-label={t.textColor}
           type="color"
           className="h-7 w-8 cursor-pointer rounded"
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
@@ -153,7 +156,7 @@ export function RichTextEditor({
           className={button}
           onClick={() => editor.chain().focus().unsetLink().run()}
         >
-          Gỡ link
+          {t.removeLink}
         </button>
         {editor.getAttributes("link").href ? (
           <button
@@ -167,7 +170,7 @@ export function RichTextEditor({
               )
             }
           >
-            Mở link
+            {t.openLink}
           </button>
         ) : null}
         <button

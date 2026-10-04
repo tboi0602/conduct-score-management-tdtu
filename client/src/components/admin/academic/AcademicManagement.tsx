@@ -12,57 +12,9 @@ import { useAcademicManagement } from "@/hooks/academic/useAcademicManagement";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { AcademicKind } from "@/types/admin";
+import { academicMessages } from "@/i18n";
 
-const copy = {
-  vi: {
-    faculties: { one: "Khoa", title: "Danh mục Khoa" },
-    majors: { one: "Ngành", title: "Danh mục Ngành" },
-    classes: { one: "Lớp", title: "Danh mục Lớp" },
-    group: "Đơn vị đào tạo",
-    manage: "Quản lý mã, tên và quan hệ của",
-    add: "Thêm",
-    search: "Tìm",
-    allFaculties: "Tất cả khoa",
-    allMajors: "Tất cả ngành",
-    code: "Mã",
-    name: "Tên",
-    parent: "Trực thuộc",
-    dependencies: "Số mục phụ thuộc",
-    actions: "Thao tác",
-    edit: "Sửa",
-    remove: "Xóa",
-    selectFaculty: "Chọn khoa",
-    selectMajor: "Chọn ngành",
-    cancel: "Hủy",
-    save: "Lưu",
-    saving: "Đang lưu",
-    deleteHint: "Không thể xóa khi dữ liệu này còn được sử dụng.",
-  },
-  en: {
-    faculties: { one: "Faculty", title: "Faculty catalog" },
-    majors: { one: "Major", title: "Major catalog" },
-    classes: { one: "Class", title: "Class catalog" },
-    group: "Academic units",
-    manage: "Manage codes, names, and relationships for",
-    add: "Add",
-    search: "Search",
-    allFaculties: "All faculties",
-    allMajors: "All majors",
-    code: "Code",
-    name: "Name",
-    parent: "Parent",
-    dependencies: "Dependent records",
-    actions: "Actions",
-    edit: "Edit",
-    remove: "Delete",
-    selectFaculty: "Select faculty",
-    selectMajor: "Select major",
-    cancel: "Cancel",
-    save: "Save",
-    saving: "Saving",
-    deleteHint: "This record cannot be deleted while it is still in use.",
-  },
-} as const;
+const copy = academicMessages;
 export function AcademicManagement({ kind }: { kind: AcademicKind }) {
   const state = useAcademicManagement(kind);
   const { can, profile } = useAdminAccess();

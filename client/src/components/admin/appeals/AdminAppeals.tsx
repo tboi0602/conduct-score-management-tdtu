@@ -7,17 +7,10 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { useAdminAppeals } from "@/hooks/appeals/useAdminAppeals";
+import { appealFailureMessages } from "@/i18n";
 import type { AppealStatus } from "@/types/appeal";
 
-const failureLabels = {
-  NETWORK_ERROR: { vi: "Lỗi mạng", en: "Network error" },
-  QR_ERROR: { vi: "Lỗi quét QR", en: "QR scan error" },
-  SESSION_EXPIRED: { vi: "Phiên điểm danh đã kết thúc", en: "Session expired" },
-  TIMEOUT: { vi: "Quá thời gian chờ", en: "Request timeout" },
-  LOCATION_ERROR: { vi: "Lỗi vị trí", en: "Location error" },
-  SERVICE_ERROR: { vi: "Lỗi dịch vụ", en: "Service error" },
-  OTHER: { vi: "Lỗi khác", en: "Other error" },
-} as const;
+const failureLabels = appealFailureMessages;
 
 const tones = {
   PENDING: "bg-amber-50 text-amber-800",
@@ -46,7 +39,7 @@ export function AdminAppeals() {
     setSelected,
     setStatus,
     status,
-  } = useAdminAppeals(vi);
+  } = useAdminAppeals();
   if (list.isPending) return <PageLoadingSkeleton />;
   return (
     <section>

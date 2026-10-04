@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import type { Locale } from "@/i18n/messages";
+import type { Locale } from "@/i18n";
 
 const titles: Record<Locale, Record<string, string>> = {
   vi: {

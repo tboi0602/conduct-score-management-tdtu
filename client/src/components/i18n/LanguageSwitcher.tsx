@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import type { Locale } from "@/i18n/messages";
+import type { Locale } from "@/i18n";
 
 function VietnamFlag() {
   return (

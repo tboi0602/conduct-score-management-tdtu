@@ -14,8 +14,11 @@ import { useOrganizerManagement } from "@/hooks/organizers/useOrganizerManagemen
 import { useAcademicOptions } from "@/hooks/academic/useAcademicOptions";
 import { organizerLabel } from "@/lib/event-form";
 import type { OrganizingUnit } from "@/types/events";
+import { organizerMessages } from "@/i18n";
 
-const organizerCopy = {
+/* translations live in src/i18n/management-messages.ts */
+const organizerCopy = organizerMessages;
+/*
   vi: {
     eyebrow: "Danh mục",
     title: "Đơn vị tổ chức",
@@ -71,7 +74,7 @@ const organizerCopy = {
     deleteTitle: "Delete club/association?",
     deleteHint: "Only units that are not used by any event can be deleted.",
   },
-} as const;
+} as const; */
 
 function OrganizerForm({
   unit,

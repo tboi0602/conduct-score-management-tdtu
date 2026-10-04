@@ -5,8 +5,11 @@ import { useDebounce } from "@/hooks/shared/useDebounce";
 import { queryKeys } from "@/lib/query-keys";
 import { appealService } from "@/services/appeals";
 import type { AppealStatus, AttendanceAppeal } from "@/types/appeal";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
-export function useAdminAppeals(vi: boolean) {
+export function useAdminAppeals() {
+  const { message } = useLanguage();
+  const t = message.common;
   const client = useQueryClient();
   const [status, setStatus] = useState<AppealStatus | "">("PENDING");
   const [search, setSearch] = useState("");
@@ -20,9 +23,9 @@ export function useAdminAppeals(vi: boolean) {
   });
   const review = useMutation({
     mutationFn: (decision: "APPROVED" | "REJECTED") => {
-      if (!selected) throw new Error(vi ? "Chưa chọn khiếu nại." : "No appeal selected.");
+      if (!selected) throw new Error(t.noAppealSelected);
       if (decision === "REJECTED" && !note.trim()) {
-        throw new Error(vi ? "Vui lòng nhập lý do từ chối." : "A rejection reason is required.");
+        throw new Error(t.rejectionReasonRequired);
       }
       return appealService.review(selected.id, decision, note.trim() || undefined);
     },

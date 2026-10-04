@@ -11,25 +11,7 @@ import { adminService } from "@/services/admin";
 import { conductScoreService } from "@/services/conduct-scores";
 import { eventService, semesterService } from "@/services/events";
 import type { ConductScoreFilters } from "@/types/conduct-score";
-
-const mutationMessage = {
-  vi: {
-    success: "Cập nhật điểm rèn luyện thành công.",
-    error: "Không thể cập nhật điểm rèn luyện.",
-  },
-  en: { success: "Conduct score updated successfully.", error: "Unable to update conduct score." },
-};
-
-const bulkFinalizeMessage = {
-  vi: {
-    success: (count: number) => `Đã chốt điểm rèn luyện cho ${count} sinh viên.`,
-    error: "Không thể chốt điểm hàng loạt.",
-  },
-  en: {
-    success: (count: number) => `Finalized conduct scores for ${count} students.`,
-    error: "Unable to finalize conduct scores in bulk.",
-  },
-};
+import { conductScoreMessages } from "@/i18n";
 
 export function useConductScoresManagement() {
   const [page, setPage] = useState(1);
@@ -38,6 +20,7 @@ export function useConductScoresManagement() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const client = useQueryClient();
   const { locale } = useLanguage();
+  const mutationMessage = conductScoreMessages[locale];
   const { showToast } = useToast();
   const search = useDebounce(searchTerm.trim(), 500);
   const semesters = useQuery({
@@ -85,13 +68,13 @@ export function useConductScoresManagement() {
     },
     onSuccess: async (result) => {
       setSelectedStudentIds([]);
-      showToast(bulkFinalizeMessage[locale].success(result.finalized));
+      showToast(mutationMessage.bulkFinalizeSuccess.replace("{count}", String(result.finalized)));
       await Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.conductScores.all }),
         client.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
       ]);
     },
-    onError: () => showToast(bulkFinalizeMessage[locale].error, "error"),
+    onError: () => showToast(mutationMessage.bulkFinalizeError, "error"),
   });
   const toggleStudent = (studentId: string) => {
     setSelectedStudentIds((current) =>
@@ -132,11 +115,12 @@ function useConductScoreMutation<TVariables>(
 ) {
   const client = useQueryClient();
   const { locale } = useLanguage();
+  const mutationMessage = conductScoreMessages[locale];
   const { showToast } = useToast();
   return useMutation({
     mutationFn,
     onSuccess: async () => {
-      showToast(mutationMessage[locale].success);
+      showToast(mutationMessage.updateSuccess);
       await Promise.all([
         client.invalidateQueries({
           queryKey: queryKeys.conductScores.detail(studentId, semesterId),
@@ -145,7 +129,7 @@ function useConductScoreMutation<TVariables>(
         client.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
       ]);
     },
-    onError: () => showToast(mutationMessage[locale].error, "error"),
+    onError: () => showToast(mutationMessage.updateError, "error"),
   });
 }
 

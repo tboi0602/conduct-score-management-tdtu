@@ -34,7 +34,7 @@ export function StudentAppeals() {
     setExplanation,
     setFile,
     submit,
-  } = useStudentAppeals(vi);
+  } = useStudentAppeals();
   if (eligible.isPending || history.isPending) return <PageLoadingSkeleton />;
   return (
     <section className="mx-auto max-w-6xl">

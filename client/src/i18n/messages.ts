@@ -2,6 +2,29 @@ export type Locale = "vi" | "en";
 
 export const messages = {
   vi: {
+    common: {
+      academicSaved: "Lưu đơn vị đào tạo thành công.",
+      academicSaveError: "Không thể lưu đơn vị đào tạo.",
+      academicDeleted: "Xóa đơn vị đào tạo thành công.",
+      academicDeleteError: "Không thể xóa đơn vị đào tạo.",
+      saveDataError: "Không thể lưu dữ liệu",
+      deleteDataError: "Không thể xóa dữ liệu",
+      noAppealSelected: "Chưa chọn khiếu nại.",
+      rejectionReasonRequired: "Vui lòng nhập lý do từ chối.",
+      selectEvent: "Vui lòng chọn sự kiện.",
+      selectEvidence: "Vui lòng chọn ảnh minh chứng.",
+      explanationMin: "Phần giải thích cần ít nhất 20 ký tự (hiện có {count}).",
+      imageFormat: "Ảnh phải có định dạng JPG, PNG hoặc WebP.",
+      imageTooLarge: "Ảnh vượt quá 5 MB.",
+      imageUploadError: "Không thể tải ảnh lên.",
+    },
+    editor: {
+      linkPrompt: "Liên kết (http, https hoặc mailto)",
+      fontSize: "Cỡ chữ",
+      textColor: "Chọn màu chữ",
+      removeLink: "Gỡ link",
+      openLink: "Mở link",
+    },
     campusTitle: "Hệ thống quản lý điểm rèn luyện sinh viên",
     campusDescription:
       "Theo dõi hoạt động, điểm danh và tiến trình rèn luyện trong một không gian thống nhất.",
@@ -37,6 +60,29 @@ export const messages = {
     },
   },
   en: {
+    common: {
+      academicSaved: "Academic unit saved successfully.",
+      academicSaveError: "Unable to save academic unit.",
+      academicDeleted: "Academic unit deleted successfully.",
+      academicDeleteError: "Unable to delete academic unit.",
+      saveDataError: "Unable to save data",
+      deleteDataError: "Unable to delete data",
+      noAppealSelected: "No appeal selected.",
+      rejectionReasonRequired: "A rejection reason is required.",
+      selectEvent: "Please select an event.",
+      selectEvidence: "Please select an evidence image.",
+      explanationMin: "Explanation requires at least 20 characters (currently {count}).",
+      imageFormat: "Image must be JPG, PNG or WebP.",
+      imageTooLarge: "Image exceeds 5 MB.",
+      imageUploadError: "Unable to upload image.",
+    },
+    editor: {
+      linkPrompt: "Link (http, https or mailto)",
+      fontSize: "Font size",
+      textColor: "Choose text color",
+      removeLink: "Remove link",
+      openLink: "Open link",
+    },
     campusTitle: "Student con management system",
     campusDescription:
       "Track activities, attendance, and conduct progress in one unified workspace.",

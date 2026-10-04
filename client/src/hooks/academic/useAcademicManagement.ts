@@ -10,7 +10,8 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 
 export function useAcademicManagement(kind: AcademicKind) {
-  const { locale } = useLanguage();
+  const { message } = useLanguage();
+  const locale = message.common;
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,15 +61,10 @@ export function useAcademicManagement(kind: AcademicKind) {
         queryClient.invalidateQueries({ queryKey: queryKeys.academic.options }),
         queryClient.invalidateQueries({ queryKey: queryKeys.organizers.all }),
       ]);
-      showToast(
-        locale === "vi" ? "Lưu đơn vị đào tạo thành công." : "Academic unit saved successfully.",
-      );
+      showToast(locale.academicSaved);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể lưu dữ liệu");
-      showToast(
-        locale === "vi" ? "Không thể lưu đơn vị đào tạo." : "Unable to save academic unit.",
-        "error",
-      );
+      setError(cause instanceof Error ? cause.message : locale.saveDataError);
+      showToast(locale.academicSaveError, "error");
     } finally {
       setSaving(false);
     }
@@ -85,15 +81,10 @@ export function useAcademicManagement(kind: AcademicKind) {
         queryClient.invalidateQueries({ queryKey: queryKeys.academic.options }),
         queryClient.invalidateQueries({ queryKey: queryKeys.organizers.all }),
       ]);
-      showToast(
-        locale === "vi" ? "Xóa đơn vị đào tạo thành công." : "Academic unit deleted successfully.",
-      );
+      showToast(locale.academicDeleted);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể xóa dữ liệu");
-      showToast(
-        locale === "vi" ? "Không thể xóa đơn vị đào tạo." : "Unable to delete academic unit.",
-        "error",
-      );
+      setError(cause instanceof Error ? cause.message : locale.deleteDataError);
+      showToast(locale.academicDeleteError, "error");
     }
   };
   return {

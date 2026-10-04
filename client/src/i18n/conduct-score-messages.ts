@@ -1,5 +1,9 @@
 export const conductScoreMessages = {
   vi: {
+    updateSuccess: "Cập nhật điểm rèn luyện thành công.",
+    updateError: "Không thể cập nhật điểm rèn luyện.",
+    bulkFinalizeSuccess: "Đã chốt điểm rèn luyện cho {count} sinh viên.",
+    bulkFinalizeError: "Không thể chốt điểm hàng loạt.",
     title: "Quản lý điểm rèn luyện",
     subtitle: "Theo dõi, điều chỉnh và chốt điểm theo từng học kỳ.",
     myTitle: "Điểm rèn luyện",
@@ -98,6 +102,10 @@ export const conductScoreMessages = {
     },
   },
   en: {
+    updateSuccess: "Conduct score updated successfully.",
+    updateError: "Unable to update conduct score.",
+    bulkFinalizeSuccess: "Finalized conduct scores for {count} students.",
+    bulkFinalizeError: "Unable to finalize conduct scores in bulk.",
     title: "Conduct Score Management",
     subtitle: "Review, adjust, and finalize scores by semester.",
     myTitle: "Conduct Score",

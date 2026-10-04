@@ -22,15 +22,15 @@
 <table>
   <tr>
     <td width="33%" valign="top">
-      <h3>🎓 Sinh viên</h3>
+      <h3>Sinh viên</h3>
       <p>Tìm kiếm và đăng ký sự kiện, quét QR điểm danh có kiểm tra vị trí, xem lịch học, thông báo, khiếu nại và kết quả điểm rèn luyện.</p>
     </td>
     <td width="33%" valign="top">
-      <h3>📅 Ban tổ chức</h3>
+      <h3>Ban tổ chức</h3>
       <p>Quản lý sự kiện, sức chứa và danh sách đăng ký; mở phiên QR động; quét barcode, nhập MSSV hoặc import Excel cho sự kiện online.</p>
     </td>
     <td width="33%" valign="top">
-      <h3>📊 Công tác sinh viên</h3>
+      <h3>Công tác sinh viên</h3>
       <p>Quản lý sinh viên trong khoa, lớp học, nhân sự tổ chức, điểm danh, điều chỉnh và chốt điểm rèn luyện.</p>
     </td>
   </tr>

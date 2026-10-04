@@ -5,8 +5,11 @@ import { attendanceFailureStore } from "@/lib/attendance-failure-store";
 import { getAuthSession } from "@/lib/auth-storage";
 import { queryKeys } from "@/lib/query-keys";
 import { appealService } from "@/services/appeals";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
-export function useStudentAppeals(vi: boolean) {
+export function useStudentAppeals() {
+  const { message } = useLanguage();
+  const t = message.common;
   const client = useQueryClient();
   const [eventId, setEventId] = useState("");
   const [explanation, setExplanation] = useState("");
@@ -26,27 +29,20 @@ export function useStudentAppeals(vi: boolean) {
   );
   const submit = useMutation({
     mutationFn: async () => {
-      if (!eventId) throw new Error(vi ? "Vui lòng chọn sự kiện." : "Please select an event.");
+      if (!eventId) throw new Error(t.selectEvent);
       if (explanation.trim().length < 20) {
-        throw new Error(
-          vi
-            ? `Phần giải thích cần ít nhất 20 ký tự (hiện có ${explanation.trim().length}).`
-            : `Explanation requires at least 20 characters (currently ${explanation.trim().length}).`,
-        );
+        throw new Error(t.explanationMin.replace("{count}", String(explanation.trim().length)));
       }
-      if (!file)
-        throw new Error(vi ? "Vui lòng chọn ảnh minh chứng." : "Please select an evidence image.");
+      if (!file) throw new Error(t.selectEvidence);
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        throw new Error(
-          vi ? "Ảnh phải có định dạng JPG, PNG hoặc WebP." : "Image must be JPG, PNG or WebP.",
-        );
+        throw new Error(t.imageFormat);
       }
       if (file.size > 5 * 1024 * 1024) {
-        throw new Error(vi ? "Ảnh vượt quá 5 MB." : "Image exceeds 5 MB.");
+        throw new Error(t.imageTooLarge);
       }
       const upload = (await appealService.upload(file.type)).data;
       await appealService.uploadEvidenceFile(upload, file).catch(() => {
-        throw new Error(vi ? "Không thể tải ảnh lên." : "Unable to upload image.");
+        throw new Error(t.imageUploadError);
       });
       const session = getAuthSession();
       const drafts = session ? await attendanceFailureStore.listForUser(session.user.id) : [];
