@@ -1,4 +1,4 @@
-import type { UserFilters } from "@/types/admin";
+import type { StudentReportFilter, UserFilters } from "@/types/admin";
 import type { ConductScoreFilters } from "@/types/conduct-score";
 import type {
   CriteriaFilters,
@@ -46,8 +46,8 @@ export const queryKeys = {
       ["admin", "event-options", "criteria", page, search] as const,
     semesterPage: (page: number, year?: string) =>
       [...queryKeys.eventOptions.semesters, page, year] as const,
-    organizerPage: (page: number, search?: string) =>
-      ["admin", "event-options", "organizers", page, search] as const,
+    organizerPage: (page: number, search?: string, facultyId?: string) =>
+      ["admin", "event-options", "organizers", page, search, facultyId] as const,
   },
   organizers: {
     all: ["admin", "organizers"] as const,
@@ -91,6 +91,10 @@ export const queryKeys = {
     mine: (semesterId: string) => ["conduct-scores", "mine", semesterId] as const,
   },
   dashboard: (semesterId?: string) => ["admin", "dashboard", semesterId] as const,
+  reports: {
+    students: (filters: StudentReportFilter, page: number) =>
+      ["reports", "students", filters, page] as const,
+  },
   schedules: {
     all: ["student", "schedules"] as const,
     mine: (semesterId: string) => ["student", "schedules", semesterId] as const,

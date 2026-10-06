@@ -99,6 +99,7 @@ const permissionsByRole = {
     "academic.read",
     "criteria.read",
     "semester.read",
+    "faculty-staff.assign-event-organizer",
   ],
   STUDENT_AFFAIRS: [
     "auth.login",
@@ -208,9 +209,9 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "ADMIN" } });
   const password = await bcrypt.hash("admin", 12);
   const admin = await prisma.user.upsert({
-    where: { email: "admin" },
+    where: { email: "admin@tdtu.edu.vn" },
     update: { name: "Administrator", password, status: "ACTIVE" },
-    create: { email: "admin", name: "Administrator", password, status: "ACTIVE" },
+    create: { email: "admin@tdtu.edu.vn", name: "Administrator", password, status: "ACTIVE" },
   });
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },

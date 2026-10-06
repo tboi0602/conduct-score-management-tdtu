@@ -12,9 +12,11 @@ import type { AttendanceDirection } from "@/types/attendance";
 export function AttendanceImportAction({
   eventId,
   checkInMode,
+  disabled = false,
 }: {
   eventId: string;
   checkInMode: "ONE_WAY" | "TWO_WAY";
+  disabled?: boolean;
 }) {
   const { locale } = useAdminTranslations();
   const t = attendanceMessages[locale];
@@ -25,8 +27,9 @@ export function AttendanceImportAction({
     <>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => state.setOpen(true)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#b9cbe0] bg-white px-4 text-sm font-bold text-[#154a9b] transition hover:bg-[#edf4fc] active:scale-[.98]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#b9cbe0] bg-white px-4 text-sm font-bold text-[#154a9b] transition hover:bg-[#edf4fc] active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         <FileSpreadsheet size={18} /> {t.importAttendance}
       </button>

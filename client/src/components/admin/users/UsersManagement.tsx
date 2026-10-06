@@ -18,6 +18,7 @@ const inputClass =
 
 function UserForm({
   user,
+  mode,
   roles,
   faculties,
   onSubmit,
@@ -25,6 +26,7 @@ function UserForm({
   error,
 }: {
   user: AdminUser | null;
+  mode?: "STUDENT" | "STAFF";
   roles: Role[];
   faculties: Faculty[];
   onSubmit: ReturnType<typeof useUsersManagement>["submit"];
@@ -62,107 +64,142 @@ function UserForm({
             className={inputClass}
           />
         </label>
-        <label className="text-sm font-semibold text-[#263b58]">
-          {t.studentCode}
-          <input
-            name="studentCode"
-            defaultValue={user?.student?.studentCode ?? ""}
-            className={inputClass}
+        {mode !== "STAFF" ? (
+          <label className="text-sm font-semibold text-[#263b58]">
+            {t.studentCode}
+            <input
+              name="studentCode"
+              defaultValue={user?.student?.studentCode ?? ""}
+              className={inputClass}
+            />
+          </label>
+        ) : null}
+      </div>
+      {!mode ? (
+        <fieldset>
+          <legend className="text-sm font-semibold text-[#263b58]">{t.role}</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {roles.map((role) => (
+              <label
+                key={role.id}
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#dce4ef] px-3 py-2 text-sm text-[#52647d] transition hover:border-[#9cb5d5] has-[:checked]:border-[#7da1cf] has-[:checked]:bg-[#eef4fc] has-[:checked]:text-[#154a9b]"
+              >
+                <input
+                  type="checkbox"
+                  name="roleIds"
+                  value={role.id}
+                  defaultChecked={selectedRoles.has(role.id)}
+                  className="accent-[#154a9b]"
+                />
+                {role.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : mode === "STAFF" ? (
+        <fieldset>
+          <legend className="text-sm font-semibold text-[#263b58]">{t.role}</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {roles
+              .filter((role) => role.name === "EVENT_ORGANIZER" || role.name === "STUDENT_AFFAIRS")
+              .map((role) => (
+                <label
+                  key={role.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#dce4ef] px-3 py-2 text-sm text-[#52647d] transition hover:border-[#9cb5d5] has-[:checked]:border-[#7da1cf] has-[:checked]:bg-[#eef4fc] has-[:checked]:text-[#154a9b]"
+                >
+                  <input
+                    type="radio"
+                    name="roleIds"
+                    value={role.id}
+                    defaultChecked={
+                      selectedRoles.has(role.id) || (!user && role.name === "EVENT_ORGANIZER")
+                    }
+                    className="accent-[#154a9b]"
+                  />
+                  {role.name === "EVENT_ORGANIZER"
+                    ? "Tổ chức sự kiện (EVENT_ORGANIZER)"
+                    : "Công tác sinh viên (STUDENT_AFFAIRS)"}
+                </label>
+              ))}
+          </div>
+        </fieldset>
+      ) : null}
+      {!mode || mode === "STAFF" ? (
+        <div className="text-sm font-semibold text-[#263b58]">
+          Khoa trực thuộc
+          <CustomSelect
+            name="primaryFacultyId"
+            value={primaryFacultyId}
+            onChange={setPrimaryFacultyId}
+            options={faculties.map((item) => ({
+              value: item.id,
+              label: `${item.code} — ${item.name}`,
+            }))}
+            placeholder="Chọn khoa trực thuộc"
+            className="mt-2"
           />
-        </label>
-      </div>
-      <fieldset>
-        <legend className="text-sm font-semibold text-[#263b58]">{t.role}</legend>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {roles.map((role) => (
-            <label
-              key={role.id}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#dce4ef] px-3 py-2 text-sm text-[#52647d] transition hover:border-[#9cb5d5] has-[:checked]:border-[#7da1cf] has-[:checked]:bg-[#eef4fc] has-[:checked]:text-[#154a9b]"
-            >
-              <input
-                type="checkbox"
-                name="roleIds"
-                value={role.id}
-                defaultChecked={selectedRoles.has(role.id)}
-                className="accent-[#154a9b]"
+          <p className="mt-2 text-xs font-normal text-[#66758a]">
+            Sinh viên sử dụng khoa suy ra từ lớp; giá trị này áp dụng cho tài khoản cán bộ và giảng
+            viên.
+          </p>
+        </div>
+      ) : null}
+      {mode !== "STAFF" ? (
+        <fieldset className="rounded-2xl border border-[#e0e7f0] bg-[#f8fafc] p-4">
+          <legend className="px-2 text-sm font-semibold text-[#263b58]">{t.academic}</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="text-xs font-semibold text-[#66758a]">
+              {t.faculty}
+              <CustomSelect
+                value={facultyId}
+                onChange={(value) => {
+                  setFacultyId(value);
+                  setMajorId("");
+                  setClassId("");
+                }}
+                options={faculties.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} — ${item.name}`,
+                }))}
+                placeholder={t.allFaculties}
+                className="mt-2"
               />
-              {role.name}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <div className="text-sm font-semibold text-[#263b58]">
-        Khoa chính của cán bộ/giảng viên
-        <CustomSelect
-          name="primaryFacultyId"
-          value={primaryFacultyId}
-          onChange={setPrimaryFacultyId}
-          options={faculties.map((item) => ({
-            value: item.id,
-            label: `${item.code} — ${item.name}`,
-          }))}
-          placeholder="Chọn khoa chính"
-          className="mt-2"
-        />
-        <p className="mt-2 text-xs font-normal text-[#66758a]">
-          Sinh viên sử dụng khoa suy ra từ lớp; giá trị này chỉ áp dụng cho tài khoản cán bộ và
-          giảng viên.
-        </p>
-      </div>
-      <fieldset className="rounded-2xl border border-[#e0e7f0] bg-[#f8fafc] p-4">
-        <legend className="px-2 text-sm font-semibold text-[#263b58]">{t.academic}</legend>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="text-xs font-semibold text-[#66758a]">
-            {t.faculty}
-            <CustomSelect
-              value={facultyId}
-              onChange={(value) => {
-                setFacultyId(value);
-                setMajorId("");
-                setClassId("");
-              }}
-              options={faculties.map((item) => ({
-                value: item.id,
-                label: `${item.code} — ${item.name}`,
-              }))}
-              placeholder={t.allFaculties}
-              className="mt-2"
-            />
+            </div>
+            <div className="text-xs font-semibold text-[#66758a]">
+              {t.major}
+              <CustomSelect
+                value={majorId}
+                onChange={(value) => {
+                  setMajorId(value);
+                  setClassId("");
+                }}
+                disabled={!facultyId}
+                options={majors.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} — ${item.name}`,
+                }))}
+                placeholder={t.allMajors}
+                className="mt-2"
+              />
+            </div>
+            <div className="text-xs font-semibold text-[#66758a]">
+              {t.class}
+              <CustomSelect
+                name="classId"
+                value={classId}
+                onChange={setClassId}
+                disabled={!majorId}
+                options={classes.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} — ${item.name}`,
+                }))}
+                placeholder={t.selectClass}
+                className="mt-2"
+              />
+            </div>
           </div>
-          <div className="text-xs font-semibold text-[#66758a]">
-            {t.major}
-            <CustomSelect
-              value={majorId}
-              onChange={(value) => {
-                setMajorId(value);
-                setClassId("");
-              }}
-              disabled={!facultyId}
-              options={majors.map((item) => ({
-                value: item.id,
-                label: `${item.code} — ${item.name}`,
-              }))}
-              placeholder={t.allMajors}
-              className="mt-2"
-            />
-          </div>
-          <div className="text-xs font-semibold text-[#66758a]">
-            {t.class}
-            <CustomSelect
-              name="classId"
-              value={classId}
-              onChange={setClassId}
-              disabled={!majorId}
-              options={classes.map((item) => ({
-                value: item.id,
-                label: `${item.code} — ${item.name}`,
-              }))}
-              placeholder={t.selectClass}
-              className="mt-2"
-            />
-          </div>
-        </div>
-      </fieldset>
+        </fieldset>
+      ) : null}
       {error ? (
         <p role="alert" className="rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
           {error}
@@ -180,8 +217,8 @@ function UserForm({
   );
 }
 
-export function UsersManagement() {
-  const state = useUsersManagement();
+export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
+  const state = useUsersManagement(mode);
   const { t, locale } = useAdminTranslations();
   const [facultyId, setFacultyId] = useState("");
   const [majorId, setMajorId] = useState("");
@@ -209,17 +246,35 @@ export function UsersManagement() {
     <section>
       <AdminPageHeader
         eyebrow={t.userEyebrow}
-        title={t.userTitle}
-        description={t.userDescription}
+        title={
+          mode === "STUDENT"
+            ? locale === "vi"
+              ? "Sinh viên"
+              : "Students"
+            : mode === "STAFF"
+              ? locale === "vi"
+                ? "Nhân sự"
+                : "Staff"
+              : t.userTitle
+        }
+        description={
+          mode
+            ? locale === "vi"
+              ? "Danh sách người dùng trong phạm vi được phép."
+              : "Users in your authorized scope."
+            : t.userDescription
+        }
         action={
-          <button
-            type="button"
-            onClick={state.openCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(21,74,155,.7)] transition hover:-translate-y-0.5 hover:bg-[#103f86] active:translate-y-0 active:scale-[.98]"
-          >
-            <Plus size={17} />
-            {t.addUser}
-          </button>
+          mode ? undefined : (
+            <button
+              type="button"
+              onClick={state.openCreate}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(21,74,155,.7)] transition hover:-translate-y-0.5 hover:bg-[#103f86] active:translate-y-0 active:scale-[.98]"
+            >
+              <Plus size={17} />
+              {t.addUser}
+            </button>
+          )
         }
       />
       <div className="mt-7 rounded-[22px] border border-[#dce4ef] bg-white p-4 shadow-[0_18px_40px_-28px_rgba(31,67,111,.35)]">
@@ -237,56 +292,60 @@ export function UsersManagement() {
               className="min-h-11 w-full rounded-xl border border-[#cdd9e7] pl-10 pr-3 text-sm outline-none transition focus:border-[#154a9b] focus:ring-4 focus:ring-[#154a9b]/10"
             />
           </label>
-          <CustomSelect
-            value={facultyId}
-            onChange={(value) => {
-              setFacultyId(value);
-              setMajorId("");
-              setClassId("");
-              apply({ facultyId: value, majorId: "", classId: "", roleId });
-            }}
-            options={state.faculties.map((item) => ({
-              value: item.id,
-              label: `${item.code} — ${item.name}`,
-            }))}
-            placeholder={t.allFaculties}
-          />
-          <CustomSelect
-            value={majorId}
-            onChange={(value) => {
-              setMajorId(value);
-              setClassId("");
-              apply({ facultyId, majorId: value, classId: "", roleId });
-            }}
-            disabled={!facultyId}
-            options={majors.map((item) => ({
-              value: item.id,
-              label: `${item.code} — ${item.name}`,
-            }))}
-            placeholder={t.allMajors}
-          />
-          <CustomSelect
-            value={classId}
-            onChange={(value) => {
-              setClassId(value);
-              apply({ facultyId, majorId, classId: value, roleId });
-            }}
-            disabled={!majorId}
-            options={classes.map((item) => ({ value: item.id, label: item.code }))}
-            placeholder={t.allClasses}
-          />
-          <CustomSelect
-            value={roleId}
-            onChange={(value) => {
-              setRoleId(value);
-              apply({ facultyId, majorId, classId, roleId: value });
-            }}
-            options={state.roles.map((item) => ({ value: item.id, label: item.name }))}
-            placeholder={t.allRoles}
-          />
-          <IconButton label={t.clearFilter} onClick={clear}>
-            <FilterX size={17} />
-          </IconButton>
+          {!mode ? (
+            <>
+              <CustomSelect
+                value={facultyId}
+                onChange={(value) => {
+                  setFacultyId(value);
+                  setMajorId("");
+                  setClassId("");
+                  apply({ facultyId: value, majorId: "", classId: "", roleId });
+                }}
+                options={state.faculties.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} — ${item.name}`,
+                }))}
+                placeholder={t.allFaculties}
+              />
+              <CustomSelect
+                value={majorId}
+                onChange={(value) => {
+                  setMajorId(value);
+                  setClassId("");
+                  apply({ facultyId, majorId: value, classId: "", roleId });
+                }}
+                disabled={!facultyId}
+                options={majors.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} — ${item.name}`,
+                }))}
+                placeholder={t.allMajors}
+              />
+              <CustomSelect
+                value={classId}
+                onChange={(value) => {
+                  setClassId(value);
+                  apply({ facultyId, majorId, classId: value, roleId });
+                }}
+                disabled={!majorId}
+                options={classes.map((item) => ({ value: item.id, label: item.code }))}
+                placeholder={t.allClasses}
+              />
+              <CustomSelect
+                value={roleId}
+                onChange={(value) => {
+                  setRoleId(value);
+                  apply({ facultyId, majorId, classId, roleId: value });
+                }}
+                options={state.roles.map((item) => ({ value: item.id, label: item.name }))}
+                placeholder={t.allRoles}
+              />
+              <IconButton label={t.clearFilter} onClick={clear}>
+                <FilterX size={17} />
+              </IconButton>
+            </>
+          ) : null}
         </div>
       </div>
       {state.actionError && !state.isModalOpen ? (
@@ -378,7 +437,10 @@ export function UsersManagement() {
                             label={t.delete}
                             tone="danger"
                             onClick={() => state.setDeleting(user)}
-                            disabled={user.email === "admin" || user.id === state.currentUserId}
+                            disabled={
+                              user.userRoles.some(({ role }) => role.name === "ADMIN") ||
+                              user.id === state.currentUserId
+                            }
                           >
                             <Trash2 size={16} />
                           </IconButton>
@@ -407,6 +469,7 @@ export function UsersManagement() {
         <UserForm
           key={state.editing?.id ?? "new"}
           user={state.editing}
+          mode={mode}
           roles={state.roles}
           faculties={state.faculties}
           onSubmit={state.submit}

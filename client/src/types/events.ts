@@ -53,6 +53,7 @@ export type CriteriaFilters = { search?: string; minPoints?: string; maxPoints?:
 export type EventPayload = {
   name: string;
   description: string;
+  images?: string[];
   location: string;
   organizerId: string;
   criteriaId: string;
@@ -69,6 +70,7 @@ export type EventPayload = {
 };
 export type ManagedEvent = Omit<EventPayload, "description"> & {
   description?: string;
+  images?: string[];
   descriptionPreview: string;
   id: string;
   createdAt: string;

@@ -1,4 +1,4 @@
-﻿import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
+import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
 import { mapCrudError } from "@utils/crudError";
@@ -14,6 +14,7 @@ import { eventDescriptionPreview } from "@utils/eventDescription";
 export type EventInput = {
   name: string;
   description: string;
+  images: string[];
   location: string;
   organizerId: string;
   criteriaId: string;
@@ -59,6 +60,7 @@ const eventSelect = {
   semesterId: true,
   organizerId: true,
   descriptionPreview: true,
+  images: true,
   location: true,
   deliveryMode: true,
   timeStart: true,

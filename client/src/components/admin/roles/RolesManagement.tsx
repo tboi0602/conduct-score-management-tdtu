@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, ShieldCheck, Users } from "lucide-react";
+import { Eye, Pencil, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
@@ -23,6 +23,15 @@ export function RolesManagement() {
         eyebrow={t.roleEyebrow}
         title={t.roleTitle}
         description={t.roleDescription}
+        action={
+          <button
+            type="button"
+            onClick={state.openCreate}
+            className="flex items-center gap-2 rounded-xl bg-[#154a9b] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_24px_-14px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98]"
+          >
+            + {t.addRole}
+          </button>
+        }
       />
       {state.actionError && !state.isModalOpen ? (
         <p role="alert" className="mt-5 rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
@@ -78,6 +87,18 @@ export function RolesManagement() {
                         <IconButton label={t.view} onClick={() => state.setViewing(role)}>
                           <Eye size={16} />
                         </IconButton>
+                        <IconButton label={t.edit} onClick={() => state.openEdit(role)}>
+                          <Pencil size={16} />
+                        </IconButton>
+                        {role.name !== "ADMIN" ? (
+                          <IconButton
+                            label={t.delete}
+                            tone="danger"
+                            onClick={() => state.setDeleting(role)}
+                          >
+                            <Trash2 size={16} />
+                          </IconButton>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

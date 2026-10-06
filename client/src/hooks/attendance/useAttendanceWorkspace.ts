@@ -74,10 +74,17 @@ export function useAttendanceWorkspace(eventId: string) {
     queryFn: () => attendanceService.activeSession(eventId).then((response) => response.data),
     refetchInterval: 15_000,
   });
+  const attendanceWindow = eventQuery.data
+    ? clock < new Date(eventQuery.data.timeStart).getTime()
+      ? "NOT_STARTED"
+      : clock >= new Date(eventQuery.data.timeEnd).getTime()
+        ? "ENDED"
+        : "OPEN"
+    : "OPEN";
   const qrQuery = useQuery({
     queryKey: queryKeys.attendance.qr(eventId),
     queryFn: () => attendanceService.qr(eventId).then((response) => response.data),
-    enabled: Boolean(sessionQuery.data),
+    enabled: Boolean(sessionQuery.data) && attendanceWindow === "OPEN",
     refetchInterval: 15_000,
   });
   const requestsQuery = useQuery({
@@ -108,7 +115,7 @@ export function useAttendanceWorkspace(eventId: string) {
         );
         source.addEventListener("message", () => {
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.attendance.requests(eventId, search, filterStatus),
+            queryKey: ["admin", "attendance", eventId],
           });
         });
       })
@@ -157,7 +164,19 @@ export function useAttendanceWorkspace(eventId: string) {
         source,
         status: attendanceStatus,
       }),
-    onSuccess: () => showToast(messages.scanSuccess),
+    onSuccess: () => {
+      showToast(messages.scanSuccess);
+      void queryClient.invalidateQueries({
+        queryKey: ["admin", "attendance", eventId],
+      });
+      // Invalidate again after worker processes EDA queue
+      setTimeout(() => {
+        void queryClient.invalidateQueries({
+          queryKey: ["admin", "attendance", eventId],
+        });
+        void requestsQuery.refetch();
+      }, 1000);
+    },
     onError: () => showToast(messages.actionError, "error"),
   });
   const submitBarcode = useCallback(
@@ -216,5 +235,6 @@ export function useAttendanceWorkspace(eventId: string) {
     scan,
     adjust,
     barcode,
+    attendanceWindow,
   };
 }

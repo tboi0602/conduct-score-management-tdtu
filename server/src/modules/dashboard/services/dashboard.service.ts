@@ -1,4 +1,4 @@
-﻿import { prisma } from "@config/prisma";
+import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { getEventAccess } from "@services/events/event-access.service";
 import { ApiError } from "@utils/ApiError";
@@ -32,15 +32,25 @@ export async function invalidateDashboardCache(facultyId?: string | null): Promi
 
 export async function getDashboard(userId: string) {
   const access = await getEventAccess(userId);
-  if (!access.manageAnyUnit && !access.facultyId)
-    throw new ApiError(409, "A primary faculty must be assigned");
-  const scope = access.manageAnyUnit ? "global" : `faculty:${access.facultyId}`;
+  const scope = access.manageAnyUnit
+    ? "global"
+    : access.facultyId
+      ? `faculty:${access.facultyId}`
+      : `user:${userId}`;
   const cacheKey = `dashboard:${scope}`;
   const cached = await redisClient.getClient().get(cacheKey);
   if (cached) return JSON.parse(cached) as unknown;
   const facultyId = access.manageAnyUnit ? undefined : (access.facultyId ?? undefined);
-  const eventWhere = facultyId ? { organizer: { facultyId } } : {};
-  const studentWhere = facultyId ? { class: { major: { facultyId } } } : {};
+  const eventWhere = facultyId
+    ? { organizer: { facultyId } }
+    : access.manageAnyUnit
+      ? {}
+      : { id: "00000000-0000-0000-0000-000000000000" };
+  const studentWhere = facultyId
+    ? { class: { major: { facultyId } } }
+    : access.manageAnyUnit
+      ? {}
+      : { id: "00000000-0000-0000-0000-000000000000" };
   const now = new Date();
   const [students, faculties, upcoming, ongoing, completed, registrations, participation] =
     await prisma.$transaction([

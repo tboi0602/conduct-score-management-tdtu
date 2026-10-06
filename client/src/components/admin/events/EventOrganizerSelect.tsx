@@ -10,13 +10,21 @@ export function EventOrganizerSelect({
   selected,
   onChange,
   disabled,
+  facultyId,
+  placeholder,
 }: {
   selected: OrganizingUnit | null;
   onChange: (unit: OrganizingUnit | null) => void;
   disabled?: boolean;
+  facultyId?: string;
+  placeholder?: string;
 }) {
   const { t } = useAdminTranslations();
-  const { search, setSearch, query, items } = useEventOrganizerOptions(selected, onChange);
+  const { search, setSearch, query, items } = useEventOrganizerOptions(
+    selected,
+    onChange,
+    facultyId,
+  );
   return (
     <div className="space-y-2">
       <input
@@ -31,7 +39,7 @@ export function EventOrganizerSelect({
         onChange={(id) => onChange(items.find((item) => item.id === id) ?? null)}
         ariaLabel={t.organizer}
         disabled={disabled || query.isLoading}
-        placeholder={t.selectOrganizer}
+        placeholder={placeholder ?? t.selectOrganizer}
         options={items.map((item) => ({ value: item.id, label: organizerLabel(item) }))}
       />
     </div>

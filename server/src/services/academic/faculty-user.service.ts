@@ -11,7 +11,7 @@ export type FacultyUserInput = {
   email: string;
   name: string;
   password?: string;
-  roleName: "STUDENT" | "EVENT_ORGANIZER";
+  roleName: "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
   studentCode?: string | null;
   classId?: string | null;
 };
@@ -57,20 +57,32 @@ async function access(userId: string) {
   return value;
 }
 
-const scopedWhere = (facultyId: string): Prisma.UserWhereInput => ({
-  OR: [
-    { student: { is: { class: { is: { major: { is: { facultyId } } } } } } },
-    { primaryFacultyId: facultyId, userRoles: { some: { role: { name: "EVENT_ORGANIZER" } } } },
-  ],
-});
+const scopedWhere = (facultyId: string, userType?: "STUDENT" | "STAFF"): Prisma.UserWhereInput => {
+  const studentScope: Prisma.UserWhereInput = {
+    student: { is: { class: { is: { major: { is: { facultyId } } } } } },
+  };
+  const staffScope: Prisma.UserWhereInput = {
+    student: { is: null },
+    primaryFacultyId: facultyId,
+    userRoles: { some: { role: { name: { notIn: ["STUDENT", "ADMIN"] } } } },
+  };
+  if (userType === "STUDENT") return studentScope;
+  if (userType === "STAFF") return staffScope;
+  return { OR: [studentScope, staffScope] };
+};
 
-export async function listFacultyUsers(actorId: string, params: PaginationParams, search?: string) {
+export async function listFacultyUsers(
+  actorId: string,
+  params: PaginationParams,
+  search?: string,
+  userType?: "STUDENT" | "STAFF",
+) {
   const actor = await access(actorId);
   if (actor.manageAnyUnit)
     throw new ApiError(400, "Use the global user endpoint for administrators");
   const where: Prisma.UserWhereInput = {
     AND: [
-      scopedWhere(actor.facultyId!),
+      scopedWhere(actor.facultyId!, userType),
       ...(search
         ? [
             {
@@ -131,7 +143,7 @@ export async function createFacultyUser(actorId: string, input: FacultyUserInput
         email: input.email.trim().toLowerCase(),
         name: input.name.trim(),
         password,
-        primaryFacultyId: input.roleName === "EVENT_ORGANIZER" ? facultyId : null,
+        primaryFacultyId: input.roleName !== "STUDENT" ? facultyId : null,
       },
     });
     await tx.userRole.create({ data: { userId: user.id, roleId: role.id } });
@@ -160,7 +172,7 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
         email: input.email.trim().toLowerCase(),
         name: input.name.trim(),
         ...(password ? { password } : {}),
-        primaryFacultyId: input.roleName === "EVENT_ORGANIZER" ? facultyId : null,
+        primaryFacultyId: input.roleName !== "STUDENT" ? facultyId : null,
       },
     });
     await tx.userRole.deleteMany({ where: { userId: id } });
@@ -189,11 +201,11 @@ export async function setFacultyStaffStatus(
     where: {
       id,
       primaryFacultyId: actor.facultyId!,
-      userRoles: { some: { role: { name: "EVENT_ORGANIZER" } } },
+      userRoles: { some: { role: { name: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } } },
     },
     select: { id: true },
   });
-  if (!staff) throw new ApiError(404, "Event organizer not found in your faculty scope");
+  if (!staff) throw new ApiError(404, "Staff member not found in your faculty scope");
   const updated = await prisma.user.update({ where: { id }, data: { status }, select });
   await redisClient.revokeRefreshSession(id);
   return updated;

@@ -45,6 +45,20 @@ export async function managedEvent(eventId: string, access: EventAccess) {
   return event;
 }
 
+export function assertAttendanceWindow(
+  event: { timeStart: Date; timeEnd: Date },
+  now = new Date(),
+) {
+  if (now < event.timeStart)
+    throw new ApiError(409, "Attendance has not opened yet", "ATTENDANCE_NOT_STARTED");
+  if (now >= event.timeEnd) throw new ApiError(409, "Attendance has ended", "ATTENDANCE_ENDED");
+}
+
+export function assertAttendanceStarted(event: { timeStart: Date }, now = new Date()) {
+  if (now < event.timeStart)
+    throw new ApiError(409, "Attendance has not opened yet", "ATTENDANCE_NOT_STARTED");
+}
+
 export function outboxData(
   aggregateId: string,
   eventType: string,
@@ -71,6 +85,7 @@ export async function openSession(
     );
   }
   const event = await managedEvent(eventId, access);
+  assertAttendanceWindow(event);
   if (event.checkInMode === "ONE_WAY" && direction === "CHECK_OUT")
     throw new ApiError(409, "One-way events do not support check-out");
   const correlationId = randomUUID();
@@ -151,17 +166,19 @@ export async function closeSession(access: EventAccess, eventId: string) {
 }
 
 export async function getActiveSession(access: EventAccess, eventId: string) {
-  await managedEvent(eventId, access);
+  const event = await managedEvent(eventId, access);
+  assertAttendanceStarted(event);
   return prisma.attendanceSession.findFirst({
     where: { eventId, status: "OPEN" },
     orderBy: { openedAt: "desc" },
-    include: { event: { select: { name: true, timeEnd: true } } },
+    include: { event: { select: { name: true, timeStart: true, timeEnd: true } } },
   });
 }
 
 export async function getQr(access: EventAccess, eventId: string) {
   const session = await getActiveSession(access, eventId);
   if (!session) throw new ApiError(409, "No active attendance session");
+  assertAttendanceWindow(session.event);
   const activeId = await redisClient.getClient().get(activeSessionKey(eventId));
   if (activeId !== session.id) throw new ApiError(503, "Attendance session cache is unavailable");
   const qr = createAttendanceQrToken(session.id);
@@ -172,6 +189,7 @@ export async function getQr(access: EventAccess, eventId: string) {
     direction: session.direction,
     eventName: session.event.name,
     eventEnd: session.event.timeEnd.toISOString(),
+    eventStart: session.event.timeStart.toISOString(),
   });
   return {
     ...qr,

@@ -14,6 +14,7 @@ function CheckInContent() {
       eventId={search.get("eventId") ?? ""}
       eventName={search.get("eventName") ?? ""}
       eventEnd={search.get("eventEnd") ?? ""}
+      eventStart={search.get("eventStart") ?? ""}
       direction={direction === "CHECK_IN" || direction === "CHECK_OUT" ? direction : null}
     />
   );

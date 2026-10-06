@@ -22,19 +22,24 @@ import { HttpError } from "@/services/http";
 import type { AttendanceFailureCategory, AttendanceFailureDraft } from "@/types/attendance-failure";
 
 function locate() {
-  return new Promise<GeolocationPosition>((resolve, reject) =>
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject({ code: 1, message: "Geolocation is unavailable on this device" });
+      return;
+    }
     navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
       timeout: 15_000,
       maximumAge: 0,
-    }),
-  );
+    });
+  });
 }
 
 export type StudentCheckInContext = {
   eventId: string;
   eventName: string;
   eventEnd: string;
+  eventStart: string;
   direction: "CHECK_IN" | "CHECK_OUT" | null;
 };
 
@@ -66,6 +71,12 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
   const session = getAuthSession();
   const mutation = useMutation({
     mutationFn: async () => {
+      if (context.eventStart && Date.now() < new Date(context.eventStart).getTime()) {
+        throw new HttpError(409, "Attendance has not opened yet");
+      }
+      if (context.eventEnd && Date.now() >= new Date(context.eventEnd).getTime()) {
+        throw new HttpError(409, "Attendance has ended");
+      }
       let position: GeolocationPosition | null = null;
       try {
         position = await locate();
@@ -124,7 +135,15 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
         throw error;
       }
     },
-    onError: () => showToast(attendanceMessages[locale].actionError, "error"),
+    onError: (error) => {
+      const isLocationError = typeof error === "object" && error !== null && "code" in error;
+      showToast(
+        isLocationError
+          ? attendanceMessages[locale].locationError
+          : attendanceMessages[locale].actionError,
+        "error",
+      );
+    },
   });
   const requestId = mutation.data?.data.requestId ?? "";
   const request = useQuery({

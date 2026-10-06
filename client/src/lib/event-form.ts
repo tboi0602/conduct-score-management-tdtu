@@ -85,6 +85,10 @@ export function eventPayload(form: FormData): EventPayload {
   return {
     name: requiredText(form, "name"),
     description: String(form.get("description") ?? ""),
+    images: form
+      .getAll("images")
+      .map(String)
+      .filter((url) => Boolean(url && url.trim())),
     location: requiredText(form, "location"),
     organizerId,
     criteriaId,
@@ -102,10 +106,20 @@ export function eventPayload(form: FormData): EventPayload {
 }
 
 export function organizerLabel(unit: import("@/types/events").OrganizingUnit): string {
+  if (unit.name && unit.name.trim()) return unit.name;
   if (unit.type === "FACULTY") return unit.faculty?.name ?? unit.code;
   if (unit.type === "CLASS")
     return unit.class ? `${unit.class.code} — ${unit.class.name}` : unit.code;
-  return unit.name ?? unit.code;
+  return unit.code;
+}
+
+export function organizerFacultyName(unit?: import("@/types/events").OrganizingUnit | null): string | null {
+  if (!unit || unit.type === "FACULTY" || !unit.faculty?.name) return null;
+  // If unit name is identical or already contains faculty name, do not duplicate
+  const unitLabel = organizerLabel(unit).trim().toLowerCase();
+  const facultyName = unit.faculty.name.trim().toLowerCase();
+  if (unitLabel === facultyName) return null;
+  return unit.faculty.name;
 }
 
 export function localDateTime(value?: string): string {

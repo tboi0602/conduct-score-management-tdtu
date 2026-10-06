@@ -3,7 +3,11 @@ import type { AttendanceDirection } from "@prisma/client";
 
 import { prisma } from "@config/prisma";
 import { attendanceScanRequestsTotal } from "@metrics";
-import { managedEvent, outboxData } from "@modules/attendance/services/attendance-session.service";
+import {
+  assertAttendanceStarted,
+  managedEvent,
+  outboxData,
+} from "@modules/attendance/services/attendance-session.service";
 import { attendanceRoutingKeys } from "@producers/attendance.producer";
 import { rabbitClient } from "@rabbitmq";
 import { redisClient } from "@redis";
@@ -22,6 +26,7 @@ export async function submitBulkImport(
   },
 ) {
   const event = await managedEvent(eventId, access);
+  assertAttendanceStarted(event);
   if (event.deliveryMode !== "ONLINE") {
     throw new ApiError(409, "Bulk attendance import is only available for online events");
   }

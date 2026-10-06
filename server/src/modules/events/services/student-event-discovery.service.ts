@@ -1,4 +1,4 @@
-﻿import {
+import {
   CheckInMode,
   EventRegistrationStatus,
   type OrganizingUnitType,
@@ -25,6 +25,7 @@ export const publicEventSelect = {
   id: true,
   name: true,
   descriptionPreview: true,
+  images: true,
   location: true,
   deliveryMode: true,
   organizerId: true,

@@ -139,7 +139,7 @@ export function DashboardCharts({ data, labels }: { data: DashboardSummary; labe
             <BarChart data={data.comparison.slice(0, 10)} layout="vertical">
               <CartesianGrid stroke="#e8edf4" horizontal={false} />
               <XAxis type="number" domain={[0, 100]} fontSize={12} />
-              <YAxis type="category" dataKey="code" width={64} fontSize={11} />
+              <YAxis type="category" dataKey="name" width={150} fontSize={11} />
               <Tooltip />
               <Bar dataKey="averageScore" fill="#2f7cc0" radius={[0, 8, 8, 0]} />
             </BarChart>

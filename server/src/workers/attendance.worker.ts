@@ -1,4 +1,4 @@
-﻿import type { AttendanceScanRequest, AttendanceScanSource } from "@prisma/client";
+import type { AttendanceScanRequest, AttendanceScanSource } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { logger } from "@config/logger";
 import {
@@ -39,7 +39,7 @@ export function attendanceRejectionReason(
   request: LoadedAttendanceRequest,
   registered: boolean,
 ): string | null {
-  if (!registered && request.source !== "MANUAL_ENTRY" && request.source !== "BULK_IMPORT")
+  if (!registered && request.source !== "BULK_IMPORT")
     return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")
     return "DIRECTION_NOT_ALLOWED";

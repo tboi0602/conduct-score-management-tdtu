@@ -1,4 +1,4 @@
-﻿const vi = {
+const vi = {
   events: "Sự kiện",
   criteria: "Tiêu chí",
   activitiesEyebrow: "HOẠT ĐỘNG & ĐIỂM RÈN LUYỆN",
@@ -35,6 +35,10 @@
   organizer: "Đơn vị tổ chức",
   organizerSearch: "Tìm đơn vị tổ chức",
   selectOrganizer: "Chọn đơn vị tổ chức",
+  eventFaculty: "Khoa tổ chức",
+  selectEventFaculty: "Chọn khoa",
+  affiliatedOrganizer: "Đơn vị trực thuộc (Đoàn Hội / CLB / Lớp)",
+  defaultFacultyOrganizer: "Mặc định (Khoa tổ chức)",
   unknownOrganizer: "Chưa xác định",
   detailDescription: "Mô tả chi tiết",
   checkInMode: "Chế độ điểm danh",
@@ -175,6 +179,10 @@ const en = {
   organizer: "Organizer",
   organizerSearch: "Search organizers",
   selectOrganizer: "Select organizer",
+  eventFaculty: "Organizing faculty",
+  selectEventFaculty: "Select faculty",
+  affiliatedOrganizer: "Affiliated unit (Club / Team / Class)",
+  defaultFacultyOrganizer: "Default (Faculty)",
   unknownOrganizer: "Not specified",
   detailDescription: "Detailed description",
   checkInMode: "Attendance mode",

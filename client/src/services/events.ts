@@ -58,9 +58,9 @@ export const eventService = {
     authHttp<PaginatedResponse<Criteria>>(
       `/api/v1/events/options/criteria?${queryString(page, limit, { search })}`,
     ),
-  organizers: (page: number, search?: string) =>
+  organizers: (page: number, search?: string, facultyId?: string, limit = 50) =>
     authHttp<PaginatedResponse<OrganizingUnit>>(
-      `/api/v1/events/options/organizers?${queryString(page, 20, { search, writable: "true" })}`,
+      `/api/v1/events/options/organizers?${queryString(page, limit, { search, facultyId, writable: "true" })}`,
     ),
 };
 

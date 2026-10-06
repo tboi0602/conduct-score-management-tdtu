@@ -22,6 +22,8 @@ const cookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
+const { maxAge: _maxAge, ...clearCookieOptions } = cookieOptions;
+
 function cookie(req: Request, name: string): string | null {
   const header = req.headers.cookie;
   if (!header) return null;
@@ -38,7 +40,7 @@ function sendSession(
     accessToken: string;
     refreshToken: string;
     sessionId: string;
-    user: { id: string; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string | string[] };
   },
 ): void {
   res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions);
@@ -90,7 +92,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 export async function logout(req: Request, res: Response): Promise<void> {
   const token = cookie(req, REFRESH_COOKIE);
   if (token) await revokeRefreshToken(token);
-  res.clearCookie(REFRESH_COOKIE, cookieOptions);
+  res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
   res.status(204).end();
 }
 

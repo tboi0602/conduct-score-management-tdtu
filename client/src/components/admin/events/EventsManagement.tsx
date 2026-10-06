@@ -24,10 +24,17 @@ import { EventDetails } from "@/components/admin/events/EventDetails";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
+import { EventCardGallery } from "@/components/ui/EventCardGallery";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useEventManagement } from "@/hooks/events/useEventManagement";
-import { formatDate, managementError, organizerLabel, semesterLabel } from "@/lib/event-form";
+import {
+  formatDate,
+  managementError,
+  organizerFacultyName,
+  organizerLabel,
+  semesterLabel,
+} from "@/lib/event-form";
 import type { ManagedEvent } from "@/types/events";
 
 export function EventsManagement() {
@@ -109,18 +116,55 @@ export function EventsManagement() {
                       </p>
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
-                    {t[event.checkInMode]}
-                  </span>
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    {(() => {
+                      const now = Date.now();
+                      const start = new Date(event.timeStart).getTime();
+                      const end = new Date(event.timeEnd).getTime();
+                      if (now < start) {
+                        return (
+                          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                            {t.UPCOMING}
+                          </span>
+                        );
+                      }
+                      if (now <= end) {
+                        return (
+                          <span className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#154a9b]">
+                            {t.ONGOING}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          {t.COMPLETED}
+                        </span>
+                      );
+                    })()}
+                    <span className="rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
+                      {t[event.checkInMode]}
+                    </span>
+                  </div>
                 </header>
+                <EventCardGallery images={event.images} onImageClick={() => loadDetail(event, setViewing)} />
                 <button
                   type="button"
                   onClick={() => loadDetail(event, setViewing)}
-                  className="mt-5 text-left"
+                  className="mt-3.5 text-left"
                 >
                   <h2 className="line-clamp-2 text-xl font-bold leading-7 tracking-[-.02em] text-[#102a50] transition group-hover:text-[#154a9b]">
                     {event.name}
                   </h2>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <p className="font-semibold text-[#154a9b]">
+                      {event.organizer ? organizerLabel(event.organizer) : "TDTU"}
+                    </p>
+                    {organizerFacultyName(event.organizer) ? (
+                      <p className="text-[#66758a]">
+                        <span className="font-medium text-[#4a5568]">Khoa:</span> {organizerFacultyName(event.organizer)}
+                      </p>
+                    ) : null}
+                  </div>
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66758a]">
                     {event.descriptionPreview || event.criteria.title}
                   </p>

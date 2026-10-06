@@ -24,6 +24,9 @@ export const messages = {
       textColor: "Chọn màu chữ",
       removeLink: "Gỡ link",
       openLink: "Mở link",
+      imagePrompt: "Nhập URL hình ảnh (http/https)",
+      insertImage: "Chèn ảnh",
+      uploadImage: "Tải ảnh lên",
     },
     campusTitle: "Hệ thống quản lý điểm rèn luyện sinh viên",
     campusDescription:
@@ -82,6 +85,9 @@ export const messages = {
       textColor: "Choose text color",
       removeLink: "Remove link",
       openLink: "Open link",
+      imagePrompt: "Enter image URL (http/https)",
+      insertImage: "Insert image",
+      uploadImage: "Upload image",
     },
     campusTitle: "Student con management system",
     campusDescription:

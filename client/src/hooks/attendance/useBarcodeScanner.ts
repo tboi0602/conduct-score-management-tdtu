@@ -24,18 +24,9 @@ export function useBarcodeScanner({
   const lastCharacterAt = useRef(0);
   const submitting = useRef(false);
 
-  const onChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value;
-    const now = performance.now();
-    if (!next) firstCharacterAt.current = 0;
-    else if (!firstCharacterAt.current) firstCharacterAt.current = now;
-    lastCharacterAt.current = now;
-    setValue(next);
-  }, []);
-
   const submit = useCallback(
-    async (source: ScanSource) => {
-      const code = value.trim();
+    async (codeToSubmit: string, source: ScanSource) => {
+      const code = codeToSubmit.trim();
       if (!code || disabled || submitting.current) return;
       submitting.current = true;
       try {
@@ -50,27 +41,49 @@ export function useBarcodeScanner({
         inputRef.current?.focus();
       }
     },
-    [disabled, onSubmit, value],
+    [disabled, onSubmit],
   );
 
-  useEffect(() => {
-    const code = value.trim();
-    if (disabled || code.length < 4) return;
-    const duration = lastCharacterAt.current - firstCharacterAt.current;
-    const scannerThreshold = Math.max(80, (code.length - 1) * 50);
-    if (duration > scannerThreshold) return;
-    const timer = window.setTimeout(() => void submit("STAFF_BARCODE"), 100);
-    return () => window.clearTimeout(timer);
-  }, [disabled, submit, value]);
+  const onChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const next = event.target.value;
+      const now = performance.now();
+      if (!next) {
+        firstCharacterAt.current = 0;
+        lastCharacterAt.current = 0;
+        setValue("");
+        return;
+      }
+
+      if (!firstCharacterAt.current) {
+        firstCharacterAt.current = now;
+      }
+      lastCharacterAt.current = now;
+      setValue(next);
+
+      const trimmed = next.trim();
+      // Nếu quét bằng máy quét mã vạch (ví dụ 9 ký tự đổ vào cùng lúc hoặc thời gian nhập cực nhanh < 150ms)
+      if (trimmed.length >= 8 && trimmed.length <= 12) {
+        const duration = now - firstCharacterAt.current;
+        // Máy quét barcode bắn toàn bộ chuỗi gần như tức thì (< 150ms)
+        if (duration < 150) {
+          void submit(trimmed, "STAFF_BARCODE");
+        }
+      }
+    },
+    [submit],
+  );
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key !== "Enter" || disabled) return;
       event.preventDefault();
+      const code = value.trim();
+      if (!code) return;
       const duration = lastCharacterAt.current - firstCharacterAt.current;
       const source: ScanSource =
-        value.trim().length >= 4 && duration <= 800 ? "STAFF_BARCODE" : "MANUAL_ENTRY";
-      void submit(source);
+        code.length >= 4 && duration <= 800 ? "STAFF_BARCODE" : "MANUAL_ENTRY";
+      void submit(code, source);
     },
     [disabled, submit, value],
   );

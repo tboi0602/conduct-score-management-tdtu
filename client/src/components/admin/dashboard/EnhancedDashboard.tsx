@@ -111,7 +111,7 @@ export function EnhancedDashboard() {
             <p className="text-xs font-bold uppercase tracking-[.16em] text-[#154a9b]">
               {data.scope === "GLOBAL"
                 ? "TDTU Intelligence"
-                : access.profile?.effectiveFaculty?.code}
+                : access.profile?.effectiveFaculty?.name}
             </p>
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-[-.035em] text-[#102a50] sm:text-4xl">

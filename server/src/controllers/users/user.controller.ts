@@ -4,6 +4,7 @@ import type { AuthContext } from "@middleware/auth.middleware";
 import * as userService from "@services/users/user.service";
 import { ApiError } from "@utils/ApiError";
 import { parsePagination } from "@utils/pagination";
+import { enumInput, optionalQuery } from "@utils/crudValidation";
 
 function parseInput(req: Request): userService.UserInput {
   const {
@@ -41,6 +42,9 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     majorId: stringQuery(req.query.majorId),
     classId: stringQuery(req.query.classId),
     roleId: stringQuery(req.query.roleId),
+    userType: optionalQuery(req.query.userType, (value) =>
+      enumInput(value, ["STUDENT", "STAFF"] as const, "userType"),
+    ),
   });
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }

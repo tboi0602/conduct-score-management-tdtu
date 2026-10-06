@@ -17,6 +17,7 @@ export { scheduleMessages } from "./schedule-messages";
 export { studentEventMessages } from "./student-event-messages";
 export { studentNotificationMessages } from "./student-notification-messages";
 export { academicMessages, organizerMessages, appealFailureMessages } from "./management-messages";
+export { reportMessages } from "./report-messages";
 
 import { adminMessages } from "./admin-messages";
 import { attendanceMessages } from "./attendance-messages";

@@ -9,7 +9,7 @@ import { env, validateRuntimeEnv } from "@config/env";
 import { redisClient } from "@redis";
 import { rabbitClient } from "@rabbitmq";
 import { prisma } from "@config/prisma";
-import { registry } from "@metrics";
+import { rabbitConnected, redisConnected, registry } from "@metrics";
 import { errorHandler, metricsMiddleware, requestContext } from "@middleware";
 import { router } from "@routes";
 import { sseHub } from "@realtime/sse";
@@ -25,7 +25,8 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Đo lường Prometheus + endpoint scrape (chỉ nội bộ:
 // Nginx không proxy /metrics ra bên ngoài).
@@ -48,11 +49,25 @@ app.use(errorHandler);
 
 const server = http.createServer(app);
 
+// Publish this API instance's dependency state for Prometheus.
+// Without this, the gauges keep their default value (0) even when the
+// connection is healthy; the worker has its own connection tracker.
+function trackConnectionGauges(): void {
+  const update = () => {
+    rabbitConnected.set(rabbitClient.isConnected() ? 1 : 0);
+    redisConnected.set(redisClient.getClient().status === "ready" ? 1 : 0);
+  };
+
+  update();
+  setInterval(update, 5_000).unref();
+}
+
 async function main(): Promise<void> {
   validateRuntimeEnv();
   redisClient.connect();
   await prisma.$connect();
   await rabbitClient.connect();
+  trackConnectionGauges();
   server.listen(env.apiPort, () => {
     logger.info(`[api] listening on :${env.apiPort}`);
   });

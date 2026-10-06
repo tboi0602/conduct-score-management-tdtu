@@ -82,11 +82,21 @@ export async function seedOrganizingUnits(prisma: PrismaClient): Promise<void> {
   });
   const faculties = await prisma.faculty.findMany({ select: { id: true, code: true } });
   for (const faculty of faculties) {
-    await prisma.organizingUnit.upsert({
-      where: { code: `FACULTY:${faculty.code}` },
-      update: { type: "FACULTY", name: null, facultyId: faculty.id, classId: null },
-      create: { type: "FACULTY", code: `FACULTY:${faculty.code}`, facultyId: faculty.id },
+    // The database has a partial unique index on facultyId for FACULTY units.
+    // Find by that business key first so older seed rows with a different code
+    // are updated instead of causing P2002 on the code-based upsert.
+    const existingFacultyUnit = await prisma.organizingUnit.findFirst({
+      where: { type: "FACULTY", facultyId: faculty.id },
+      select: { id: true },
     });
+    const data = { type: "FACULTY" as const, name: null, facultyId: faculty.id, classId: null };
+    if (existingFacultyUnit) {
+      await prisma.organizingUnit.update({ where: { id: existingFacultyUnit.id }, data });
+    } else {
+      await prisma.organizingUnit.create({
+        data: { ...data, code: `FACULTY:${faculty.code}` },
+      });
+    }
   }
   const classes = await prisma.class.findMany({
     select: { id: true, code: true, major: { select: { facultyId: true } } },

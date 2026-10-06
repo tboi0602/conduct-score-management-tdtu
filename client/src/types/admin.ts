@@ -42,6 +42,40 @@ export type UserFilters = {
   majorId?: string;
   classId?: string;
   roleId?: string;
+  userType?: "STUDENT" | "STAFF";
+};
+
+export type StudentReportFilter = {
+  semesterId?: string;
+  facultyId?: string;
+  classId?: string;
+  majorId?: string;
+  ranking?: string;
+  search?: string;
+};
+
+export type StudentReport = {
+  semester: { id: string; year: number; type: string };
+  canManageAllFaculties?: boolean;
+  items: Array<{
+    id: string;
+    studentCode: string;
+    name: string;
+    facultyName?: string;
+    classId: string | null;
+    classCode: string;
+    majorId: string | null;
+    majorName: string;
+    totalScore: number | null;
+    ranking: "EXCELLENT" | "GOOD" | "FAIR" | "AVERAGE" | "POOR" | null;
+  }>;
+  pagination: PaginationMeta;
+  options: {
+    semesters: Array<{ id: string; year: number; type: string }>;
+    faculties?: Array<{ id: string; name: string }>;
+    majors: Array<{ id: string; name: string }>;
+    classes: Array<{ id: string; code: string }>;
+  };
 };
 
 export type Role = {

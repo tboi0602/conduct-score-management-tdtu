@@ -22,6 +22,7 @@ export type UserFilters = {
   majorId?: string;
   classId?: string;
   roleId?: string;
+  userType?: "STUDENT" | "STAFF";
 };
 
 const publicUserSelect = {
@@ -75,6 +76,17 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
         }
       : {}),
     ...(filters.roleId ? { userRoles: { some: { roleId: filters.roleId } } } : {}),
+    ...(filters.userType === "STUDENT"
+      ? {
+          student: { isNot: null },
+          userRoles: { some: { role: { name: "STUDENT" } } },
+        }
+      : filters.userType === "STAFF"
+        ? {
+            student: { is: null },
+            userRoles: { some: { role: { name: { notIn: ["STUDENT", "ADMIN"] } } } },
+          }
+        : {}),
     ...(filters.classId
       ? { student: { is: { classId: filters.classId } } }
       : filters.majorId

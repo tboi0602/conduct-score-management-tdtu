@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/event-form";
 import type { AttendanceDirection } from "@/types/attendance";
 import { AttendanceImportAction } from "@/components/admin/attendance/AttendanceImportAction";
 import { AttendanceReconciliation } from "@/components/admin/attendance/AttendanceReconciliation";
+import { AttendanceCameraScanner } from "@/components/admin/attendance/AttendanceCameraScanner";
 
 export function AttendanceWorkspace({ eventId }: { eventId: string }) {
   const { locale } = useAdminTranslations();
@@ -20,6 +21,26 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
   if (state.eventQuery.isPending) return <PageLoadingSkeleton />;
   const event = state.eventQuery.data;
   if (!event) return null;
+  const beforeStart = state.attendanceWindow === "NOT_STARTED";
+  const ended = state.attendanceWindow === "ENDED";
+  if (beforeStart) {
+    return (
+      <section>
+        <Link
+          href="/admin/attendance"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[#154a9b]"
+        >
+          <ChevronLeft size={17} />
+          {t.title}
+        </Link>
+        <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-6 text-amber-900">
+          <p className="text-xs font-bold uppercase tracking-[.14em]">{t.upcomingStatus}</p>
+          <h1 className="mt-2 text-2xl font-bold">{event.name}</h1>
+          <p className="mt-3 text-sm">{t.notStarted}</p>
+        </div>
+      </section>
+    );
+  }
   const directionOptions = [
     { value: "CHECK_IN", label: t.checkIn },
     ...(event.checkInMode === "TWO_WAY" ? [{ value: "CHECK_OUT", label: t.checkOut }] : []),
@@ -34,11 +55,13 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
         {t.title}
       </Link>
       <header className="relative mt-4 overflow-hidden rounded-[24px] border border-[#d9e3ee] bg-white p-6 shadow-[0_20px_48px_-40px_rgba(16,42,80,.6)]">
-        <span className="absolute inset-y-0 left-0 w-1 bg-[#16856d]" />
+        <span
+          className={`absolute inset-y-0 left-0 w-1 ${ended ? "bg-emerald-600" : "bg-blue-600"}`}
+        />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[.14em] text-[#154a9b]">
-              {t.ongoing}
+              {ended ? t.completedStatus : t.ongoing}
             </p>
             <h1 className="mt-2 text-2xl font-bold text-[#102a50]">{event.name}</h1>
             <p className="mt-2 flex items-center gap-2 text-sm text-[#66758a]">
@@ -56,6 +79,11 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
           </div>
         </div>
       </header>
+      {ended ? (
+        <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+          {t.endedSupplement}
+        </p>
+      ) : null}
       <div className="mt-5 grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
         <div className="space-y-5">
           <div className="rounded-[22px] border border-[#d9e3ee] bg-white p-5 shadow-[0_18px_42px_-38px_rgba(16,42,80,.55)]">
@@ -81,7 +109,7 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
                 options={directionOptions}
               />
             </div>
-            {state.sessionQuery.data && state.qrImage ? (
+            {state.sessionQuery.data && state.qrImage && state.attendanceWindow === "OPEN" ? (
               <div className="mt-4 text-center">
                 <img
                   src={state.qrImage}
@@ -97,7 +125,9 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
             <button
               type="button"
               onClick={() => (state.sessionQuery.data ? state.close.mutate() : state.open.mutate())}
-              disabled={state.open.isPending || state.close.isPending}
+              disabled={
+                (ended && !state.sessionQuery.data) || state.open.isPending || state.close.isPending
+              }
               className="mt-4 min-h-11 w-full rounded-xl bg-[#154a9b] px-4 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.99] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-50"
             >
               {state.sessionQuery.data
@@ -143,6 +173,15 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
                 ]}
               />
             </div>
+            <AttendanceCameraScanner
+              disabled={state.scan.isPending}
+              onScan={(scannedCode) => {
+                void state.scan.mutateAsync({
+                  source: "STAFF_BARCODE",
+                  code: scannedCode,
+                });
+              }}
+            />
             <p className="mt-3 text-xs text-[#718096]">{t.manualEnterHint}</p>
           </div>
         </div>
@@ -194,7 +233,18 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-bold ${item.status === "ACCEPTED" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}
                       >
-                        {item.status}
+                        {item.isRegistrationOnly
+                          ? item.attendanceRecord
+                            ? t[
+                                item.attendanceRecord.status.toLowerCase() as
+                                  "attended" | "late" | "absent"
+                              ]
+                            : t.notScanned
+                          : item.status === "ACCEPTED"
+                            ? t.accepted
+                            : item.status === "REJECTED"
+                              ? t.rejected
+                              : t.pending}
                       </span>
                     </td>
                     <td>

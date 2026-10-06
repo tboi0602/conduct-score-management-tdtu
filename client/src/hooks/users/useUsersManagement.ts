@@ -16,12 +16,12 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 
-export function useUsersManagement() {
+export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const access = useAdminAccess();
   const scoped = !access.can("user.read") && access.can("student.read");
   const { locale } = useLanguage();
   const { showToast } = useToast();
-  const [filters, setFilters] = useState<UserFilters>({});
+  const [filters, setFilters] = useState<UserFilters>(() => (mode ? { userType: mode } : {}));
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const fetchUsers = useCallback(
@@ -45,7 +45,7 @@ export function useUsersManagement() {
     staleTime: 60 * 60 * 1000,
   });
   const roles: Role[] = scoped
-    ? ["STUDENT", "EVENT_ORGANIZER"].map((name) => ({
+    ? ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].map((name) => ({
         id: name,
         name,
         rolePermissions: [],
@@ -86,16 +86,27 @@ export function useUsersManagement() {
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setActionError(null);
-      setIsSaving(true);
       const form = new FormData(event.currentTarget);
       const password = String(form.get("password") ?? "");
+      const formRoleIds = form.getAll("roleIds").map(String);
       const payload: UserPayload = {
         email: String(form.get("email") ?? ""),
         name: String(form.get("name") ?? ""),
-        roleIds: form.getAll("roleIds").map(String),
-        studentCode: String(form.get("studentCode") ?? "") || null,
-        classId: String(form.get("classId") ?? "") || null,
-        primaryFacultyId: String(form.get("primaryFacultyId") ?? "") || null,
+        roleIds:
+          formRoleIds.length > 0
+            ? formRoleIds
+            : mode
+              ? (editing?.userRoles.map(({ role }) => role.id) ?? [])
+              : [],
+        ...(mode !== "STAFF"
+          ? {
+              studentCode: String(form.get("studentCode") ?? "") || null,
+              classId: String(form.get("classId") ?? "") || null,
+            }
+          : {}),
+        ...(!mode || mode === "STAFF"
+          ? { primaryFacultyId: String(form.get("primaryFacultyId") ?? "") || null }
+          : {}),
         ...(password ? { password } : {}),
       };
       try {
@@ -126,7 +137,7 @@ export function useUsersManagement() {
         setIsSaving(false);
       }
     },
-    [editing, locale, queryClient, scoped, showToast],
+    [editing, locale, mode, queryClient, scoped, showToast],
   );
   const confirmDelete = useCallback(async () => {
     if (!deleting) return;

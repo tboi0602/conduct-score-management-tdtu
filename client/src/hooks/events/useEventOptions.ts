@@ -40,25 +40,34 @@ export function useEventOptions(kind: "criteria" | "semesters") {
 export function useEventOrganizerOptions(
   selected: OrganizingUnit | null,
   onChange: (unit: OrganizingUnit | null) => void,
+  facultyId?: string,
 ) {
   const [search, setSearch] = useState("");
   const term = useDebounce(search.trim(), 500);
   const { profile } = useAdminAccess();
   const query = useQuery({
-    queryKey: queryKeys.eventOptions.organizerPage(1, term),
-    queryFn: () => eventService.organizers(1, term || undefined),
+    queryKey: queryKeys.eventOptions.organizerPage(1, term, facultyId),
+    queryFn: () => eventService.organizers(1, term || undefined, facultyId),
     staleTime: 5 * 60_000,
   });
   const items = query.data?.data ?? [];
 
   useEffect(() => {
     if (selected) return;
-    const facultyUnit = items.find(
-      (item) => item.type === "FACULTY" && item.facultyId === profile?.effectiveFaculty?.id,
-    );
-    if (facultyUnit) onChange(facultyUnit);
-    else if (items.length === 1) onChange(items[0]);
-  }, [items, onChange, profile?.effectiveFaculty?.id, selected]);
+    const targetFacultyId = facultyId || profile?.effectiveFaculty?.id;
+    if (targetFacultyId) {
+      const facultyUnit = items.find(
+        (item) => item.type === "FACULTY" && item.facultyId === targetFacultyId,
+      );
+      if (facultyUnit) {
+        onChange(facultyUnit);
+        return;
+      }
+    }
+    if (!facultyId && items.length === 1) {
+      onChange(items[0]);
+    }
+  }, [items, onChange, profile?.effectiveFaculty?.id, selected, facultyId]);
 
   return { search, setSearch, query, items };
 }

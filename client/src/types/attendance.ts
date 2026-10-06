@@ -2,7 +2,8 @@ import type { CheckInMode, ManagedEvent } from "@/types/events";
 
 export type AttendanceDirection = "CHECK_IN" | "CHECK_OUT";
 export type AttendanceScanStatus = "PENDING" | "ACCEPTED" | "REJECTED";
-export type AttendanceSource = "STUDENT_QR" | "STAFF_BARCODE" | "MANUAL_ENTRY" | "BULK_IMPORT";
+export type AttendanceSource =
+  "STUDENT_QR" | "STAFF_BARCODE" | "MANUAL_ENTRY" | "BULK_IMPORT" | "REGISTERED";
 export type AttendanceImportResult = {
   requested: number;
   queued: number;
@@ -54,6 +55,7 @@ export type AttendanceQr = {
   scanUrl: string;
   expiresAt: string;
   session: AttendanceSession;
+  eventStart: string;
 };
 export type AttendanceRequest = {
   id: string;
@@ -66,6 +68,7 @@ export type AttendanceRequest = {
   createdAt: string;
   student: { id: string; studentCode: string; user: { name: string; email: string } };
   attendanceRecord: { id: string; status: "ATTENDED" | "LATE" | "ABSENT" } | null;
+  isRegistrationOnly?: boolean;
 };
 export type AttendanceEvent = ManagedEvent & { checkInMode: CheckInMode };
 export type DashboardSummary = {

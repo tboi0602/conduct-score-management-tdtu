@@ -1,12 +1,58 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+
+const CustomImage = Node.create({
+  name: "image",
+  group: "inline",
+  inline: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: {
+        default: null,
+      },
+      alt: {
+        default: null,
+      },
+      title: {
+        default: null,
+      },
+      class: {
+        default: "rounded-xl max-w-full h-auto my-3 block shadow-sm border border-[#e0e7f0]",
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: "img[src]",
+      },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["img", HTMLAttributes];
+  },
+  addCommands() {
+    return {
+      setImage:
+        (options: { src: string; alt?: string; title?: string }) =>
+        ({ commands }: any) => {
+          return commands.insertContent({
+            type: this.name,
+            attrs: options,
+          });
+        },
+    } as any;
+  },
+});
 
 const sizes = [12, 14, 16, 18, 20, 24, 28, 32];
 const colors = ["#102a50", "#154a9b", "#bd3343", "#1f7a4d", "#7c3aed", "#b45309"];
@@ -22,6 +68,7 @@ export function RichTextEditor({
 }) {
   const { message } = useLanguage();
   const t = message.editor;
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const editor = useEditor({
     immediatelyRender: false,
     editable: !disabled,
@@ -31,6 +78,7 @@ export function RichTextEditor({
       TextStyle,
       Color,
       FontSize,
+      CustomImage,
       Link.configure({ openOnClick: false, protocols: ["http", "https", "mailto"] }),
     ],
     content: value,
@@ -56,8 +104,48 @@ export function RichTextEditor({
         .setLink({ href: href.trim(), target: "_blank" })
         .run();
   };
+
+  const insertImageUrl = () => {
+    const url = window.prompt(t.imagePrompt, "https://");
+    if (!url || !url.trim()) return;
+    (editor.chain().focus() as any).setImage({ src: url.trim() }).run();
+  };
+
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        window.alert(`Tệp "${file.name}" không phải là ảnh hợp lệ`);
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        window.alert(`Ảnh "${file.name}" vượt quá 2MB`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        if (result) {
+          (editor.chain().focus() as any).setImage({ src: result }).run();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
   return (
     <div className="overflow-hidden rounded-xl border border-[#d9e2ed] bg-white focus-within:border-[#154a9b] focus-within:ring-2 focus-within:ring-[#154a9b]/10">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleImageFile}
+      />
       <div className="flex flex-wrap gap-1.5 border-b border-[#e6ebf2] bg-[#f7f9fc] p-2">
         <button
           type="button"
@@ -157,6 +245,12 @@ export function RichTextEditor({
           onClick={() => editor.chain().focus().unsetLink().run()}
         >
           {t.removeLink}
+        </button>
+        <button type="button" className={button} onClick={insertImageUrl}>
+          {t.insertImage}
+        </button>
+        <button type="button" className={button} onClick={() => fileInputRef.current?.click()}>
+          {t.uploadImage}
         </button>
         {editor.getAttributes("link").href ? (
           <button

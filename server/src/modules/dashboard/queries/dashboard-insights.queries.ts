@@ -13,8 +13,6 @@ const percent = (part: number, total: number) =>
 
 export async function getDashboardInsights(userId: string, requestedSemesterId?: string) {
   const access = await getEventAccess(userId);
-  if (!access.manageAnyUnit && !access.facultyId)
-    throw new ApiError(409, "A primary faculty must be assigned");
   const currentSemester = await prisma.semester.findFirst({
     where: { startDate: { lte: new Date() }, endDate: { gte: new Date() } },
     select: { id: true, year: true, type: true },
@@ -31,13 +29,17 @@ export async function getDashboardInsights(userId: string, requestedSemesterId?:
       })));
   if (!semester) throw new ApiError(404, "Semester not found");
   const facultyId = access.manageAnyUnit ? null : access.facultyId;
-  const scopeKey = access.manageAnyUnit ? "global" : `faculty:${facultyId}`;
+  const scopeKey = access.manageAnyUnit
+    ? "global"
+    : facultyId
+      ? `faculty:${facultyId}`
+      : `user:${userId}`;
   const version =
     (await redisClient
       .getClient()
       .get(`dashboard:version:${scopeKey}`)
       .catch(() => "0")) ?? "0";
-  const cacheKey = `dashboard:v2:${scopeKey}:${semester.id}:${version}`;
+  const cacheKey = `dashboard:v5:${scopeKey}:${semester.id}:${version}`;
   const cached = await redisClient
     .getClient()
     .get(cacheKey)
@@ -63,7 +65,7 @@ export async function getDashboardInsights(userId: string, requestedSemesterId?:
         (SELECT COUNT(*) FROM "users" u WHERE u."status"='ACTIVE' AND EXISTS (SELECT 1 FROM "user_roles" ur JOIN "roles" r ON r."id"=ur."roleId" WHERE ur."userId"=u."id" AND r."name" IN ('EVENT_ORGANIZER','STUDENT_AFFAIRS')) AND (${facultyParam}::uuid IS NULL OR u."primaryFacultyId"=${facultyParam}::uuid)) "staff",
         (SELECT COUNT(*) FROM "event_registrations" er JOIN "events" e ON e."id"=er."eventId" LEFT JOIN "organizing_units" ou ON ou."id"=e."organizerId" WHERE er."status"='REGISTERED' AND e."semesterId"=${semester.id}::uuid AND (${facultyParam}::uuid IS NULL OR ou."facultyId"=${facultyParam}::uuid)) "registrations",
         (SELECT COALESCE(AVG(cs."totalScore"),0) FROM "conduct_scores" cs JOIN "students" s ON s."id"=cs."studentId" LEFT JOIN "classes" c ON c."id"=s."classId" LEFT JOIN "majors" m ON m."id"=c."majorId" WHERE cs."semesterId"=${semester.id}::uuid AND (${facultyParam}::uuid IS NULL OR m."facultyId"=${facultyParam}::uuid)) "averageScore",
-        (SELECT COUNT(*) FROM "conduct_scores" cs JOIN "students" s ON s."id"=cs."studentId" LEFT JOIN "classes" c ON c."id"=s."classId" LEFT JOIN "majors" m ON m."id"=c."majorId" WHERE cs."semesterId"=${semester.id}::uuid AND cs."totalScore"<50 AND (${facultyParam}::uuid IS NULL OR m."facultyId"=${facultyParam}::uuid)) "atRisk",
+        (SELECT COUNT(*) FROM "students" s LEFT JOIN "classes" c ON c."id"=s."classId" LEFT JOIN "majors" m ON m."id"=c."majorId" LEFT JOIN "conduct_scores" cs ON cs."studentId"=s."id" AND cs."semesterId"=${semester.id}::uuid WHERE COALESCE(cs."totalScore", 0)<50 AND (${facultyParam}::uuid IS NULL OR m."facultyId"=${facultyParam}::uuid)) "atRisk",
         (SELECT COUNT(*) FROM "conduct_scores" cs JOIN "students" s ON s."id"=cs."studentId" LEFT JOIN "classes" c ON c."id"=s."classId" LEFT JOIN "majors" m ON m."id"=c."majorId" WHERE cs."semesterId"=${semester.id}::uuid AND cs."status"='DRAFT' AND (${facultyParam}::uuid IS NULL OR m."facultyId"=${facultyParam}::uuid)) "draftScores",
         (SELECT COUNT(*) FROM "conduct_scores" cs JOIN "students" s ON s."id"=cs."studentId" LEFT JOIN "classes" c ON c."id"=s."classId" LEFT JOIN "majors" m ON m."id"=c."majorId" WHERE cs."semesterId"=${semester.id}::uuid AND cs."status"='FINAL' AND (${facultyParam}::uuid IS NULL OR m."facultyId"=${facultyParam}::uuid)) "finalScores"
     `,
@@ -78,8 +80,9 @@ export async function getDashboardInsights(userId: string, requestedSemesterId?:
     prisma.$queryRaw<CountRow[]>`
       WITH participation AS (
         SELECT er."studentId", er."eventId",
-          CASE WHEN EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."status"='LATE') THEN 'late'
-            WHEN (e."checkInMode"='ONE_WAY' AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status" IN ('ATTENDED','LATE')))
+          CASE WHEN (e."checkInMode"='ONE_WAY' AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status"='LATE'))
+              OR (e."checkInMode"='TWO_WAY' AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status" IN ('ATTENDED','LATE')) AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_OUT' AND ar."status" IN ('ATTENDED','LATE')) AND (EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status"='LATE') OR EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_OUT' AND ar."status"='LATE'))) THEN 'late'
+            WHEN (e."checkInMode"='ONE_WAY' AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status"='ATTENDED'))
               OR (e."checkInMode"='TWO_WAY' AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_IN' AND ar."status" IN ('ATTENDED','LATE')) AND EXISTS (SELECT 1 FROM "attendance_records" ar WHERE ar."studentId"=er."studentId" AND ar."eventId"=er."eventId" AND ar."direction"='CHECK_OUT' AND ar."status" IN ('ATTENDED','LATE'))) THEN 'attended'
             ELSE 'absent' END result
         FROM "event_registrations" er JOIN "events" e ON e."id"=er."eventId" LEFT JOIN "organizing_units" ou ON ou."id"=e."organizerId"
@@ -99,7 +102,10 @@ export async function getDashboardInsights(userId: string, requestedSemesterId?:
       )
       SELECT to_char(b.start_at,'DD/MM') "label",
         (SELECT COUNT(*) FROM "event_registrations" er JOIN "events" e ON e."id"=er."eventId" LEFT JOIN "organizing_units" ou ON ou."id"=e."organizerId" WHERE e."semesterId"=${semester.id}::uuid AND er."registeredAt">=b.start_at AND er."registeredAt"<b.start_at+INTERVAL '1 week' AND (${facultyParam}::uuid IS NULL OR ou."facultyId"=${facultyParam}::uuid)) "registrations",
-        (SELECT COUNT(DISTINCT (ar."studentId",ar."eventId")) FROM "attendance_records" ar JOIN "events" e ON e."id"=ar."eventId" LEFT JOIN "organizing_units" ou ON ou."id"=e."organizerId" WHERE e."semesterId"=${semester.id}::uuid AND ar."createdAt">=b.start_at AND ar."createdAt"<b.start_at+INTERVAL '1 week' AND ar."status" IN ('ATTENDED','LATE') AND (${facultyParam}::uuid IS NULL OR ou."facultyId"=${facultyParam}::uuid)) "attendance"
+        (SELECT COUNT(*) FROM "event_registrations" er JOIN "events" e ON e."id"=er."eventId" LEFT JOIN "organizing_units" ou ON ou."id"=e."organizerId"
+          WHERE er."status"='REGISTERED' AND e."semesterId"=${semester.id}::uuid AND (${facultyParam}::uuid IS NULL OR ou."facultyId"=${facultyParam}::uuid)
+            AND EXISTS (SELECT 1 FROM "attendance_records" checkin WHERE checkin."studentId"=er."studentId" AND checkin."eventId"=er."eventId" AND checkin."direction"='CHECK_IN' AND checkin."status" IN ('ATTENDED','LATE') AND checkin."createdAt">=b.start_at AND checkin."createdAt"<b.start_at+INTERVAL '1 week')
+            AND ((e."checkInMode"='ONE_WAY') OR EXISTS (SELECT 1 FROM "attendance_records" checkout WHERE checkout."studentId"=er."studentId" AND checkout."eventId"=er."eventId" AND checkout."direction"='CHECK_OUT' AND checkout."status" IN ('ATTENDED','LATE')))) "attendance"
       FROM buckets b ORDER BY b.start_at
     `,
     access.manageAnyUnit

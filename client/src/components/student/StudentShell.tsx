@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
   Award,
@@ -20,18 +20,31 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { AttendanceFailureWatcher } from "@/components/student/AttendanceFailureWatcher";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
 import { useStudentNavigation } from "@/hooks/layout/useStudentNavigation";
+import { getAuthSession } from "@/lib/auth-storage";
 import { studentEventMessages } from "@/i18n/student-event-messages";
 
 export function StudentShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const { profile } = useAdminAccess();
   const { locale } = useLanguage();
   const t = studentEventMessages[locale];
+
+  useEffect(() => {
+    const session = getAuthSession();
+    if (!session) {
+      router.replace("/login");
+      return;
+    }
+    setIsAuthorized(true);
+  }, [router]);
   const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
   const has = (permission: string) =>
     profile?.permissions.some(
@@ -159,6 +172,10 @@ export function StudentShell({ children }: { children: ReactNode }) {
       </div>
     </aside>
   );
+
+  if (!isAuthorized) {
+    return <PageLoadingSkeleton />;
+  }
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f7fa] lg:grid lg:grid-cols-[276px_1fr]">

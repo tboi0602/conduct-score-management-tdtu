@@ -116,7 +116,6 @@ export function StatisticsDashboard() {
                   <tr key={faculty.id} className="border-t border-[#edf1f5]">
                     <td className="px-5 py-4">
                       <p className="font-bold text-[#263b58]">{faculty.name}</p>
-                      <p className="text-xs text-[#718096]">{faculty.code}</p>
                     </td>
                     <td>{faculty.students}</td>
                     <td>{faculty.events}</td>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Building2,
   CalendarClock,
@@ -19,7 +20,9 @@ import { PaginationControls } from "@/components/admin/PaginationControls";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { studentEventViews, useStudentEvents } from "@/hooks/events/useStudentEvents";
 import { studentEventMessages } from "@/i18n/student-event-messages";
-import { formatDate, organizerLabel } from "@/lib/event-form";
+import { formatDate, organizerFacultyName, organizerLabel } from "@/lib/event-form";
+import { buildEventSlug } from "@/lib/slug";
+import { EventCardGallery } from "@/components/ui/EventCardGallery";
 import type { EventType, PublicEvent, StudentEventFilters } from "@/types/events";
 
 export function StudentEvents() {
@@ -228,7 +231,15 @@ export function StudentEvents() {
                   <span className="rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
                     {event.points} {t.points}
                   </span>
-                  <span className="rounded-lg bg-[#fff1f3] px-2.5 py-1 text-xs font-bold text-[#b42332]">
+                  <span
+                    className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${
+                      now < new Date(event.timeStart).getTime()
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : now <= new Date(event.timeEnd).getTime()
+                          ? "border-blue-200 bg-blue-50 text-[#154a9b]"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
                     {lifecycle}
                   </span>
                   <span className="rounded-lg bg-[#f1f5f9] px-2.5 py-1 text-xs font-bold text-[#52647d]">
@@ -251,14 +262,24 @@ export function StudentEvents() {
                               : t.registrationClosed}
                 </span>
               </div>
-              <h2 className="mt-4 line-clamp-2 text-xl font-bold leading-7 tracking-[-.02em] text-[#102a50] transition group-hover:text-[#154a9b]">
-                {event.name}
-              </h2>
-              <p className="mt-2 text-sm text-[#66758a]">
-                {event.organizer ? organizerLabel(event.organizer) : "TDTU"}
-              </p>
+              <EventCardGallery images={event.images} />
+              <Link href={`/events/${buildEventSlug(event.name, event.id)}`} className="mt-3.5 block">
+                <h2 className="line-clamp-2 text-xl font-bold leading-7 tracking-[-.02em] text-[#102a50] transition group-hover:text-[#154a9b]">
+                  {event.name}
+                </h2>
+              </Link>
+              <div className="mt-2 space-y-1 text-xs">
+                <p className="font-semibold text-[#154a9b]">
+                  {event.organizer ? organizerLabel(event.organizer) : "TDTU"}
+                </p>
+                {organizerFacultyName(event.organizer) ? (
+                  <p className="text-[#66758a]">
+                    <span className="font-medium text-[#4a5568]">Khoa:</span> {organizerFacultyName(event.organizer)}
+                  </p>
+                ) : null}
+              </div>
               {event.descriptionPreview ? (
-                <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#66758a]">
+                <p className="mt-2.5 line-clamp-3 text-sm leading-6 text-[#66758a]">
                   {event.descriptionPreview}
                 </p>
               ) : null}
@@ -277,13 +298,12 @@ export function StudentEvents() {
                 {event.capacity === null ? t.unlimited : `${event.remainingSlots} ${t.remaining}`}
               </p>
               <div className="mt-auto flex gap-2 pt-5">
-                <button
-                  type="button"
-                  onClick={() => state.setDetailId(event.id)}
-                  className="flex-1 rounded-xl border border-[#c8d5e5] px-3 py-2.5 text-sm font-semibold text-[#52647d] transition hover:border-[#9fb6d2] hover:bg-[#f5f8fc] active:scale-[.98]"
+                <Link
+                  href={`/events/${buildEventSlug(event.name, event.id)}`}
+                  className="flex-1 rounded-xl border border-[#c8d5e5] px-3 py-2.5 text-center text-sm font-semibold text-[#52647d] transition hover:border-[#9fb6d2] hover:bg-[#f5f8fc] active:scale-[.98]"
                 >
                   {t.details}
-                </button>
+                </Link>
                 {event.registrationStatus === "REGISTERED" ? (
                   <button
                     type="button"

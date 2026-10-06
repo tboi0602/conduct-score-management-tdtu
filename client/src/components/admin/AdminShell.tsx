@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   Users,
+  UserRoundCog,
   Building2,
   BookOpen,
   School,
@@ -25,8 +26,9 @@ import {
   ScanLine,
   Award,
   MessageSquareWarning,
+  FileText,
 } from "lucide-react";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -37,6 +39,7 @@ import { useWorkspaceSwitch } from "@/hooks/auth/useWorkspaceSwitch";
 import { usePendingAppealsCount } from "@/hooks/appeals/usePendingAppealsCount";
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const [usersOpen, setUsersOpen] = useState(false);
   const {
     pathname,
     user,
@@ -62,6 +65,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           majors: "Danh mục Ngành",
           classes: "Danh mục Lớp",
           organizers: "Danh mục Tổ chức",
+          STUDENT_AFFAIRS: "Công tác sinh viên",
+          EVENT_ORGANIZER: "Tổ chức sự kiện",
+          ADMIN: "Quản trị viên",
         }
       : {
           group: "Academic units",
@@ -69,6 +75,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           majors: "Major catalog",
           classes: "Class catalog",
           organizers: "Organization catalog",
+          STUDENT_AFFAIRS: "Student affairs",
+          EVENT_ORGANIZER: "Event organizer",
+          ADMIN: "Administrator",
         };
   const eventLabels =
     locale === "vi"
@@ -180,6 +189,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
       >
         {can("dashboard.read")
           ? navItem("/admin/dashboard", t.dashboard, <LayoutDashboard size={18} strokeWidth={2} />)
+          : null}
+        {can("dashboard.read")
+          ? navItem(
+              "/admin/reports",
+              locale === "vi" ? "Báo cáo" : "Reports",
+              <FileText size={18} />,
+            )
           : null}
         {can("event.read") || can("criteria.read") || can("semester.read") ? (
           collapsed ? (
@@ -348,10 +364,63 @@ export function AdminShell({ children }: { children: ReactNode }) {
               pendingAppealsCount,
             )
           : null}
-        {can("user.read") || can("student.read") || can("faculty-staff.read")
-          ? navItem("/admin/users", t.users, <Users size={18} strokeWidth={2} />)
-          : null}
-        {can("role.read") || can("permission.read") ? (
+        {can("user.read") || can("student.read") || can("faculty-staff.read") ? (
+          collapsed ? (
+            <Tooltip label={t.users} side="right" className="w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setCollapsed(false);
+                  setUsersOpen(true);
+                }}
+                className={linkClass(pathname.startsWith("/admin/users"))}
+              >
+                <Users size={18} />
+              </button>
+            </Tooltip>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => setUsersOpen((value) => !value)}
+                aria-expanded={usersOpen}
+                className={`${linkClass(pathname.startsWith("/admin/users"))} w-full justify-between`}
+              >
+                <span className="flex items-center gap-3">
+                  <Users size={18} />
+                  <span>{t.users}</span>
+                </span>
+                <ChevronDown
+                  size={15}
+                  className={`transition-transform ${usersOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              <div
+                className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ${usersOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+              >
+                <div className="min-h-0 space-y-1 pt-1">
+                  <Link
+                    href="/admin/users/students"
+                    className={`ml-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${pathname === "/admin/users/students" ? "text-[#154a9b]" : "text-[#66758a] hover:bg-[#f3f6fa]"}`}
+                  >
+                    <Users size={16} />
+                    {locale === "vi" ? "Sinh viên" : "Students"}
+                  </Link>
+                  <Link
+                    href="/admin/users/staff"
+                    className={`ml-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${pathname === "/admin/users/staff" ? "text-[#154a9b]" : "text-[#66758a] hover:bg-[#f3f6fa]"}`}
+                  >
+                    <UserRoundCog size={16} />
+                    {locale === "vi" ? "Nhân sự" : "Staff"}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )
+        ) : null}
+        {can("role.read") ||
+        can("permission.read") ||
+        can("faculty-staff.assign-event-organizer") ? (
           collapsed ? (
             <Tooltip label={t.authorization} side="right" className="w-full">
               <button
@@ -361,7 +430,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   setAuthorizationOpen(true);
                 }}
                 className={linkClass(
-                  pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions"),
+                  pathname.startsWith("/admin/roles") ||
+                    pathname.startsWith("/admin/permissions") ||
+                    pathname === "/admin/role-assignment",
                 )}
               >
                 <ShieldCheck size={18} />
@@ -373,7 +444,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setAuthorizationOpen((value) => !value)}
                 aria-expanded={authorizationOpen}
-                className={`${linkClass(pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions"))} w-full justify-between`}
+                className={`${linkClass(pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions") || pathname === "/admin/role-assignment")} w-full justify-between`}
               >
                 <span className="flex items-center gap-3">
                   <ShieldCheck size={18} />
@@ -388,6 +459,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ${authorizationOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
               >
                 <div className="min-h-0 space-y-1 pt-1">
+                  {can("faculty-staff.assign-event-organizer") ? (
+                    <Link
+                      href="/admin/role-assignment"
+                      className={`ml-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${pathname === "/admin/role-assignment" ? "text-[#154a9b]" : "text-[#66758a] hover:bg-[#f3f6fa]"}`}
+                    >
+                      <Users size={16} />
+                      {locale === "vi" ? "Phân quyền" : "Role assignment"}
+                    </Link>
+                  ) : null}
                   {can("role.read") ? (
                     <Link
                       href="/admin/roles"
@@ -422,7 +502,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-[#102a50]">{user.name}</p>
                 <p className="mt-0.5 text-[11px] font-semibold tracking-wide text-[#718096]">
-                  {user.role}
+                  {user.role == "ADMIN"
+                    ? academicLabels.ADMIN
+                    : user.role === "STUDENT_AFFAIRS"
+                      ? academicLabels.STUDENT_AFFAIRS
+                      : user.role === "EVENT_ORGANIZER"
+                        ? academicLabels.EVENT_ORGANIZER
+                        : ""}
                 </p>
               </div>
             ) : null}

@@ -74,6 +74,7 @@ model Event {
   name                   String            @db.VarChar(255)
   description            String            @default("") @db.Text
   descriptionPreview     String            @default("") @db.VarChar(500)
+  images                 String[]          @default([])
   location               String            @default("") @db.VarChar(255)
   deliveryMode           EventDeliveryMode @default(OFFLINE)
   organizerId            String?           @db.Uuid

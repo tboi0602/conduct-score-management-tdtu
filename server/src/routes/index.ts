@@ -15,6 +15,7 @@ import { scheduleRoutes } from "@routes/schedule.routes";
 import { appealRoutes } from "@routes/appeal.routes";
 import { notificationRoutes } from "@routes/notification.routes";
 import { warningRoutes } from "@routes/warning.routes";
+import { reportRoutes } from "@routes/report.routes";
 
 const router = Router();
 router.use("/auth", authRoutes);
@@ -33,5 +34,6 @@ router.use("/schedules", scheduleRoutes);
 router.use("/appeals", appealRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/warnings", warningRoutes);
+router.use("/reports", reportRoutes);
 
 export { router };

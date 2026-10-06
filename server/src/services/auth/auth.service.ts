@@ -203,17 +203,17 @@ export async function loginAdmin(email: string, password: string) {
     throw new ApiError(401, "Invalid email or password");
   }
   if (user.status === "DISABLED") throw new ApiError(403, "Account is disabled");
-
-  const isAdmin = user.userRoles.some(({ role }) => role.name === "ADMIN");
-  if (!isAdmin) throw new ApiError(403, "This login is only for administrators");
+  const assignedRoles = user.userRoles.map(({ role }) => role.name);
+  const managementRole = resolveLoginRole(assignedRoles, "ADMIN");
+  if (!managementRole) throw new ApiError(403, "This login is only for administrators");
 
   return {
-    ...(await issueTokenPair(user.id, "ADMIN")),
+    ...(await issueTokenPair(user.id, managementRole)),
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: "ADMIN" as const,
+      role: managementRole,
     },
   };
 }
@@ -284,9 +284,9 @@ export async function loginWithGoogle(idToken: string, mode: LoginMode) {
 
     const saved = existing
       ? await tx.user.update({
-          where: { id: existing.id },
-          data: { googleSubject, name },
-        })
+        where: { id: existing.id },
+        data: { googleSubject, name },
+      })
       : await tx.user.create({ data: { email, googleSubject, name } });
 
     await tx.userRole.upsert({

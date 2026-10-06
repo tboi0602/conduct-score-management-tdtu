@@ -24,6 +24,30 @@ export const adminService = {
     });
     return authHttp<PaginatedResponse<AdminUser>>(`/api/v1/users?${query}`);
   },
+  listRoleAssignmentUsers: (page: number, search?: string, roleId?: string) => {
+    const query = new URLSearchParams({ page: String(page), limit: "20" });
+    if (search && search.length >= 3) query.set("search", search);
+    if (roleId) query.set("roleId", roleId);
+    return authHttp<{
+      ok: true;
+      data: {
+        items: AdminUser[];
+        roles: Array<{ id: string; name: string }>;
+        filterRoles: Array<{ id: string; name: string }>;
+        faculties: Array<{ id: string; name: string }>;
+        pagination: PaginatedResponse<AdminUser>["pagination"];
+      };
+    }>(`/api/v1/users/role-assignment?${query}`);
+  },
+  updateRoleAssignment: (
+    id: string,
+    payload: { roleIds: string[]; primaryFacultyId?: string | null },
+  ) =>
+    authHttp<{ ok: true; data: AdminUser }>(`/api/v1/users/${id}/role-assignment`, {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify(payload),
+    }),
   createUser: (payload: UserPayload) =>
     authHttp<{ data: AdminUser }>("/api/v1/users", {
       method: "POST",
@@ -39,7 +63,9 @@ export const adminService = {
   deleteUser: (id: string) => authHttp<void>(`/api/v1/users/${id}`, { method: "DELETE" }),
   listFacultyUsers: (page: number, limit = 20, filters: UserFilters = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (filters.search) query.set("search", filters.search);
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
     return authHttp<PaginatedResponse<AdminUser>>(`/api/v1/faculty-users?${query}`);
   },
   createFacultyUser: (payload: UserPayload) =>

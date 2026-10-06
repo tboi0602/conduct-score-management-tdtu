@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/Modal";
 import { CalendarClock, MapPin, ShieldCheck, Users } from "lucide-react";
+import { FacebookImageGallery, extractImagesFromHtml } from "@/components/ui/FacebookImageGallery";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { formatDate, organizerLabel, semesterLabel } from "@/lib/event-form";
 import type { ManagedEvent } from "@/types/events";
@@ -40,7 +41,13 @@ export function EventDetails({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-bold ${lifecycle === "ONGOING" ? "bg-emerald-100 text-emerald-700" : lifecycle === "UPCOMING" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-700"}`}
+              className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                lifecycle === "ONGOING"
+                  ? "border-blue-200 bg-blue-50 text-[#154a9b]"
+                  : lifecycle === "UPCOMING"
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              }`}
             >
               {t[lifecycle]}
             </span>
@@ -92,15 +99,23 @@ export function EventDetails({
           </div>
         ))}
       </dl>
-      {event.description ? (
-        <div className="mt-6 border-t border-[#e6ebf2] pt-5">
-          <p className="mb-2 text-xs font-semibold text-[#66758a]">{t.detailDescription}</p>
-          <div
-            className="event-rich-content"
-            dangerouslySetInnerHTML={{ __html: event.description }}
-          />
-        </div>
-      ) : null}
+      {(() => {
+        const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(event.description ?? "");
+        const allImages = Array.from(new Set([...(event.images ?? []), ...extractedImages]));
+        if (!cleanedHtml.trim() && allImages.length === 0) return null;
+        return (
+          <div className="mt-6 border-t border-[#e6ebf2] pt-5 space-y-4">
+            <p className="text-xs font-semibold text-[#66758a]">{t.detailDescription}</p>
+            {allImages.length > 0 ? <FacebookImageGallery images={allImages} /> : null}
+            {cleanedHtml.trim() ? (
+              <div
+                className="event-rich-content"
+                dangerouslySetInnerHTML={{ __html: cleanedHtml }}
+              />
+            ) : null}
+          </div>
+        );
+      })()}
     </Modal>
   );
 }

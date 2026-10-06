@@ -11,12 +11,14 @@ export function StudentCheckIn({
   eventId,
   eventName,
   eventEnd,
+  eventStart,
   direction,
 }: {
   token: string;
   eventId: string;
   eventName: string;
   eventEnd: string;
+  eventStart: string;
   direction: "CHECK_IN" | "CHECK_OUT" | null;
 }) {
   const { locale } = useLanguage();
@@ -29,8 +31,11 @@ export function StudentCheckIn({
     eventId,
     eventName,
     eventEnd,
+    eventStart,
     direction,
   });
+  const notStarted = Boolean(eventStart) && Date.now() < new Date(eventStart).getTime();
+  const ended = Boolean(eventEnd) && Date.now() >= new Date(eventEnd).getTime();
   return (
     <section className="mx-auto max-w-xl">
       <Link
@@ -57,6 +62,15 @@ export function StudentCheckIn({
             {t.invalidQr}
           </p>
         ) : null}
+        {notStarted ? (
+          <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-700">
+            {t.notStarted}
+          </p>
+        ) : ended ? (
+          <p className="mt-5 rounded-xl bg-slate-100 p-4 text-sm font-semibold text-slate-700">
+            {t.ended}
+          </p>
+        ) : null}
         {status ? (
           <div
             className={`mt-6 rounded-xl p-4 text-sm font-bold ${status === "ACCEPTED" ? "bg-emerald-50 text-emerald-700" : status === "REJECTED" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}
@@ -70,7 +84,7 @@ export function StudentCheckIn({
         ) : (
           <button
             type="button"
-            disabled={!token || mutation.isPending}
+            disabled={!token || notStarted || ended || mutation.isPending}
             onClick={() => mutation.mutate()}
             className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-5 text-sm font-bold text-white shadow-[0_12px_28px_-16px_rgba(21,74,155,.8)] transition hover:-translate-y-0.5 hover:bg-[#103f85] active:translate-y-0 active:scale-[.99] disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none disabled:opacity-50"
           >

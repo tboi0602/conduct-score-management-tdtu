@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { EventOrganizerSelect } from "@/components/admin/events/EventOrganizerSelect";
 import { RichTextEditor } from "@/components/admin/events/RichTextEditor";
@@ -8,9 +9,13 @@ import { EventReferenceSelect } from "@/components/admin/events/EventReferenceSe
 import { ManagementError } from "@/components/admin/ManagementFeedback";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import type { EventReference } from "@/hooks/events/useEventOptions";
 import { localDateTime } from "@/lib/event-form";
-import type { ManagedEvent } from "@/types/events";
+import { queryKeys } from "@/lib/query-keys";
+import { adminService } from "@/services/admin";
+import type { ManagedEvent, OrganizingUnit } from "@/types/events";
+import type { Faculty } from "@/types/admin";
 
 export function EventForm({
   event,
@@ -26,12 +31,30 @@ export function EventForm({
   onCancel: () => void;
 }) {
   const { t } = useAdminTranslations();
+  const { profile } = useAdminAccess();
   const [criterion, setCriterion] = useState<EventReference | null>(event?.criteria ?? null);
   const [semester, setSemester] = useState<EventReference | null>(event?.semester ?? null);
-  const [organizer, setOrganizer] = useState(event?.organizer ?? null);
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(() => {
+    return event?.organizer?.facultyId ?? profile?.effectiveFaculty?.id ?? "";
+  });
+  const [organizer, setOrganizer] = useState<OrganizingUnit | null>(event?.organizer ?? null);
   const [description, setDescription] = useState(event?.description ?? "");
+  const [images, setImages] = useState<string[]>(event?.images ?? []);
   const [mode, setMode] = useState<string>(event?.checkInMode ?? "ONE_WAY");
   const [deliveryMode, setDeliveryMode] = useState<string>(event?.deliveryMode ?? "OFFLINE");
+
+  const facultiesQuery = useQuery({
+    queryKey: queryKeys.academic.options,
+    queryFn: adminService.getAcademicOptions,
+    staleTime: 60 * 60_000,
+  });
+  const faculties = facultiesQuery.data?.data ?? [];
+
+  useEffect(() => {
+    if (!selectedFacultyId && profile?.effectiveFaculty?.id) {
+      setSelectedFacultyId(profile.effectiveFaculty.id);
+    }
+  }, [profile?.effectiveFaculty?.id, selectedFacultyId]);
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <fieldset disabled={saving} className="space-y-5">
@@ -60,6 +83,84 @@ export function EventForm({
           <p>{t.detailDescription}</p>
           <input type="hidden" name="description" value={description} />
           <RichTextEditor value={description} onChange={setDescription} disabled={saving} />
+        </div>
+        <div className="space-y-3 rounded-2xl border border-[#d9e2ed] bg-[#f8fafc] p-4 text-sm font-semibold text-[#263b58]">
+          <div className="flex items-center justify-between">
+            <p>Hình ảnh sự kiện (Gallery)</p>
+            <label className="cursor-pointer rounded-xl bg-[#edf4fc] px-3 py-1.5 text-xs font-bold text-[#154a9b] transition hover:bg-[#dce9f8]">
+              + Thêm ảnh
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                disabled={saving}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  files.forEach((file) => {
+                    if (file.size > 10 * 1024 * 1024) {
+                      window.alert(`Ảnh "${file.name}" vượt quá 10MB`);
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (!reader.result) return;
+                      const img = new Image();
+                      img.onload = () => {
+                        const maxDim = 1600;
+                        let { width, height } = img;
+                        if (width > maxDim || height > maxDim) {
+                          if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                          } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                          }
+                        }
+                        const canvas = document.createElement("canvas");
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        if (ctx) {
+                          ctx.drawImage(img, 0, 0, width, height);
+                          const compressed = canvas.toDataURL("image/jpeg", 0.82);
+                          setImages((prev) => [...prev, compressed]);
+                        } else {
+                          setImages((prev) => [...prev, String(reader.result)]);
+                        }
+                      };
+                      img.src = String(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+          {images.map((url, idx) => (
+            <input key={idx} type="hidden" name="images" value={url} />
+          ))}
+          {images.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {images.map((url, idx) => (
+                <div key={idx} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-[#d8e2ed] bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Gallery ${idx + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-xs font-bold text-white opacity-0 transition group-hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs font-normal text-[#718096]">Chưa có hình ảnh nào được tải lên cho sự kiện này.</p>
+          )}
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2 text-sm font-semibold text-[#263b58]">
@@ -147,9 +248,34 @@ export function EventForm({
         <p className="text-xs leading-5 text-[#66758a]">{t.localTimeHint}</p>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2 text-sm font-semibold text-[#263b58]">
-            <p>{t.organizer}</p>
-            <EventOrganizerSelect selected={organizer} onChange={setOrganizer} disabled={saving} />
+            <p>{t.eventFaculty}</p>
+            <CustomSelect
+              value={selectedFacultyId}
+              onChange={(fid) => {
+                setSelectedFacultyId(fid);
+                setOrganizer(null);
+              }}
+              ariaLabel={t.eventFaculty}
+              disabled={saving || facultiesQuery.isLoading}
+              placeholder={t.selectEventFaculty}
+              options={faculties.map((fac) => ({
+                value: fac.id,
+                label: `${fac.code} — ${fac.name}`,
+              }))}
+            />
           </div>
+          <div className="space-y-2 text-sm font-semibold text-[#263b58]">
+            <p>{t.organizer}</p>
+            <EventOrganizerSelect
+              selected={organizer}
+              onChange={setOrganizer}
+              facultyId={selectedFacultyId || undefined}
+              placeholder={t.defaultFacultyOrganizer}
+              disabled={saving}
+            />
+          </div>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2 text-sm font-semibold text-[#263b58]">
             <p>{t.checkInMode}</p>
             <CustomSelect

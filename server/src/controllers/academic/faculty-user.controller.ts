@@ -4,6 +4,7 @@ import * as service from "@services/academic/faculty-user.service";
 import { ApiError } from "@utils/ApiError";
 import {
   objectInput,
+  enumInput,
   optionalQuery,
   searchInput,
   textInput,
@@ -15,8 +16,8 @@ const actor = (res: Response) => (res.locals.auth as AuthContext).sub;
 function input(req: Request): service.FacultyUserInput {
   const body = objectInput(req.body);
   const roleName = body.roleName;
-  if (roleName !== "STUDENT" && roleName !== "EVENT_ORGANIZER")
-    throw new ApiError(400, "Only STUDENT or EVENT_ORGANIZER can be managed");
+  if (roleName !== "STUDENT" && roleName !== "EVENT_ORGANIZER" && roleName !== "STUDENT_AFFAIRS")
+    throw new ApiError(400, "Only STUDENT, EVENT_ORGANIZER, or STUDENT_AFFAIRS can be managed");
   return {
     email: textInput(body.email, "email", 150),
     name: textInput(body.name, "name", 100),
@@ -31,6 +32,9 @@ export async function list(req: Request, res: Response) {
     actor(res),
     parsePagination(req.query),
     optionalQuery(req.query.search, searchInput),
+    optionalQuery(req.query.userType, (value) =>
+      enumInput(value, ["STUDENT", "STAFF"] as const, "userType"),
+    ),
   );
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }

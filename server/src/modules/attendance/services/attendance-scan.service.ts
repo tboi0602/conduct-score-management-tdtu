@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import {
   AttendanceDirection,
   AttendanceScanSource,
@@ -25,6 +25,8 @@ import {
   managedEvent,
   outboxData,
   validateCoordinates,
+  assertAttendanceWindow,
+  assertAttendanceStarted,
   type Coordinates,
 } from "@modules/attendance/services/attendance-session.service";
 export {
@@ -178,10 +180,11 @@ export async function submitStudentQr(
   const sessionId = verifyAttendanceQrToken(token);
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
-    include: { event: { select: { id: true, name: true, timeEnd: true } } },
+    include: { event: { select: { id: true, name: true, timeStart: true, timeEnd: true } } },
   });
   if (!session || session.status !== "OPEN")
     throw new ApiError(409, "Attendance session is closed");
+  assertAttendanceWindow(session.event);
   const activeId = await redisClient.getClient().get(activeSessionKey(session.eventId));
   if (activeId !== session.id) throw new ApiError(409, "Attendance session is closed");
   const result = await createScanRequest({
@@ -224,30 +227,24 @@ export async function submitManagedScan(
   },
 ) {
   const event = await managedEvent(eventId, access);
+  assertAttendanceStarted(event);
   if (event.checkInMode === "ONE_WAY" && input.direction === "CHECK_OUT")
     throw new ApiError(409, "One-way events do not support check-out");
-  const studentId =
-    input.source === "MANUAL_ENTRY"
-      ? (
-          await prisma.student.findUnique({
-            where: { studentCode: input.studentCode },
-            select: { id: true },
-          })
-        )?.id
-      : (
-          await prisma.eventRegistration.findFirst({
-            where: { eventId, status: "REGISTERED", student: { studentCode: input.studentCode } },
-            select: { studentId: true },
-          })
-        )?.studentId;
-  if (!studentId) {
-    throw new ApiError(
-      409,
-      input.source === "MANUAL_ENTRY"
-        ? "Student does not exist"
-        : "Student is not actively registered for this event",
-    );
+  const student = await prisma.student.findUnique({
+    where: { studentCode: input.studentCode },
+    select: { id: true },
+  });
+  if (!student) {
+    throw new ApiError(404, "Student does not exist");
   }
+  const registration = await prisma.eventRegistration.findFirst({
+    where: { eventId, studentId: student.id, status: "REGISTERED" },
+    select: { id: true },
+  });
+  if (!registration) {
+    throw new ApiError(409, "Student is not actively registered for this event");
+  }
+  const studentId = student.id;
   return createScanRequest({
     eventId,
     studentId,
