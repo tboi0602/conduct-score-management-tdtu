@@ -113,7 +113,9 @@ export function organizerLabel(unit: import("@/types/events").OrganizingUnit): s
   return unit.code;
 }
 
-export function organizerFacultyName(unit?: import("@/types/events").OrganizingUnit | null): string | null {
+export function organizerFacultyName(
+  unit?: import("@/types/events").OrganizingUnit | null,
+): string | null {
   if (!unit || unit.type === "FACULTY" || !unit.faculty?.name) return null;
   // If unit name is identical or already contains faculty name, do not duplicate
   const unitLabel = organizerLabel(unit).trim().toLowerCase();

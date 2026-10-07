@@ -110,7 +110,13 @@ export async function listRoleAssignmentUsers(
           select: { id: true, name: true },
         })
       : [];
-  return { items, roles, filterRoles, faculties, pagination: createPaginationMeta(total, pagination) };
+  return {
+    items,
+    roles,
+    filterRoles,
+    faculties,
+    pagination: createPaginationMeta(total, pagination),
+  };
 }
 
 export async function updateRoleAssignment(
@@ -147,7 +153,10 @@ export async function updateRoleAssignment(
     throw new ApiError(403, "User is outside your faculty scope");
   if (roles.length !== new Set(input.roleIds).size || roles.some((role) => role.name === "ADMIN"))
     throw new ApiError(403, "The selected role assignment is not allowed");
-  if (!isAdmin && roles.some((role) => !["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].includes(role.name)))
+  if (
+    !isAdmin &&
+    roles.some((role) => !["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].includes(role.name))
+  )
     throw new ApiError(403, "You cannot assign the selected role");
   if (target.student && !roles.some((role) => role.name === "STUDENT"))
     throw new ApiError(400, "Student accounts must retain the STUDENT role");
@@ -155,11 +164,21 @@ export async function updateRoleAssignment(
     throw new ApiError(400, "The STUDENT role can only be assigned to student accounts");
   if (target.student && roles.some((role) => role.name === "STUDENT_AFFAIRS"))
     throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
-  if (roles.some((role) => role.name === "STUDENT") && roles.some((role) => role.name === "STUDENT_AFFAIRS"))
+  if (
+    roles.some((role) => role.name === "STUDENT") &&
+    roles.some((role) => role.name === "STUDENT_AFFAIRS")
+  )
     throw new ApiError(400, "STUDENT and STUDENT_AFFAIRS roles cannot be combined");
-  if (roles.some((role) => role.name === "STUDENT_AFFAIRS") && roles.some((role) => role.name === "EVENT_ORGANIZER"))
+  if (
+    roles.some((role) => role.name === "STUDENT_AFFAIRS") &&
+    roles.some((role) => role.name === "EVENT_ORGANIZER")
+  )
     throw new ApiError(400, "STUDENT_AFFAIRS and EVENT_ORGANIZER roles cannot be combined");
-  if (target.student && !roles.some((role) => role.name === "EVENT_ORGANIZER") && input.primaryFacultyId !== undefined)
+  if (
+    target.student &&
+    !roles.some((role) => role.name === "EVENT_ORGANIZER") &&
+    input.primaryFacultyId !== undefined
+  )
     throw new ApiError(400, "Student academic faculty cannot be changed on this page");
   if (input.primaryFacultyId !== undefined && !isAdmin && !access.manageAnyUnit) {
     if (input.primaryFacultyId !== null && input.primaryFacultyId !== access.facultyId) {
@@ -176,7 +195,10 @@ export async function updateRoleAssignment(
 
   const resolvedPrimaryFacultyId =
     target.student && roles.some((role) => role.name === "EVENT_ORGANIZER")
-      ? (input.primaryFacultyId ?? target.primaryFacultyId ?? target.student.class?.major.facultyId ?? null)
+      ? (input.primaryFacultyId ??
+        target.primaryFacultyId ??
+        target.student.class?.major.facultyId ??
+        null)
       : input.primaryFacultyId;
 
   await prisma.$transaction(async (transaction) => {

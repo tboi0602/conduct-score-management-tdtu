@@ -263,7 +263,10 @@ export function StudentEvents() {
                 </span>
               </div>
               <EventCardGallery images={event.images} />
-              <Link href={`/events/${buildEventSlug(event.name, event.id)}`} className="mt-3.5 block">
+              <Link
+                href={`/events/${buildEventSlug(event.name, event.id)}`}
+                className="mt-3.5 block"
+              >
                 <h2 className="line-clamp-2 text-xl font-bold leading-7 tracking-[-.02em] text-[#102a50] transition group-hover:text-[#154a9b]">
                   {event.name}
                 </h2>
@@ -274,7 +277,8 @@ export function StudentEvents() {
                 </p>
                 {organizerFacultyName(event.organizer) ? (
                   <p className="text-[#66758a]">
-                    <span className="font-medium text-[#4a5568]">Khoa:</span> {organizerFacultyName(event.organizer)}
+                    <span className="font-medium text-[#4a5568]">Khoa:</span>{" "}
+                    {organizerFacultyName(event.organizer)}
                   </p>
                 ) : null}
               </div>

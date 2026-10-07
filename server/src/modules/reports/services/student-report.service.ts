@@ -10,7 +10,13 @@ const rankings = Object.values(Ranking);
 export async function getStudentReport(
   actorId: string,
   requestedSemesterId: string | undefined,
-  filters: { facultyId?: string; classId?: string; majorId?: string; ranking?: string; search?: string },
+  filters: {
+    facultyId?: string;
+    classId?: string;
+    majorId?: string;
+    ranking?: string;
+    search?: string;
+  },
   pagination: PaginationParams,
 ) {
   const actor = await prisma.user.findUnique({
@@ -23,9 +29,7 @@ export async function getStudentReport(
   const canReport =
     isAdmin ||
     access.manageAnyUnit ||
-    actor.userRoles.some(({ role }) =>
-      ["STUDENT_AFFAIRS", "EVENT_ORGANIZER"].includes(role.name),
-    );
+    actor.userRoles.some(({ role }) => ["STUDENT_AFFAIRS", "EVENT_ORGANIZER"].includes(role.name));
   if (!canReport) throw new ApiError(403, "Student report access denied");
 
   const canManageAllFaculties = isAdmin || access.manageAnyUnit;
@@ -35,7 +39,7 @@ export async function getStudentReport(
 
   // Determine active faculty scope
   const targetFacultyId = canManageAllFaculties
-    ? (filters.facultyId || undefined)
+    ? filters.facultyId || undefined
     : access.facultyId!;
 
   const semester = requestedSemesterId
@@ -61,7 +65,11 @@ export async function getStudentReport(
       : {}),
     ...(filters.classId ? { id: filters.classId } : {}),
   };
-  if (filters.ranking && filters.ranking !== "UNRATED" && !rankings.includes(filters.ranking as Ranking))
+  if (
+    filters.ranking &&
+    filters.ranking !== "UNRATED" &&
+    !rankings.includes(filters.ranking as Ranking)
+  )
     throw new ApiError(400, "Invalid ranking filter");
 
   const where: Prisma.StudentWhereInput = {

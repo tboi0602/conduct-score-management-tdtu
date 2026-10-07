@@ -39,8 +39,7 @@ export function attendanceRejectionReason(
   request: LoadedAttendanceRequest,
   registered: boolean,
 ): string | null {
-  if (!registered && request.source !== "BULK_IMPORT")
-    return "NOT_REGISTERED";
+  if (!registered && request.source !== "BULK_IMPORT") return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")
     return "DIRECTION_NOT_ALLOWED";
   if (request.source !== "STUDENT_QR") return null;

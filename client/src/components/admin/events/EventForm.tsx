@@ -145,9 +145,16 @@ export function EventForm({
           {images.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {images.map((url, idx) => (
-                <div key={idx} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-[#d8e2ed] bg-white">
+                <div
+                  key={idx}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-[#d8e2ed] bg-white"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Gallery ${idx + 1}`} className="h-full w-full object-cover" />
+                  <img
+                    src={url}
+                    alt={`Gallery ${idx + 1}`}
+                    className="h-full w-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
@@ -159,7 +166,9 @@ export function EventForm({
               ))}
             </div>
           ) : (
-            <p className="text-xs font-normal text-[#718096]">Chưa có hình ảnh nào được tải lên cho sự kiện này.</p>
+            <p className="text-xs font-normal text-[#718096]">
+              Chưa có hình ảnh nào được tải lên cho sự kiện này.
+            </p>
           )}
         </div>
         <div className="grid gap-5 sm:grid-cols-2">

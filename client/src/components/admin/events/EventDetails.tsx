@@ -100,7 +100,9 @@ export function EventDetails({
         ))}
       </dl>
       {(() => {
-        const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(event.description ?? "");
+        const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(
+          event.description ?? "",
+        );
         const allImages = Array.from(new Set([...(event.images ?? []), ...extractedImages]));
         if (!cleanedHtml.trim() && allImages.length === 0) return null;
         return (

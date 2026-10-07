@@ -4,6 +4,7 @@ type SeedEvent = {
   id: string;
   name: string;
   description: string;
+  images?: string[];
   location: string;
   deliveryMode: EventDeliveryMode;
   organizerCode: string;
@@ -24,6 +25,10 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000001",
     name: "Workshop Kỹ năng quản lý thời gian",
     description: "Workshop thực hành các phương pháp lập kế hoạch và quản lý thời gian hiệu quả.",
+    images: [
+      "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Hội trường A, TDTU",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU",
@@ -41,6 +46,10 @@ const events: SeedEvent[] = [
     name: "Chạy bộ Vì sức khỏe cộng đồng",
     description:
       "Hoạt động chạy bộ nâng cao sức khỏe và lan tỏa lối sống tích cực trong sinh viên.",
+    images: [
+      "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Sân vận động TDTU",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-010",
@@ -57,6 +66,10 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000003",
     name: "Chuyên đề An toàn thông tin cho sinh viên",
     description: "Nhận diện rủi ro trên không gian mạng và thực hành bảo vệ tài khoản cá nhân.",
+    images: [
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Phòng C004",
     deliveryMode: "OFFLINE",
     organizerCode: "FACULTY:IT",
@@ -73,6 +86,10 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000004",
     name: "Ngày hội Hiến máu tình nguyện",
     description: "Chương trình hiến máu nhân đạo dành cho sinh viên đủ điều kiện sức khỏe.",
+    images: [
+      "https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Nhà thi đấu TDTU",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-011",
@@ -89,6 +106,10 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000005",
     name: "Chủ nhật xanh tại khuôn viên trường",
     description: "Cùng thu gom rác, phân loại chất thải và chăm sóc mảng xanh trong khuôn viên.",
+    images: [
+      "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Cổng D, TDTU",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-001",
@@ -105,6 +126,10 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000006",
     name: "Đêm nhạc gây quỹ học bổng",
     description: "Chương trình âm nhạc gây quỹ hỗ trợ sinh viên có hoàn cảnh khó khăn.",
+    images: [
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Hội trường 2A",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-006",
@@ -122,6 +147,10 @@ const events: SeedEvent[] = [
     name: "Cuộc thi Ý tưởng khởi nghiệp sinh viên",
     description:
       "Trình bày và phản biện các ý tưởng kinh doanh sáng tạo trước hội đồng chuyên môn.",
+    images: [
+      "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Phòng họp C010",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-007",
@@ -138,6 +167,9 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000008",
     name: "Tập huấn kỹ năng sơ cấp cứu",
     description: "Hướng dẫn xử lý các tình huống sơ cấp cứu thường gặp trong học tập và sinh hoạt.",
+    images: [
+      "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Phòng thực hành B005",
     deliveryMode: "OFFLINE",
     organizerCode: "TDTU-CLUB-014",
@@ -154,6 +186,9 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000009",
     name: "Webinar Phương pháp tự học đại học",
     description: "Chia sẻ phương pháp ghi chú, đọc tài liệu và xây dựng kế hoạch tự học hiệu quả.",
+    images: [
+      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Microsoft Teams",
     deliveryMode: "ONLINE",
     organizerCode: "TDTU",
@@ -170,6 +205,9 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000010",
     name: "Thử thách trực tuyến 48 giờ sống xanh",
     description: "Ghi nhận các hành động bảo vệ môi trường và chia sẻ kết quả trong vòng 48 giờ.",
+    images: [
+      "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Cổng hoạt động sinh viên trực tuyến",
     deliveryMode: "ONLINE",
     organizerCode: "TDTU-CLUB-011",
@@ -186,6 +224,9 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000011",
     name: "Chuỗi học trực tuyến Kỹ năng nghề nghiệp",
     description: "Chuỗi chuyên đề về CV, phỏng vấn và giao tiếp trong môi trường doanh nghiệp.",
+    images: [
+      "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Zoom Webinar",
     deliveryMode: "ONLINE",
     organizerCode: "FACULTY:FBA",
@@ -202,6 +243,9 @@ const events: SeedEvent[] = [
     id: "20000000-0000-4000-8000-000000000012",
     name: "Talkshow trực tuyến Sức khỏe tinh thần",
     description: "Trao đổi cùng chuyên gia về quản lý căng thẳng và cân bằng cuộc sống sinh viên.",
+    images: [
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80",
+    ],
     location: "Google Meet",
     deliveryMode: "ONLINE",
     organizerCode: "TDTU-CLUB-023",
@@ -240,6 +284,7 @@ export async function seedEvents(prisma: PrismaClient): Promise<void> {
       name: event.name,
       description: event.description,
       descriptionPreview: event.description.slice(0, 500),
+      images: event.images ?? [],
       location: event.location,
       deliveryMode: event.deliveryMode,
       timeStart: event.timeStart,

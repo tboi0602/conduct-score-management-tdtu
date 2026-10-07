@@ -15,10 +15,16 @@ export async function list(req: Request, res: Response): Promise<void> {
     typeof req.query.search === "string" && req.query.search.trim()
       ? searchInput(req.query.search.trim())
       : undefined;
-  const roleId = typeof req.query.roleId === "string" && req.query.roleId.trim()
-    ? req.query.roleId.trim()
-    : undefined;
-  const result = await listRoleAssignmentUsers(auth.sub, parsePagination(req.query), search, roleId);
+  const roleId =
+    typeof req.query.roleId === "string" && req.query.roleId.trim()
+      ? req.query.roleId.trim()
+      : undefined;
+  const result = await listRoleAssignmentUsers(
+    auth.sub,
+    parsePagination(req.query),
+    search,
+    roleId,
+  );
   res.json({ ok: true, data: result });
 }
 

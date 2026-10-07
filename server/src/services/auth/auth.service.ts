@@ -284,9 +284,9 @@ export async function loginWithGoogle(idToken: string, mode: LoginMode) {
 
     const saved = existing
       ? await tx.user.update({
-        where: { id: existing.id },
-        data: { googleSubject, name },
-      })
+          where: { id: existing.id },
+          data: { googleSubject, name },
+        })
       : await tx.user.create({ data: { email, googleSubject, name } });
 
     await tx.userRole.upsert({

@@ -248,7 +248,9 @@ export default function EventDetailPage() {
         </div>
 
         {(() => {
-          const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(eventData.description ?? "");
+          const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(
+            eventData.description ?? "",
+          );
           const allImages = Array.from(new Set([...(eventData.images ?? []), ...extractedImages]));
           if (!cleanedHtml.trim() && allImages.length === 0) return null;
           return (

@@ -146,7 +146,10 @@ export function EventsManagement() {
                     </span>
                   </div>
                 </header>
-                <EventCardGallery images={event.images} onImageClick={() => loadDetail(event, setViewing)} />
+                <EventCardGallery
+                  images={event.images}
+                  onImageClick={() => loadDetail(event, setViewing)}
+                />
                 <button
                   type="button"
                   onClick={() => loadDetail(event, setViewing)}
@@ -161,7 +164,8 @@ export function EventsManagement() {
                     </p>
                     {organizerFacultyName(event.organizer) ? (
                       <p className="text-[#66758a]">
-                        <span className="font-medium text-[#4a5568]">Khoa:</span> {organizerFacultyName(event.organizer)}
+                        <span className="font-medium text-[#4a5568]">Khoa:</span>{" "}
+                        {organizerFacultyName(event.organizer)}
                       </p>
                     ) : null}
                   </div>

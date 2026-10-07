@@ -190,9 +190,7 @@ export function UserRoleAssignments() {
                       setEditing(user);
                       setSelectedRoleIds(user.userRoles.map((item) => item.role.id));
                       setPrimaryFacultyId(
-                        user.primaryFacultyId ??
-                          user.student?.class?.major.faculty.id ??
-                          "",
+                        user.primaryFacultyId ?? user.student?.class?.major.faculty.id ?? "",
                       );
                     }}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#eaf2fb] px-3 py-2 font-semibold text-[#154a9b]"

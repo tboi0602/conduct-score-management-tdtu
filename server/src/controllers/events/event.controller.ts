@@ -26,7 +26,9 @@ function parseInput(req: Request): events.EventInput {
   if (capacity !== null && capacity < 1)
     throw new ApiError(400, "capacity must be a positive integer or null");
   const images = Array.isArray(body.images)
-    ? (body.images as unknown[]).filter((url): url is string => typeof url === "string" && url.trim().length > 0)
+    ? (body.images as unknown[]).filter(
+        (url): url is string => typeof url === "string" && url.trim().length > 0,
+      )
     : [];
   return {
     name: textInput(body.name, "name"),
