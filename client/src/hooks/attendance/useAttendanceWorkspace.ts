@@ -14,8 +14,6 @@ import { attendanceService } from "@/services/attendance";
 import { eventService } from "@/services/events";
 import type { AttendanceDirection } from "@/types/attendance";
 
-type AttendanceResult = "ATTENDED" | "LATE" | "ABSENT";
-
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -58,12 +56,11 @@ export function useAttendanceWorkspace(eventId: string) {
   const [direction, setDirection] = useState<AttendanceDirection>("CHECK_IN");
   const [attendanceStatus, setAttendanceStatus] = useState<"ATTENDED" | "LATE">("ATTENDED");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [recordStatuses, setRecordStatuses] = useState<Record<string, AttendanceResult>>({});
   const [page, setPage] = useState(1);
   const [qrImage, setQrImage] = useState("");
   const [clock, setClock] = useState(Date.now());
-  const search = useDebounce(searchTerm.trim(), 500);
+  const debouncedSearch = useDebounce(searchTerm.trim(), 500);
+  const search = debouncedSearch.length >= 3 ? debouncedSearch : "";
 
   const eventQuery = useQuery({
     queryKey: queryKeys.events.detail(eventId),
@@ -72,6 +69,7 @@ export function useAttendanceWorkspace(eventId: string) {
   const sessionQuery = useQuery({
     queryKey: queryKeys.attendance.session(eventId),
     queryFn: () => attendanceService.activeSession(eventId).then((response) => response.data),
+    enabled: eventQuery.data?.deliveryMode === "OFFLINE",
     refetchInterval: 15_000,
   });
   const attendanceWindow = eventQuery.data
@@ -88,9 +86,13 @@ export function useAttendanceWorkspace(eventId: string) {
     refetchInterval: 15_000,
   });
   const requestsQuery = useQuery({
-    queryKey: [...queryKeys.attendance.requests(eventId, search, filterStatus), page],
-    queryFn: () => attendanceService.requests(eventId, page, search, filterStatus),
+    queryKey: [...queryKeys.attendance.requests(eventId, search), page],
+    queryFn: () => attendanceService.requests(eventId, page, search),
     placeholderData: keepPreviousData,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: Boolean(sessionQuery.data) && attendanceWindow === "OPEN" ? 2_000 : false,
   });
 
   useEffect(() => {
@@ -107,21 +109,46 @@ export function useAttendanceWorkspace(eventId: string) {
 
   useEffect(() => {
     let source: EventSource | null = null;
-    void attendanceService
-      .eventTicket(eventId)
-      .then(({ data }) => {
+    let retryTimer: number | null = null;
+    let cancelled = false;
+
+    const connect = async () => {
+      try {
+        const { data } = await attendanceService.eventTicket(eventId);
+        if (cancelled) return;
         source = new EventSource(
           `${env.apiBaseUrl}/api/v1/attendance/stream?ticket=${encodeURIComponent(data.ticket)}`,
         );
         source.addEventListener("message", () => {
           void queryClient.invalidateQueries({
-            queryKey: ["admin", "attendance", eventId],
+            queryKey: ["admin", "attendance", eventId, "requests"],
           });
         });
-      })
-      .catch(() => undefined);
-    return () => source?.close();
-  }, [eventId, filterStatus, queryClient, search]);
+        source.onerror = () => {
+          source?.close();
+          source = null;
+          if (cancelled || retryTimer !== null) return;
+          retryTimer = window.setTimeout(() => {
+            retryTimer = null;
+            void connect();
+          }, 2_000);
+        };
+      } catch {
+        if (cancelled || retryTimer !== null) return;
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          void connect();
+        }, 2_000);
+      }
+    };
+
+    void connect();
+    return () => {
+      cancelled = true;
+      source?.close();
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
+  }, [eventId, queryClient]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 1_000);
@@ -184,28 +211,10 @@ export function useAttendanceWorkspace(eventId: string) {
     [scan],
   );
   const barcode = useBarcodeScanner({ disabled: scan.isPending, onSubmit: submitBarcode });
-  const adjust = useMutation({
-    mutationFn: ({ recordId, status }: { recordId: string; status: AttendanceResult }) =>
-      attendanceService.adjustStatus(eventId, recordId, status),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.attendance.requests(eventId, search, filterStatus),
-      });
-      showToast(messages.adjusted);
-    },
-    onError: () => showToast(messages.actionError, "error"),
-  });
 
   const updateSearchTerm = (value: string) => {
     setSearchTerm(value);
     setPage(1);
-  };
-  const updateFilterStatus = (value: string) => {
-    setFilterStatus(value);
-    setPage(1);
-  };
-  const updateRecordStatus = (recordId: string, status: AttendanceResult) => {
-    setRecordStatuses((current) => ({ ...current, [recordId]: status }));
   };
   const qrSecondsRemaining = qrQuery.data
     ? Math.max(0, Math.ceil((new Date(qrQuery.data.expiresAt).getTime() - clock) / 1_000))
@@ -222,10 +231,6 @@ export function useAttendanceWorkspace(eventId: string) {
     setAttendanceStatus,
     searchTerm,
     updateSearchTerm,
-    filterStatus,
-    updateFilterStatus,
-    recordStatuses,
-    updateRecordStatus,
     page,
     setPage,
     qrImage,
@@ -233,7 +238,6 @@ export function useAttendanceWorkspace(eventId: string) {
     open,
     close,
     scan,
-    adjust,
     barcode,
     attendanceWindow,
   };

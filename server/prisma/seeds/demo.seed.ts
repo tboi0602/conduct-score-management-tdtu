@@ -39,6 +39,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
         timeStart: true,
         timeEnd: true,
         checkInMode: true,
+        deliveryMode: true,
       },
     }),
     prisma.criteria.findMany({ take: 5, orderBy: { createdAt: "asc" }, select: { id: true } }),
@@ -46,6 +47,13 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
 
   const password = await bcrypt.hash("student", 12);
   const students = [];
+
+  const onlineEventIds = events
+    .filter((event) => event.deliveryMode === "ONLINE")
+    .map((event) => event.id);
+  if (onlineEventIds.length) {
+    await prisma.eventRegistration.deleteMany({ where: { eventId: { in: onlineEventIds } } });
+  }
 
   for (const [index, [name, email, studentCode]] of demoStudents.entries()) {
     const user = await prisma.user.upsert({
@@ -122,15 +130,15 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       });
     }
 
-    if (score < 50) {
+    if (score < 80) {
       await prisma.conductScoreWarning.upsert({
         where: { studentId_semesterId: { studentId: student.id, semesterId: semester.id } },
-        update: { observedScore: score, status: "ACTIVE" },
+        update: { observedScore: score, threshold: 80, status: "ACTIVE", resolvedAt: null },
         create: {
           studentId: student.id,
           semesterId: semester.id,
           observedScore: score,
-          threshold: 50,
+          threshold: 80,
         },
       });
     }
@@ -138,19 +146,21 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     for (const [eventIndex, event] of events.entries()) {
       if ((studentIndex + eventIndex) % 3 === 0) continue;
       const registered = (studentIndex + eventIndex) % 5 !== 0;
-      await prisma.eventRegistration.upsert({
-        where: { eventId_studentId: { eventId: event.id, studentId: student.id } },
-        update: {
-          status: registered ? "REGISTERED" : "CANCELLED",
-          cancelledAt: registered ? null : event.timeStart,
-        },
-        create: {
-          eventId: event.id,
-          studentId: student.id,
-          status: registered ? "REGISTERED" : "CANCELLED",
-          cancelledAt: registered ? null : event.timeStart,
-        },
-      });
+      if (event.deliveryMode === "OFFLINE") {
+        await prisma.eventRegistration.upsert({
+          where: { eventId_studentId: { eventId: event.id, studentId: student.id } },
+          update: {
+            status: registered ? "REGISTERED" : "CANCELLED",
+            cancelledAt: registered ? null : event.timeStart,
+          },
+          create: {
+            eventId: event.id,
+            studentId: student.id,
+            status: registered ? "REGISTERED" : "CANCELLED",
+            cancelledAt: registered ? null : event.timeStart,
+          },
+        });
+      }
 
       if (event.timeEnd < new Date() && registered) {
         const attendanceStatus: AttendanceStatus =
@@ -210,9 +220,12 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   }
 
   for (const event of events) {
-    const registeredCount = await prisma.eventRegistration.count({
-      where: { eventId: event.id, status: "REGISTERED" },
-    });
+    const registeredCount =
+      event.deliveryMode === "ONLINE"
+        ? 0
+        : await prisma.eventRegistration.count({
+            where: { eventId: event.id, status: "REGISTERED" },
+          });
     await prisma.event.update({ where: { id: event.id }, data: { registeredCount } });
   }
 }

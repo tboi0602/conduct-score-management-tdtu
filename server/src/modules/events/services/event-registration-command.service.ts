@@ -34,6 +34,7 @@ async function register(eventId: string, studentId: string, actorUserId: string,
           where: { id: eventId },
           select: {
             id: true,
+            deliveryMode: true,
             capacity: true,
             registeredCount: true,
             registrationStart: true,
@@ -41,12 +42,22 @@ async function register(eventId: string, studentId: string, actorUserId: string,
           },
         });
         if (!event) throw new ApiError(404, "Event not found");
+        if (event.deliveryMode === "ONLINE") {
+          throw new ApiError(
+            409,
+            "Online events do not require registration",
+            "ONLINE_REGISTRATION_NOT_REQUIRED",
+          );
+        }
         const student = await tx.student.findUnique({
           where: { id: studentId },
           select: { id: true },
         });
         if (!student) throw new ApiError(404, "Student not found");
         const now = new Date();
+        if (!event.registrationStart || !event.registrationEnd) {
+          throw new ApiError(409, "Registration window is not configured");
+        }
         if (!bypass && now < event.registrationStart)
           throw new ApiError(409, "Registration has not opened", "REGISTRATION_NOT_OPEN");
         if (!bypass && now > event.registrationEnd)
@@ -94,6 +105,9 @@ async function register(eventId: string, studentId: string, actorUserId: string,
             },
           });
           if (!latest) throw new ApiError(404, "Event not found");
+          if (!latest.registrationStart || !latest.registrationEnd) {
+            throw new ApiError(409, "Registration window is not configured");
+          }
           if (now < latest.registrationStart)
             throw new ApiError(409, "Registration has not opened", "REGISTRATION_NOT_OPEN");
           if (now > latest.registrationEnd)
@@ -119,9 +133,17 @@ async function cancel(eventId: string, studentId: string, actorUserId: string, b
   return prisma.$transaction(async (tx) => {
     const event = await tx.event.findUnique({
       where: { id: eventId },
-      select: { registrationEnd: true },
+      select: { deliveryMode: true, registrationEnd: true },
     });
     if (!event) throw new ApiError(404, "Event not found");
+    if (event.deliveryMode === "ONLINE") {
+      throw new ApiError(
+        409,
+        "Online events do not require registration",
+        "ONLINE_REGISTRATION_NOT_REQUIRED",
+      );
+    }
+    if (!event.registrationEnd) throw new ApiError(409, "Registration window is not configured");
     const now = new Date();
     if (!bypass && now > event.registrationEnd)
       throw new ApiError(409, "Cancellation period has ended");
@@ -165,9 +187,16 @@ export async function cancelSelf(userId: string, eventId: string) {
 async function assertManagedEvent(eventId: string, access: EventAccess) {
   const event = await prisma.event.findFirst({
     where: { id: eventId, ...eventScope(access) },
-    select: { id: true, checkInMode: true, timeEnd: true },
+    select: { id: true, deliveryMode: true, checkInMode: true, timeEnd: true },
   });
   if (!event) throw new ApiError(404, "Event not found");
+  if (event.deliveryMode === "ONLINE") {
+    throw new ApiError(
+      409,
+      "Online events do not require registration",
+      "ONLINE_REGISTRATION_NOT_REQUIRED",
+    );
+  }
   return event;
 }
 

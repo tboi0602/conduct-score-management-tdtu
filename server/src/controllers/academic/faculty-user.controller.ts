@@ -8,6 +8,7 @@ import {
   optionalQuery,
   searchInput,
   textInput,
+  uuidArrayInput,
   uuidInput,
 } from "@utils/crudValidation";
 import { parsePagination } from "@utils/pagination";
@@ -59,4 +60,21 @@ export async function status(req: Request, res: Response) {
 export async function removeStudent(req: Request, res: Response) {
   await service.deleteFacultyStudent(actor(res), uuidInput(req.params.id));
   res.status(204).end();
+}
+
+export async function removeStudents(req: Request, res: Response) {
+  const body = objectInput(req.body);
+  res.json({
+    ok: true,
+    data: await service.deleteFacultyStudents(actor(res), uuidArrayInput(body.ids)),
+  });
+}
+
+export async function statuses(req: Request, res: Response) {
+  const body = objectInput(req.body);
+  const nextStatus = enumInput(body.status, ["ACTIVE", "DISABLED"] as const, "status");
+  res.json({
+    ok: true,
+    data: await service.setFacultyStaffStatuses(actor(res), uuidArrayInput(body.ids), nextStatus),
+  });
 }

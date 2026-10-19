@@ -1,9 +1,11 @@
 "use client";
 
-import { FilterX, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Eye, EyeOff, FilterX, Pencil, Plus, Search, Trash2, UserCheck, UserX } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { SelectionCheckbox } from "@/components/admin/SelectionCheckbox";
 import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -11,10 +13,16 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useUsersManagement } from "@/hooks/users/useUsersManagement";
+import { usePageSelection } from "@/hooks/shared/usePageSelection";
 import type { AdminUser, Faculty, Role } from "@/types/admin";
 
 const inputClass =
   "mt-2 min-h-11 w-full rounded-xl border border-[#cdd9e7] bg-white px-3.5 text-sm text-[#263b58] outline-none transition placeholder:text-[#9aa8ba] focus:border-[#154a9b] focus:ring-4 focus:ring-[#154a9b]/10";
+
+type UserFormField =
+  "email" | "name" | "password" | "confirmPassword" | "roleIds" | "primaryFacultyId";
+
+type UserFormErrors = Partial<Record<UserFormField, string>>;
 
 function UserForm({
   user,
@@ -22,19 +30,31 @@ function UserForm({
   roles,
   faculties,
   onSubmit,
+  onCancel,
   saving,
   error,
+  apiFieldErrors,
 }: {
   user: AdminUser | null;
   mode?: "STUDENT" | "STAFF";
   roles: Role[];
   faculties: Faculty[];
   onSubmit: ReturnType<typeof useUsersManagement>["submit"];
+  onCancel: () => void;
   saving: boolean;
   error: string | null;
+  apiFieldErrors: Record<string, string>;
 }) {
-  const { t } = useAdminTranslations();
+  const { locale, t } = useAdminTranslations();
+  const [fieldErrors, setFieldErrors] = useState<UserFormErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const initialClass = user?.student?.class;
+  const isStudentOrganizer = Boolean(
+    mode === "STAFF" &&
+    user?.student &&
+    user.userRoles.some(({ role }) => role.name === "EVENT_ORGANIZER"),
+  );
   const [facultyId, setFacultyId] = useState(initialClass?.major.faculty.id ?? "");
   const [majorId, setMajorId] = useState(initialClass?.major.id ?? "");
   const [classId, setClassId] = useState(user?.student?.classId ?? "");
@@ -42,28 +62,151 @@ function UserForm({
   const majors = faculties.find((item) => item.id === facultyId)?.majors ?? [];
   const classes = majors.find((item) => item.id === majorId)?.classes ?? [];
   const selectedRoles = new Set(user?.userRoles.flatMap(({ role }) => [role.id, role.name]) ?? []);
+  const displayedError = (field: UserFormField) => fieldErrors[field] ?? apiFieldErrors[field];
+  const validateStaffForm = (form: FormData): UserFormErrors => {
+    if (mode !== "STAFF") return {};
+    const errors: UserFormErrors = {};
+    const email = String(form.get("email") ?? "")
+      .trim()
+      .toLowerCase();
+    const name = String(form.get("name") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    const confirmation = String(form.get("confirmPassword") ?? "");
+    if (!email) errors.email = t.emailRequired;
+    else if (!isStudentOrganizer && !/^[^@\s]+@tdtu\.edu\.vn$/i.test(email))
+      errors.email = t.staffEmailInvalid;
+    if (!name) errors.name = t.fullNameRequired;
+    if (!user && !password) errors.password = t.passwordRequired;
+    else if (password && password.length < 6) errors.password = t.passwordTooShort;
+    if (!user && !confirmation) errors.confirmPassword = t.confirmPasswordRequired;
+    else if (!user && confirmation !== password) errors.confirmPassword = t.passwordMismatch;
+    if (form.getAll("roleIds").length !== 1) errors.roleIds = t.staffRoleRequired;
+    if (!isStudentOrganizer && !String(form.get("primaryFacultyId") ?? "")) {
+      errors.primaryFacultyId = t.staffFacultyRequired;
+    }
+    return errors;
+  };
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextErrors = validateStaffForm(new FormData(event.currentTarget));
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    void onSubmit(event);
+  };
   return (
-    <form key={user?.id ?? "new"} onSubmit={onSubmit} className="space-y-6">
+    <form
+      key={user?.id ?? "new"}
+      onSubmit={handleSubmit}
+      noValidate={mode === "STAFF"}
+      className="space-y-6"
+    >
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-semibold text-[#263b58]">
-          {t.email}
-          <input name="email" required defaultValue={user?.email ?? ""} className={inputClass} />
-        </label>
-        <label className="text-sm font-semibold text-[#263b58]">
-          {t.fullName}
-          <input name="name" required defaultValue={user?.name ?? ""} className={inputClass} />
-        </label>
-        <label className="text-sm font-semibold text-[#263b58]">
-          {t.password}
+        <div className="text-sm font-semibold text-[#263b58]">
+          <label htmlFor="user-form-email">{mode === "STAFF" ? t.staffEmail : t.email}</label>
           <input
-            name="password"
-            type="password"
-            required={!user}
-            minLength={6}
-            placeholder={user ? t.passwordKeep : "Minimum 6 characters"}
+            id="user-form-email"
+            name="email"
+            type={mode === "STAFF" ? "email" : "text"}
+            required={mode !== "STAFF"}
+            maxLength={150}
+            defaultValue={user?.email ?? ""}
+            readOnly={isStudentOrganizer}
+            aria-invalid={Boolean(displayedError("email"))}
+            aria-describedby={displayedError("email") ? "user-form-email-error" : undefined}
+            className={`${inputClass} ${isStudentOrganizer ? "cursor-not-allowed bg-[#f3f6fa] text-[#66758a]" : ""}`}
+          />
+          {mode === "STAFF" && !isStudentOrganizer && !displayedError("email") ? (
+            <p className="mt-2 text-xs font-normal text-[#66758a]">{t.staffEmailHint}</p>
+          ) : null}
+          {displayedError("email") ? (
+            <p id="user-form-email-error" role="alert" className="mt-2 text-xs text-[#b72e3f]">
+              {displayedError("email")}
+            </p>
+          ) : null}
+        </div>
+        <div className="text-sm font-semibold text-[#263b58]">
+          <label htmlFor="user-form-name">{t.fullName}</label>
+          <input
+            id="user-form-name"
+            name="name"
+            required={mode !== "STAFF"}
+            maxLength={100}
+            defaultValue={user?.name ?? ""}
+            aria-invalid={Boolean(displayedError("name"))}
+            aria-describedby={displayedError("name") ? "user-form-name-error" : undefined}
             className={inputClass}
           />
-        </label>
+          {displayedError("name") ? (
+            <p id="user-form-name-error" role="alert" className="mt-2 text-xs text-[#b72e3f]">
+              {displayedError("name")}
+            </p>
+          ) : null}
+        </div>
+        <div className="text-sm font-semibold text-[#263b58]">
+          <label htmlFor="user-form-password">{t.password}</label>
+          <div className="relative">
+            <input
+              id="user-form-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required={mode !== "STAFF" && !user}
+              minLength={6}
+              placeholder={user ? t.passwordKeep : t.passwordMinimum}
+              aria-invalid={Boolean(displayedError("password"))}
+              aria-describedby={displayedError("password") ? "user-form-password-error" : undefined}
+              className={`${inputClass} pr-11`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? t.hidePassword : t.showPassword}
+              className="absolute right-3 top-[calc(50%+4px)] grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#66758a] transition hover:bg-[#edf2f8] hover:text-[#154a9b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#154a9b]/30"
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+          {displayedError("password") ? (
+            <p id="user-form-password-error" role="alert" className="mt-2 text-xs text-[#b72e3f]">
+              {displayedError("password")}
+            </p>
+          ) : null}
+        </div>
+        {mode === "STAFF" && !user ? (
+          <div className="text-sm font-semibold text-[#263b58]">
+            <label htmlFor="user-form-confirm-password">{t.confirmPassword}</label>
+            <div className="relative">
+              <input
+                id="user-form-confirm-password"
+                name="confirmPassword"
+                type={showConfirmation ? "text" : "password"}
+                minLength={6}
+                placeholder={t.passwordMinimum}
+                aria-invalid={Boolean(displayedError("confirmPassword"))}
+                aria-describedby={
+                  displayedError("confirmPassword") ? "user-form-confirm-password-error" : undefined
+                }
+                className={`${inputClass} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmation((current) => !current)}
+                aria-label={showConfirmation ? t.hidePassword : t.showPassword}
+                className="absolute right-3 top-[calc(50%+4px)] grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#66758a] transition hover:bg-[#edf2f8] hover:text-[#154a9b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#154a9b]/30"
+              >
+                {showConfirmation ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            {displayedError("confirmPassword") ? (
+              <p
+                id="user-form-confirm-password-error"
+                role="alert"
+                className="mt-2 text-xs text-[#b72e3f]"
+              >
+                {displayedError("confirmPassword")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {mode !== "STAFF" ? (
           <label className="text-sm font-semibold text-[#263b58]">
             {t.studentCode}
@@ -97,11 +240,15 @@ function UserForm({
           </div>
         </fieldset>
       ) : mode === "STAFF" ? (
-        <fieldset>
+        <fieldset aria-describedby={displayedError("roleIds") ? "staff-role-error" : undefined}>
           <legend className="text-sm font-semibold text-[#263b58]">{t.role}</legend>
           <div className="mt-3 flex flex-wrap gap-2">
             {roles
-              .filter((role) => role.name === "EVENT_ORGANIZER" || role.name === "STUDENT_AFFAIRS")
+              .filter((role) =>
+                isStudentOrganizer
+                  ? role.name === "EVENT_ORGANIZER"
+                  : role.name === "EVENT_ORGANIZER" || role.name === "STUDENT_AFFAIRS",
+              )
               .map((role) => (
                 <label
                   key={role.id}
@@ -111,37 +258,60 @@ function UserForm({
                     type="radio"
                     name="roleIds"
                     value={role.id}
-                    defaultChecked={
-                      selectedRoles.has(role.id) || (!user && role.name === "EVENT_ORGANIZER")
-                    }
+                    defaultChecked={selectedRoles.has(role.id)}
                     className="accent-[#154a9b]"
                   />
-                  {role.name === "EVENT_ORGANIZER"
-                    ? "Tổ chức sự kiện (EVENT_ORGANIZER)"
-                    : "Công tác sinh viên (STUDENT_AFFAIRS)"}
+                  {role.name === "EVENT_ORGANIZER" ? t.eventOrganizerRole : t.studentAffairsRole}
                 </label>
               ))}
           </div>
+          {displayedError("roleIds") ? (
+            <p id="staff-role-error" role="alert" className="mt-2 text-xs text-[#b72e3f]">
+              {displayedError("roleIds")}
+            </p>
+          ) : null}
         </fieldset>
       ) : null}
       {!mode || mode === "STAFF" ? (
         <div className="text-sm font-semibold text-[#263b58]">
-          Khoa trực thuộc
-          <CustomSelect
-            name="primaryFacultyId"
-            value={primaryFacultyId}
-            onChange={setPrimaryFacultyId}
-            options={faculties.map((item) => ({
-              value: item.id,
-              label: `${item.code} — ${item.name}`,
-            }))}
-            placeholder="Chọn khoa trực thuộc"
-            className="mt-2"
-          />
-          <p className="mt-2 text-xs font-normal text-[#66758a]">
-            Sinh viên sử dụng khoa suy ra từ lớp; giá trị này áp dụng cho tài khoản cán bộ và giảng
-            viên.
-          </p>
+          {mode === "STAFF" ? t.affiliatedFaculty : t.faculty}
+          {isStudentOrganizer ? (
+            <div className="mt-2 min-h-11 rounded-xl border border-[#dce4ef] bg-[#f3f6fa] px-3.5 py-3 text-sm font-normal text-[#66758a]">
+              {initialClass
+                ? `${initialClass.major.faculty.code} — ${initialClass.major.faculty.name}`
+                : "—"}
+            </div>
+          ) : (
+            <CustomSelect
+              name="primaryFacultyId"
+              value={primaryFacultyId}
+              onChange={setPrimaryFacultyId}
+              options={faculties.map((item) => ({
+                value: item.id,
+                label: `${item.code} — ${item.name}`,
+              }))}
+              placeholder={t.selectAffiliatedFaculty}
+              ariaLabel={t.affiliatedFaculty}
+              className="mt-2"
+            />
+          )}
+          {displayedError("primaryFacultyId") ? (
+            <p role="alert" className="mt-2 text-xs font-normal text-[#b72e3f]">
+              {displayedError("primaryFacultyId")}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs font-normal text-[#66758a]">
+              {mode === "STAFF"
+                ? isStudentOrganizer
+                  ? locale === "vi"
+                    ? "Khoa được xác định từ lớp của sinh viên và không thay đổi tại đây."
+                    : "The faculty is derived from the student's class and cannot be changed here."
+                  : t.staffFacultyHelp
+                : locale === "vi"
+                  ? "Sinh viên sử dụng khoa suy ra từ lớp; giá trị này áp dụng cho tài khoản cán bộ và giảng viên."
+                  : "A student's faculty is derived from their class; this value applies to staff and lecturer accounts."}
+            </p>
+          )}
         </div>
       ) : null}
       {mode !== "STAFF" ? (
@@ -205,12 +375,21 @@ function UserForm({
           {error}
         </p>
       ) : null}
-      <div className="flex justify-end">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          className="rounded-xl border border-[#cdd9e7] bg-white px-5 py-3 text-sm font-bold text-[#52647d] transition hover:border-[#9eb3cd] hover:bg-[#f7f9fc] active:scale-[.98] disabled:opacity-50"
+        >
+          {t.cancel}
+        </button>
+        <button
+          type="submit"
           disabled={saving}
           className="rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-12px_rgba(21,74,155,.75)] transition hover:bg-[#103f86] active:scale-[.98] disabled:opacity-50"
         >
-          {saving ? `${t.saving}...` : t.save}
+          {saving ? `${t.saving}...` : mode === "STAFF" && !user ? t.addStaff : t.save}
         </button>
       </div>
     </form>
@@ -224,6 +403,36 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
   const [majorId, setMajorId] = useState("");
   const [classId, setClassId] = useState("");
   const [roleId, setRoleId] = useState("");
+  const [bulkAction, setBulkAction] = useState<"delete" | "activate" | "disable" | null>(null);
+  const selectableIds = useMemo(() => {
+    if (mode === "STUDENT" && state.canBulkDeleteStudents) {
+      return state.items
+        .filter(
+          (user) =>
+            Boolean(user.student) &&
+            user.id !== state.currentUserId &&
+            !user.userRoles.some(({ role }) => role.name === "ADMIN"),
+        )
+        .map((user) => user.id);
+    }
+    if (mode === "STAFF" && state.canBulkManageStaff) {
+      return state.items
+        .filter(
+          (user) =>
+            user.id !== state.currentUserId &&
+            !user.userRoles.some(({ role }) => role.name === "ADMIN"),
+        )
+        .map((user) => user.id);
+    }
+    return [];
+  }, [
+    mode,
+    state.canBulkDeleteStudents,
+    state.canBulkManageStaff,
+    state.currentUserId,
+    state.items,
+  ]);
+  const selection = usePageSelection(selectableIds);
   const majors = useMemo(
     () => state.faculties.find((item) => item.id === facultyId)?.majors ?? [],
     [facultyId, state.faculties],
@@ -242,6 +451,33 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
     state.setSearchTerm("");
     state.applyFilters({});
   };
+  const canCreate = !mode || (mode === "STAFF" && state.canCreateStaff);
+  const confirmBulkAction = async () => {
+    if (!bulkAction) return;
+    try {
+      const itemCount = state.items.length;
+      let deletedCount = 0;
+      if (bulkAction === "delete") {
+        const response = await state.bulkDeleteStudents.mutateAsync(selection.selectedIds);
+        deletedCount = response.data.succeededIds.length;
+      } else if (bulkAction === "activate") {
+        await state.bulkActivateStaff.mutateAsync(selection.selectedIds);
+      } else {
+        await state.bulkDisableStaff.mutateAsync(selection.selectedIds);
+      }
+      if (deletedCount >= itemCount && !state.pagination.hasNextPage && state.page > 1) {
+        state.setPage(state.page - 1);
+      }
+      selection.clear();
+      setBulkAction(null);
+    } catch {
+      // The shared mutation reports a localized error and keeps the dialog open.
+    }
+  };
+  const bulkPending =
+    state.bulkDeleteStudents.isPending ||
+    state.bulkActivateStaff.isPending ||
+    state.bulkDisableStaff.isPending;
   return (
     <section>
       <AdminPageHeader
@@ -265,16 +501,16 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
             : t.userDescription
         }
         action={
-          mode ? undefined : (
+          canCreate ? (
             <button
               type="button"
               onClick={state.openCreate}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(21,74,155,.7)] transition hover:-translate-y-0.5 hover:bg-[#103f86] active:translate-y-0 active:scale-[.98]"
             >
               <Plus size={17} />
-              {t.addUser}
+              {mode === "STAFF" ? t.addStaff : t.addUser}
             </button>
-          )
+          ) : undefined
         }
       />
       <div className="mt-7 rounded-[22px] border border-[#dce4ef] bg-white p-4 shadow-[0_18px_40px_-28px_rgba(31,67,111,.35)]">
@@ -348,6 +584,35 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
           ) : null}
         </div>
       </div>
+      <BulkActionBar count={selection.selectedIds.length} onClear={selection.clear}>
+        {mode === "STUDENT" ? (
+          <button
+            type="button"
+            onClick={() => setBulkAction("delete")}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#bd3343] px-4 py-2 text-sm font-bold text-white hover:bg-[#a72a38]"
+          >
+            <Trash2 size={16} /> {t.deleteSelected}
+          </button>
+        ) : null}
+        {mode === "STAFF" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setBulkAction("activate")}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1f7a4d] px-4 py-2 text-sm font-bold text-white hover:bg-[#17643f]"
+            >
+              <UserCheck size={16} /> {t.activateSelected}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkAction("disable")}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#bd3343] px-4 py-2 text-sm font-bold text-white hover:bg-[#a72a38]"
+            >
+              <UserX size={16} /> {t.disableSelected}
+            </button>
+          </>
+        ) : null}
+      </BulkActionBar>
       {state.actionError && !state.isModalOpen ? (
         <p role="alert" className="mt-4 rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
           {state.actionError}
@@ -358,9 +623,20 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
           <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
               <tr>
+                {selectableIds.length > 0 ? (
+                  <th className="w-12 px-3 py-4 text-center">
+                    <SelectionCheckbox
+                      checked={selection.allSelected}
+                      indeterminate={selection.someSelected}
+                      onChange={selection.toggleAll}
+                      label={t.selectAllPage}
+                    />
+                  </th>
+                ) : null}
                 <th className="w-20 px-5 py-4 text-center">{t.ordinal}</th>
                 <th className="px-5 py-4">{t.user}</th>
                 <th className="px-5 py-4">{t.role}</th>
+                {mode === "STAFF" ? <th className="px-5 py-4">{t.status}</th> : null}
                 <th className="px-5 py-4">{t.studentCode}</th>
                 <th className="px-5 py-4">{t.faculty}</th>
                 <th className="px-5 py-4">{t.major}</th>
@@ -370,13 +646,25 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
               </tr>
             </thead>
             {state.isLoading ? (
-              <TableSkeleton columns={9} />
+              <TableSkeleton
+                columns={9 + (selectableIds.length > 0 ? 1 : 0) + (mode === "STAFF" ? 1 : 0)}
+              />
             ) : (
               <tbody className="divide-y divide-[#e7ecf3]">
                 {state.items.map((user, index) => {
                   const academic = user.student?.class;
                   return (
                     <tr key={user.id} className="transition-colors hover:bg-[#f9fbfd]">
+                      {selectableIds.length > 0 ? (
+                        <td className="w-12 px-3 py-4 text-center">
+                          <SelectionCheckbox
+                            checked={selection.selectedSet.has(user.id)}
+                            onChange={() => selection.toggle(user.id)}
+                            label={`${t.selectRow}: ${user.name}`}
+                            disabled={!selectableIds.includes(user.id)}
+                          />
+                        </td>
+                      ) : null}
                       <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
                         {(state.pagination.page - 1) * state.pagination.limit + index + 1}
                       </td>
@@ -407,6 +695,19 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
                           ))}
                         </div>
                       </td>
+                      {mode === "STAFF" ? (
+                        <td className="px-5 py-4">
+                          <span
+                            className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold ${
+                              user.status === "ACTIVE"
+                                ? "bg-[#e9f8f0] text-[#16724a]"
+                                : "bg-[#fff0f1] text-[#a72a38]"
+                            }`}
+                          >
+                            {user.status === "ACTIVE" ? t.active : t.disabled}
+                          </span>
+                        </td>
+                      ) : null}
                       <td className="px-5 py-4 font-mono text-xs font-semibold text-[#40546f]">
                         {user.student?.studentCode ?? "—"}
                       </td>
@@ -433,17 +734,19 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
                           >
                             <Pencil size={16} />
                           </IconButton>
-                          <IconButton
-                            label={t.delete}
-                            tone="danger"
-                            onClick={() => state.setDeleting(user)}
-                            disabled={
-                              user.userRoles.some(({ role }) => role.name === "ADMIN") ||
-                              user.id === state.currentUserId
-                            }
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
+                          {mode === "STAFF" && user.student ? null : (
+                            <IconButton
+                              label={t.delete}
+                              tone="danger"
+                              onClick={() => state.setDeleting(user)}
+                              disabled={
+                                user.userRoles.some(({ role }) => role.name === "ADMIN") ||
+                                user.id === state.currentUserId
+                              }
+                            >
+                              <Trash2 size={16} />
+                            </IconButton>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -462,8 +765,16 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
       <Modal
         open={state.isModalOpen}
         onClose={state.closeModal}
-        title={state.editing ? t.editUser : t.addUser}
-        description={t.userDescription}
+        title={
+          mode === "STAFF"
+            ? state.editing
+              ? t.editStaff
+              : t.addStaff
+            : state.editing
+              ? t.editUser
+              : t.addUser
+        }
+        description={mode === "STAFF" ? t.staffDescription : t.userDescription}
         size="xl"
       >
         <UserForm
@@ -473,8 +784,10 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
           roles={state.roles}
           faculties={state.faculties}
           onSubmit={state.submit}
+          onCancel={state.closeModal}
           saving={state.isSaving}
           error={state.actionError}
+          apiFieldErrors={state.actionFieldErrors}
         />
       </Modal>
       <ConfirmDialog
@@ -483,6 +796,32 @@ export function UsersManagement({ mode }: { mode?: "STUDENT" | "STAFF" }) {
         onConfirm={state.confirmDelete}
         title={t.confirmDeleteUser}
         subject={state.deleting?.email ?? ""}
+      />
+      <ConfirmDialog
+        open={Boolean(bulkAction)}
+        onClose={() => setBulkAction(null)}
+        onConfirm={() => void confirmBulkAction()}
+        title={
+          bulkAction === "activate"
+            ? t.confirmActivateSelected
+            : bulkAction === "disable"
+              ? t.confirmDisableSelected
+              : t.confirmDeleteSelected
+        }
+        subject={t.selectedCount.replace("{count}", String(selection.selectedIds.length))}
+        description={
+          bulkAction === "delete"
+            ? t.confirmDeleteSelectedDescription
+            : t.confirmStaffStatusDescription
+        }
+        pending={bulkPending}
+        confirmLabel={
+          bulkAction === "activate"
+            ? t.activateSelected
+            : bulkAction === "disable"
+              ? t.disableSelected
+              : t.deleteSelected
+        }
       />
     </section>
   );

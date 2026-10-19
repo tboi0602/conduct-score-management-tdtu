@@ -7,8 +7,10 @@ export type AttendanceSource =
 export type AttendanceImportResult = {
   requested: number;
   queued: number;
-  duplicateCodes: string[];
-  notFoundCodes: string[];
+  duplicateIdentifiers: string[];
+  invalidIdentifiers: string[];
+  notFoundIdentifiers: string[];
+  alreadyRecordedIdentifiers: string[];
 };
 export type AttendanceReconciliationState = "MATCHED" | "CLIENT_ONLY" | "SERVER_ONLY" | "RESOLVED";
 export type AttendanceReconciliationRow = {

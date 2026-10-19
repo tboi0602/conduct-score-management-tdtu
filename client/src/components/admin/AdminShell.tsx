@@ -96,6 +96,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
           attendance: "Attendance",
         };
   const { can, profile } = useAdminAccess();
+  const canAssignUserRoles =
+    can("faculty-staff.assign-event-organizer") &&
+    Boolean(
+      profile?.roles.some((role) => role.name === "ADMIN" || role.name === "STUDENT_AFFAIRS"),
+    );
   const pendingAppealsCount = usePendingAppealsCount(can("appeal.read"));
   const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
   if (!user) return <PageLoadingSkeleton />;
@@ -418,9 +423,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </div>
           )
         ) : null}
-        {can("role.read") ||
-        can("permission.read") ||
-        can("faculty-staff.assign-event-organizer") ? (
+        {can("role.read") || can("permission.read") || canAssignUserRoles ? (
           collapsed ? (
             <Tooltip label={t.authorization} side="right" className="w-full">
               <button
@@ -459,7 +462,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ${authorizationOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
               >
                 <div className="min-h-0 space-y-1 pt-1">
-                  {can("faculty-staff.assign-event-organizer") ? (
+                  {canAssignUserRoles ? (
                     <Link
                       href="/admin/role-assignment"
                       className={`ml-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${pathname === "/admin/role-assignment" ? "text-[#154a9b]" : "text-[#66758a] hover:bg-[#f3f6fa]"}`}

@@ -57,6 +57,10 @@ export async function listRoleAssignmentUsers(
   });
   if (!actor) throw new ApiError(401, "User not found");
   const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
+  const isStudentAffairs = actor.userRoles.some(({ role }) => role.name === "STUDENT_AFFAIRS");
+  if (!isAdmin && !isStudentAffairs) {
+    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
+  }
   const where: Prisma.UserWhereInput = {
     id: { not: actorId },
     NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
@@ -148,6 +152,10 @@ export async function updateRoleAssignment(
   if (target.userRoles.some(({ role }) => role.name === "ADMIN"))
     throw new ApiError(403, "Administrator accounts cannot be managed here");
   const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
+  const isStudentAffairs = actor.userRoles.some(({ role }) => role.name === "STUDENT_AFFAIRS");
+  if (!isAdmin && !isStudentAffairs) {
+    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
+  }
   const targetFacultyId = target.student?.class?.major.facultyId ?? target.primaryFacultyId;
   if (!access.manageAnyUnit && (!access.facultyId || targetFacultyId !== access.facultyId))
     throw new ApiError(403, "User is outside your faculty scope");

@@ -9,6 +9,7 @@ type ValidationKey =
   | "invalidTime"
   | "invalidRegistrationTime"
   | "registrationEndsAfterEventStarts"
+  | "invalidGoogleFormUrl"
   | "missingReference"
   | "invalidRange";
 export class FormValidationError extends Error {
@@ -59,26 +60,49 @@ export function eventPayload(form: FormData): EventPayload {
   if (!criteriaId || !semesterId || !organizerId) throw new FormValidationError("missingReference");
   const start = new Date(String(form.get("timeStart") ?? ""));
   const end = new Date(String(form.get("timeEnd") ?? ""));
-  const registrationStart = new Date(String(form.get("registrationStart") ?? ""));
-  const registrationEnd = new Date(String(form.get("registrationEnd") ?? ""));
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)
     throw new FormValidationError("invalidTime");
+  const deliveryMode = form.get("deliveryMode");
+  if (deliveryMode !== "OFFLINE" && deliveryMode !== "ONLINE")
+    throw new FormValidationError("invalidFields");
+  const online = deliveryMode === "ONLINE";
+  let googleFormUrl: string | null = null;
+  if (online) {
+    const rawUrl = String(form.get("googleFormUrl") ?? "").trim();
+    try {
+      const url = new URL(rawUrl);
+      if (
+        url.protocol !== "https:" ||
+        (url.hostname !== "forms.gle" &&
+          !(url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/")))
+      ) {
+        throw new Error("INVALID_HOST");
+      }
+      googleFormUrl = url.toString();
+    } catch {
+      throw new FormValidationError("invalidGoogleFormUrl");
+    }
+  }
+  const registrationStart = online ? null : new Date(String(form.get("registrationStart") ?? ""));
+  const registrationEnd = online ? null : new Date(String(form.get("registrationEnd") ?? ""));
   if (
-    !Number.isFinite(registrationStart.getTime()) ||
-    !Number.isFinite(registrationEnd.getTime()) ||
-    registrationStart >= registrationEnd
+    !online &&
+    (!registrationStart ||
+      !registrationEnd ||
+      !Number.isFinite(registrationStart.getTime()) ||
+      !Number.isFinite(registrationEnd.getTime()) ||
+      registrationStart >= registrationEnd)
   )
     throw new FormValidationError("invalidRegistrationTime");
-  if (registrationEnd > start) throw new FormValidationError("registrationEndsAfterEventStarts");
-  const capacityRaw = String(form.get("capacity") ?? "").trim();
+  if (!online && registrationEnd && registrationEnd > start)
+    throw new FormValidationError("registrationEndsAfterEventStarts");
+  const capacityRaw = online ? "" : String(form.get("capacity") ?? "").trim();
   const capacity = capacityRaw === "" ? null : Number(capacityRaw);
   if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1 || capacity > 2147483647))
     throw new FormValidationError("invalidFields");
-  const checkInMode = form.get("checkInMode");
+  const rawCheckInMode = form.get("checkInMode");
+  const checkInMode = online ? "ONE_WAY" : rawCheckInMode;
   if (checkInMode !== "ONE_WAY" && checkInMode !== "TWO_WAY")
-    throw new FormValidationError("invalidFields");
-  const deliveryMode = form.get("deliveryMode");
-  if (deliveryMode !== "OFFLINE" && deliveryMode !== "ONLINE")
     throw new FormValidationError("invalidFields");
   if (deliveryMode === "OFFLINE" && start.toLocaleDateString() !== end.toLocaleDateString())
     throw new FormValidationError("invalidTime");
@@ -89,16 +113,17 @@ export function eventPayload(form: FormData): EventPayload {
       .getAll("images")
       .map(String)
       .filter((url) => Boolean(url && url.trim())),
-    location: requiredText(form, "location"),
+    location: online ? "" : requiredText(form, "location"),
+    googleFormUrl,
     organizerId,
     criteriaId,
     semesterId,
     timeStart: start.toISOString(),
     timeEnd: end.toISOString(),
-    registrationStart: registrationStart.toISOString(),
-    registrationEnd: registrationEnd.toISOString(),
+    registrationStart: registrationStart?.toISOString() ?? null,
+    registrationEnd: registrationEnd?.toISOString() ?? null,
     capacity,
-    attendanceRadiusMeters: pointsInput(form, "attendanceRadiusMeters"),
+    attendanceRadiusMeters: online ? 100 : pointsInput(form, "attendanceRadiusMeters"),
     points: pointsInput(form, "points"),
     checkInMode,
     deliveryMode,
@@ -124,7 +149,7 @@ export function organizerFacultyName(
   return unit.faculty.name;
 }
 
-export function localDateTime(value?: string): string {
+export function localDateTime(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 19);

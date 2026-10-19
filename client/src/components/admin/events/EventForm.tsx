@@ -69,16 +69,34 @@ export function EventForm({
             className={inputClass}
           />
         </label>
-        <label className="block text-sm font-semibold text-[#263b58]">
-          {t.location}
-          <input
-            name="location"
-            required
-            maxLength={255}
-            defaultValue={event?.location ?? ""}
-            className={inputClass}
-          />
-        </label>
+        {deliveryMode === "OFFLINE" ? (
+          <label className="block text-sm font-semibold text-[#263b58]">
+            {t.location}
+            <input
+              name="location"
+              required
+              maxLength={255}
+              defaultValue={event?.location ?? ""}
+              className={inputClass}
+            />
+          </label>
+        ) : (
+          <label className="block text-sm font-semibold text-[#263b58]">
+            {t.googleFormUrl}
+            <input
+              name="googleFormUrl"
+              type="url"
+              required
+              maxLength={2048}
+              placeholder="https://forms.gle/..."
+              defaultValue={event?.googleFormUrl ?? ""}
+              className={inputClass}
+            />
+            <span className="mt-2 block text-xs font-normal leading-5 text-[#66758a]">
+              {t.googleFormUrlHint}
+            </span>
+          </label>
+        )}
         <div className="space-y-2 text-sm font-semibold text-[#263b58]">
           <p>{t.detailDescription}</p>
           <input type="hidden" name="description" value={description} />
@@ -188,7 +206,10 @@ export function EventForm({
             <CustomSelect
               name="deliveryMode"
               value={deliveryMode}
-              onChange={setDeliveryMode}
+              onChange={(value) => {
+                setDeliveryMode(value);
+                if (value === "ONLINE") setMode("ONE_WAY");
+              }}
               ariaLabel={t.deliveryMode}
               disabled={saving}
               placeholder={t.deliveryMode}
@@ -231,28 +252,32 @@ export function EventForm({
               className={inputClass}
             />
           </label>
-          <label className="text-sm font-semibold text-[#263b58]">
-            {t.registrationStart}
-            <input
-              name="registrationStart"
-              type="datetime-local"
-              step={1}
-              required
-              defaultValue={localDateTime(event?.registrationStart)}
-              className={inputClass}
-            />
-          </label>
-          <label className="text-sm font-semibold text-[#263b58]">
-            {t.registrationEnd}
-            <input
-              name="registrationEnd"
-              type="datetime-local"
-              step={1}
-              required
-              defaultValue={localDateTime(event?.registrationEnd)}
-              className={inputClass}
-            />
-          </label>
+          {deliveryMode === "OFFLINE" ? (
+            <>
+              <label className="text-sm font-semibold text-[#263b58]">
+                {t.registrationStart}
+                <input
+                  name="registrationStart"
+                  type="datetime-local"
+                  step={1}
+                  required
+                  defaultValue={localDateTime(event?.registrationStart)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#263b58]">
+                {t.registrationEnd}
+                <input
+                  name="registrationEnd"
+                  type="datetime-local"
+                  step={1}
+                  required
+                  defaultValue={localDateTime(event?.registrationEnd)}
+                  className={inputClass}
+                />
+              </label>
+            </>
+          ) : null}
         </div>
         <p className="text-xs leading-5 text-[#66758a]">{t.localTimeHint}</p>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -285,21 +310,25 @@ export function EventForm({
           </div>
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2 text-sm font-semibold text-[#263b58]">
-            <p>{t.checkInMode}</p>
-            <CustomSelect
-              name="checkInMode"
-              value={mode}
-              onChange={setMode}
-              ariaLabel={t.checkInMode}
-              disabled={saving}
-              placeholder={t.selectCheckInMode}
-              options={(["ONE_WAY", "TWO_WAY"] as const).map((value) => ({
-                value,
-                label: t[value],
-              }))}
-            />
-          </div>
+          {deliveryMode === "OFFLINE" ? (
+            <div className="space-y-2 text-sm font-semibold text-[#263b58]">
+              <p>{t.checkInMode}</p>
+              <CustomSelect
+                name="checkInMode"
+                value={mode}
+                onChange={setMode}
+                ariaLabel={t.checkInMode}
+                disabled={saving}
+                placeholder={t.selectCheckInMode}
+                options={(["ONE_WAY", "TWO_WAY"] as const).map((value) => ({
+                  value,
+                  label: t[value],
+                }))}
+              />
+            </div>
+          ) : (
+            <input type="hidden" name="checkInMode" value="ONE_WAY" />
+          )}
           <label className="text-sm font-semibold text-[#263b58]">
             {t.points}
             <input
@@ -313,32 +342,36 @@ export function EventForm({
               className={inputClass}
             />
           </label>
-          <label className="text-sm font-semibold text-[#263b58]">
-            {t.capacity}
-            <input
-              name="capacity"
-              type="number"
-              min={1}
-              max={2147483647}
-              step={1}
-              defaultValue={event?.capacity ?? ""}
-              placeholder={t.unlimited}
-              className={inputClass}
-            />
-          </label>
-          <label className="text-sm font-semibold text-[#263b58]">
-            {t.attendanceRadius}
-            <input
-              name="attendanceRadiusMeters"
-              type="number"
-              required
-              min={10}
-              max={5000}
-              step={1}
-              defaultValue={event?.attendanceRadiusMeters ?? 100}
-              className={inputClass}
-            />
-          </label>
+          {deliveryMode === "OFFLINE" ? (
+            <>
+              <label className="text-sm font-semibold text-[#263b58]">
+                {t.capacity}
+                <input
+                  name="capacity"
+                  type="number"
+                  min={1}
+                  max={2147483647}
+                  step={1}
+                  defaultValue={event?.capacity ?? ""}
+                  placeholder={t.unlimited}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#263b58]">
+                {t.attendanceRadius}
+                <input
+                  name="attendanceRadiusMeters"
+                  type="number"
+                  required
+                  min={10}
+                  max={5000}
+                  step={1}
+                  defaultValue={event?.attendanceRadiusMeters ?? 100}
+                  className={inputClass}
+                />
+              </label>
+            </>
+          ) : null}
         </div>
       </fieldset>
       <ManagementError error={error} fallback={t.saveError} />

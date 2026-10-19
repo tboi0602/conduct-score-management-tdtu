@@ -1,6 +1,7 @@
 import { Prisma, type CheckInMode, type EventDeliveryMode, type EventType } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
+import { runBulkAction } from "@utils/bulkAction";
 import { mapCrudError } from "@utils/crudError";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
 import {
@@ -16,13 +17,14 @@ export type EventInput = {
   description: string;
   images: string[];
   location: string;
+  googleFormUrl: string | null;
   organizerId: string;
   criteriaId: string;
   semesterId: string;
   timeStart: Date;
   timeEnd: Date;
-  registrationStart: Date;
-  registrationEnd: Date;
+  registrationStart: Date | null;
+  registrationEnd: Date | null;
   capacity: number | null;
   attendanceRadiusMeters: number;
   points: number;
@@ -35,6 +37,7 @@ export type EventFilters = {
   criteriaId?: string;
   semesterId?: string;
   type?: EventType;
+  deliveryMode?: EventDeliveryMode;
   checkInMode?: CheckInMode;
   startsFrom?: Date;
   startsTo?: Date;
@@ -63,6 +66,7 @@ const eventSelect = {
   images: true,
   location: true,
   deliveryMode: true,
+  googleFormUrl: true,
   timeStart: true,
   timeEnd: true,
   registrationStart: true,
@@ -107,6 +111,7 @@ export async function listEvents(
     semesterId: filters.semesterId,
     organizerId: filters.organizerId,
     type: filters.type,
+    deliveryMode: filters.deliveryMode,
     checkInMode: filters.checkInMode,
     timeStart: { gte: filters.startsFrom, lte: filters.startsTo },
   };
@@ -134,19 +139,22 @@ export async function findById(id: string, access: EventAccess) {
 
 function validateTimes(input: EventInput): void {
   if (input.timeEnd <= input.timeStart) throw new ApiError(400, "timeEnd must be after timeStart");
-  if (input.registrationStart >= input.registrationEnd) {
-    throw new ApiError(400, "registrationStart must be before registrationEnd");
-  }
-  if (input.registrationEnd > input.timeStart) {
-    throw new ApiError(400, "registrationEnd must not be after timeStart");
-  }
-  if (input.capacity !== null && input.capacity < 1) {
-    throw new ApiError(400, "capacity must be a positive integer or null");
-  }
-  if (input.attendanceRadiusMeters < 10 || input.attendanceRadiusMeters > 5000) {
-    throw new ApiError(400, "attendanceRadiusMeters must be between 10 and 5000");
-  }
   if (input.deliveryMode === "OFFLINE") {
+    if (!input.registrationStart || !input.registrationEnd) {
+      throw new ApiError(400, "Offline events require a registration window");
+    }
+    if (input.registrationStart >= input.registrationEnd) {
+      throw new ApiError(400, "registrationStart must be before registrationEnd");
+    }
+    if (input.registrationEnd > input.timeStart) {
+      throw new ApiError(400, "registrationEnd must not be after timeStart");
+    }
+    if (input.capacity !== null && input.capacity < 1) {
+      throw new ApiError(400, "capacity must be a positive integer or null");
+    }
+    if (input.attendanceRadiusMeters < 10 || input.attendanceRadiusMeters > 5000) {
+      throw new ApiError(400, "attendanceRadiusMeters must be between 10 and 5000");
+    }
     const date = (value: Date) =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Ho_Chi_Minh",
@@ -157,6 +165,38 @@ function validateTimes(input: EventInput): void {
     if (date(input.timeStart) !== date(input.timeEnd)) {
       throw new ApiError(400, "Offline events must start and end on the same day");
     }
+    return;
+  }
+  if (!input.googleFormUrl) {
+    throw new ApiError(400, "Online events require a Google Form URL", "GOOGLE_FORM_URL_REQUIRED");
+  }
+  let url: URL;
+  try {
+    url = new URL(input.googleFormUrl);
+  } catch {
+    throw new ApiError(400, "googleFormUrl must be a valid URL", "INVALID_GOOGLE_FORM_URL");
+  }
+  const isGoogleForm =
+    url.protocol === "https:" &&
+    (url.hostname === "forms.gle" ||
+      (url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/")));
+  if (!isGoogleForm) {
+    throw new ApiError(
+      400,
+      "googleFormUrl must use docs.google.com/forms or forms.gle",
+      "INVALID_GOOGLE_FORM_URL",
+    );
+  }
+  if (
+    input.registrationStart !== null ||
+    input.registrationEnd !== null ||
+    input.capacity !== null ||
+    input.checkInMode !== "ONE_WAY"
+  ) {
+    throw new ApiError(
+      400,
+      "Online events cannot use registration, capacity, or two-way attendance",
+    );
   }
 }
 
@@ -186,16 +226,29 @@ export async function updateEvent(id: string, input: EventInput, access: EventAc
         async (tx) => {
           const current = await tx.event.findFirst({
             where: { id, ...eventScope(access) },
-            select: { id: true, registeredCount: true, organizer: { select: { facultyId: true } } },
+            select: {
+              id: true,
+              deliveryMode: true,
+              registeredCount: true,
+              organizer: { select: { facultyId: true } },
+            },
           });
           if (!current) throw new ApiError(404, "Event not found");
-          if (input.capacity !== null && input.capacity < current.registeredCount) {
+          if (
+            input.deliveryMode === "OFFLINE" &&
+            input.capacity !== null &&
+            input.capacity < current.registeredCount
+          ) {
             throw new ApiError(409, "capacity cannot be lower than the active registration count");
+          }
+          if (input.deliveryMode === "ONLINE") {
+            await tx.eventRegistration.deleteMany({ where: { eventId: id } });
           }
           const event = await tx.event.update({
             where: { id },
             data: {
               ...input,
+              registeredCount: input.deliveryMode === "ONLINE" ? 0 : undefined,
               descriptionPreview: eventDescriptionPreview(input.description),
               type: organizer.type as EventType,
             },
@@ -233,4 +286,8 @@ export async function deleteEvent(id: string, access: EventAccess): Promise<void
   if (!current) throw new ApiError(404, "Event not found");
   await prisma.event.delete({ where: { id }, select: { id: true } }).catch(mapCrudError);
   await invalidateDashboardCache(current.organizer?.facultyId);
+}
+
+export async function deleteEvents(ids: string[], access: EventAccess) {
+  return runBulkAction(ids, (id) => deleteEvent(id, access));
 }

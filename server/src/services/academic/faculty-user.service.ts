@@ -5,6 +5,7 @@ import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { getEventAccess } from "@services/events/event-access.service";
 import { ApiError } from "@utils/ApiError";
+import { runBulkAction } from "@utils/bulkAction";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
 
 export type FacultyUserInput = {
@@ -62,9 +63,23 @@ const scopedWhere = (facultyId: string, userType?: "STUDENT" | "STAFF"): Prisma.
     student: { is: { class: { is: { major: { is: { facultyId } } } } } },
   };
   const staffScope: Prisma.UserWhereInput = {
-    student: { is: null },
-    primaryFacultyId: facultyId,
-    userRoles: { some: { role: { name: { notIn: ["STUDENT", "ADMIN"] } } } },
+    AND: [
+      {
+        userRoles: {
+          some: { role: { name: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } },
+        },
+      },
+      { NOT: { userRoles: { some: { role: { name: "ADMIN" } } } } },
+      {
+        OR: [
+          studentScope,
+          {
+            student: { is: null },
+            primaryFacultyId: facultyId,
+          },
+        ],
+      },
+    ],
   };
   if (userType === "STUDENT") return studentScope;
   if (userType === "STAFF") return staffScope;
@@ -163,7 +178,14 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
     select: { id: true, student: { select: { id: true } } },
   });
   if (!current) throw new ApiError(404, "User not found in your faculty scope");
+  if (current.student && input.roleName === "STUDENT_AFFAIRS") {
+    throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
+  }
   const role = await prisma.role.findUniqueOrThrow({ where: { name: input.roleName } });
+  const isStudentOrganizer = Boolean(current.student && input.roleName === "EVENT_ORGANIZER");
+  const studentRole = isStudentOrganizer
+    ? await prisma.role.findUniqueOrThrow({ where: { name: "STUDENT" } })
+    : null;
   const password = input.password ? await bcrypt.hash(input.password, 12) : undefined;
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -172,18 +194,24 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
         email: input.email.trim().toLowerCase(),
         name: input.name.trim(),
         ...(password ? { password } : {}),
-        primaryFacultyId: input.roleName !== "STUDENT" ? facultyId : null,
+        primaryFacultyId: input.roleName !== "STUDENT" || isStudentOrganizer ? facultyId : null,
       },
     });
     await tx.userRole.deleteMany({ where: { userId: id } });
-    await tx.userRole.create({ data: { userId: id, roleId: role.id } });
+    await tx.userRole.createMany({
+      data: [
+        { userId: id, roleId: role.id },
+        ...(studentRole ? [{ userId: id, roleId: studentRole.id }] : []),
+      ],
+    });
     if (input.roleName === "STUDENT")
       await tx.student.upsert({
         where: { userId: id },
         update: { studentCode: input.studentCode!.trim(), classId: input.classId },
         create: { userId: id, studentCode: input.studentCode!.trim(), classId: input.classId },
       });
-    else if (current.student) await tx.student.delete({ where: { userId: id } });
+    else if (current.student && !isStudentOrganizer)
+      await tx.student.delete({ where: { userId: id } });
   });
   await redisClient.revokeRefreshSession(id);
   return prisma.user.findUniqueOrThrow({ where: { id }, select });
@@ -194,14 +222,14 @@ export async function setFacultyStaffStatus(
   id: string,
   status: "ACTIVE" | "DISABLED",
 ) {
+  if (actorId === id) throw new ApiError(409, "You cannot change your own status");
   const actor = await access(actorId);
   if (actor.manageAnyUnit)
     throw new ApiError(400, "Use the global user endpoint for administrators");
   const staff = await prisma.user.findFirst({
     where: {
       id,
-      primaryFacultyId: actor.facultyId!,
-      userRoles: { some: { role: { name: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } } },
+      ...scopedWhere(actor.facultyId!, "STAFF"),
     },
     select: { id: true },
   });
@@ -209,6 +237,16 @@ export async function setFacultyStaffStatus(
   const updated = await prisma.user.update({ where: { id }, data: { status }, select });
   await redisClient.revokeRefreshSession(id);
   return updated;
+}
+
+export async function setFacultyStaffStatuses(
+  actorId: string,
+  ids: string[],
+  status: "ACTIVE" | "DISABLED",
+) {
+  return runBulkAction(ids, async (id) => {
+    await setFacultyStaffStatus(actorId, id, status);
+  });
 }
 
 export async function deleteFacultyStudent(actorId: string, id: string) {
@@ -225,4 +263,8 @@ export async function deleteFacultyStudent(actorId: string, id: string) {
   if (!student) throw new ApiError(404, "Student not found in your faculty scope");
   await prisma.user.delete({ where: { id } });
   await redisClient.revokeRefreshSession(id);
+}
+
+export async function deleteFacultyStudents(actorId: string, ids: string[]) {
+  return runBulkAction(ids, (id) => deleteFacultyStudent(actorId, id));
 }

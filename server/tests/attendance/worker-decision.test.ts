@@ -53,6 +53,10 @@ describe("attendance worker decision", () => {
     expect(attendanceRejectionReason(request(), true)).toBeNull();
   });
 
+  it("rejects a repeated QR scan after attendance was recorded", () => {
+    expect(attendanceRejectionReason(request(), true, true)).toBe("ATTENDANCE_ALREADY_RECORDED");
+  });
+
   it("requires registration for QR and barcode", () => {
     expect(attendanceRejectionReason(request(), false)).toBe("NOT_REGISTERED");
     expect(
