@@ -1,5 +1,5 @@
 import { authHttp } from "@/services/http";
-import type { Faculty, PaginatedResponse } from "@/types/admin";
+import type { BulkActionResponse, Faculty, PaginatedResponse } from "@/types/admin";
 import type {
   Criteria,
   CriteriaFilters,
@@ -50,6 +50,12 @@ export const eventService = {
   update: (id: string, payload: EventPayload) =>
     write<ManagedEvent>(`/api/v1/events/${id}`, "PUT", payload),
   delete: (id: string) => authHttp<void>(`/api/v1/events/${id}`, { method: "DELETE" }),
+  deleteMany: (ids: string[]) =>
+    authHttp<BulkActionResponse>("/api/v1/events/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   semesters: (page: number, year?: string) =>
     authHttp<PaginatedResponse<Semester>>(
       `/api/v1/events/options/semesters?${queryString(page, 20, { year })}`,
@@ -58,9 +64,19 @@ export const eventService = {
     authHttp<PaginatedResponse<Criteria>>(
       `/api/v1/events/options/criteria?${queryString(page, limit, { search })}`,
     ),
-  organizers: (page: number, search?: string, facultyId?: string, limit = 50) =>
+  organizers: (
+    page: number,
+    search?: string,
+    facultyId?: string,
+    limit = 50,
+    writableOnly = true,
+  ) =>
     authHttp<PaginatedResponse<OrganizingUnit>>(
-      `/api/v1/events/options/organizers?${queryString(page, limit, { search, facultyId, writable: "true" })}`,
+      `/api/v1/events/options/organizers?${queryString(page, limit, {
+        search,
+        facultyId,
+        writable: writableOnly ? "true" : undefined,
+      })}`,
     ),
 };
 
@@ -119,6 +135,12 @@ export const organizerService = {
   update: (id: string, payload: OrganizerPayload) =>
     write<OrganizingUnit>(`/api/v1/organizers/${id}`, "PUT", payload),
   delete: (id: string) => authHttp<void>(`/api/v1/organizers/${id}`, { method: "DELETE" }),
+  deleteMany: (ids: string[]) =>
+    authHttp<BulkActionResponse>("/api/v1/organizers/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
 };
 
 export const criteriaService = {
@@ -137,4 +159,10 @@ export const semesterService = {
   update: (id: string, payload: SemesterPayload) =>
     write<Semester>(`/api/v1/semesters/${id}`, "PUT", payload),
   delete: (id: string) => authHttp<void>(`/api/v1/semesters/${id}`, { method: "DELETE" }),
+  deleteMany: (ids: string[]) =>
+    authHttp<BulkActionResponse>("/api/v1/semesters/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
 };

@@ -15,7 +15,9 @@ import {
   ScanLine,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { ManagementError, ManagementNotice } from "@/components/admin/ManagementFeedback";
+import { SelectionCheckbox } from "@/components/admin/SelectionCheckbox";
 import { primaryButton } from "@/components/admin/management-styles";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { EventForm } from "@/components/admin/events/EventForm";
@@ -28,6 +30,7 @@ import { EventCardGallery } from "@/components/ui/EventCardGallery";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useEventManagement } from "@/hooks/events/useEventManagement";
+import { usePageSelection } from "@/hooks/shared/usePageSelection";
 import {
   formatDate,
   managementError,
@@ -42,9 +45,29 @@ export function EventsManagement() {
   const { can } = useAdminAccess();
   const { t, locale } = useAdminTranslations();
   const [viewing, setViewing] = useState<ManagedEvent | null>(null);
+  const canDelete = can("event.delete");
+  const selection = usePageSelection(canDelete ? state.items.map((item) => item.id) : []);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const router = useRouter();
   const loadDetail = (event: ManagedEvent, action: (detail: ManagedEvent) => void) => {
     void state.loadDetail(event.id).then(action);
+  };
+  const confirmBulkDelete = async () => {
+    try {
+      const itemCount = state.items.length;
+      const response = await state.bulkDelete.mutateAsync(selection.selectedIds);
+      if (
+        response.data.succeededIds.length >= itemCount &&
+        !state.pagination.hasNextPage &&
+        state.page > 1
+      ) {
+        state.setPage(state.page - 1);
+      }
+      selection.clear();
+      setBulkDeleteOpen(false);
+    } catch {
+      // The shared mutation reports a localized error and keeps the dialog open.
+    }
   };
   return (
     <section>
@@ -77,6 +100,26 @@ export function EventsManagement() {
         onApply={state.applyFilters}
         onClear={state.clearFilters}
       />
+      {canDelete && state.items.length > 0 ? (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#d9e3ee] bg-white px-4 py-3 text-sm font-semibold text-[#52647d]">
+          <SelectionCheckbox
+            checked={selection.allSelected}
+            indeterminate={selection.someSelected}
+            onChange={selection.toggleAll}
+            label={t.selectAllPage}
+          />
+          <span>{t.selectAllPage}</span>
+        </div>
+      ) : null}
+      <BulkActionBar count={selection.selectedIds.length} onClear={selection.clear}>
+        <button
+          type="button"
+          onClick={() => setBulkDeleteOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#bd3343] px-4 py-2 text-sm font-bold text-white hover:bg-[#a72a38]"
+        >
+          <Trash2 size={16} /> {t.deleteSelected}
+        </button>
+      </BulkActionBar>
       {state.requestError ? (
         <div className="mt-5 rounded-2xl border border-[#dce4ef] bg-white p-5">
           <ManagementError
@@ -102,6 +145,13 @@ export function EventsManagement() {
                 <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b] opacity-85" />
                 <header className="flex items-start justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
+                    {canDelete ? (
+                      <SelectionCheckbox
+                        checked={selection.selectedSet.has(event.id)}
+                        onChange={() => selection.toggle(event.id)}
+                        label={`${t.selectRow}: ${event.name}`}
+                      />
+                    ) : null}
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eaf2fc] font-bold text-[#154a9b]">
                       {(event.organizer ? organizerLabel(event.organizer) : "TDTU")
                         .charAt(0)
@@ -142,8 +192,13 @@ export function EventsManagement() {
                       );
                     })()}
                     <span className="rounded-lg bg-[#edf4fc] px-2.5 py-1 text-xs font-bold text-[#154a9b]">
-                      {t[event.checkInMode]}
+                      {t[event.deliveryMode]}
                     </span>
+                    {event.deliveryMode === "OFFLINE" ? (
+                      <span className="rounded-lg bg-[#f1f5f9] px-2.5 py-1 text-xs font-bold text-[#52647d]">
+                        {t[event.checkInMode]}
+                      </span>
+                    ) : null}
                   </div>
                 </header>
                 <EventCardGallery
@@ -173,10 +228,12 @@ export function EventsManagement() {
                     {event.descriptionPreview || event.criteria.title}
                   </p>
                 </button>
-                <p className="mt-4 flex items-start gap-2 text-sm text-[#52647d]">
-                  <MapPin size={16} className="mt-0.5 shrink-0 text-[#154a9b]" />
-                  <span className="line-clamp-2">{event.location || t.locationPending}</span>
-                </p>
+                {event.deliveryMode === "OFFLINE" ? (
+                  <p className="mt-4 flex items-start gap-2 text-sm text-[#52647d]">
+                    <MapPin size={16} className="mt-0.5 shrink-0 text-[#154a9b]" />
+                    <span className="line-clamp-2">{event.location || t.locationPending}</span>
+                  </p>
+                ) : null}
                 <div className="mt-5 grid gap-3 border-y border-[#e8edf3] py-4 text-sm text-[#52647d] sm:grid-cols-3">
                   <p className="flex items-center gap-2">
                     <CalendarDays size={16} className="shrink-0 text-[#154a9b]" />
@@ -188,19 +245,21 @@ export function EventsManagement() {
                       {event.points} {t.points}
                     </span>
                   </p>
-                  <p className="flex items-center gap-2">
-                    <Users size={16} className="shrink-0 text-[#154a9b]" />
-                    <span>
-                      {event.registeredCount}
-                      {event.capacity === null ? "" : `/${event.capacity}`}
-                    </span>
-                  </p>
+                  {event.deliveryMode === "OFFLINE" ? (
+                    <p className="flex items-center gap-2">
+                      <Users size={16} className="shrink-0 text-[#154a9b]" />
+                      <span>
+                        {event.registeredCount}
+                        {event.capacity === null ? "" : `/${event.capacity}`}
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
                 <footer className="mt-auto flex flex-wrap justify-end gap-2 pt-4">
                   <IconButton label={t.view} onClick={() => loadDetail(event, setViewing)}>
                     <Eye size={16} />
                   </IconButton>
-                  {can("event-registration.manage") ? (
+                  {event.deliveryMode === "OFFLINE" && can("event-registration.manage") ? (
                     <IconButton
                       label={t.registrations}
                       tone="brand"
@@ -279,6 +338,16 @@ export function EventsManagement() {
         description={t.eventDeleteWarning}
         pending={state.isDeleting}
         error={state.actionError ? managementError(state.actionError, t, t.deleteError) : null}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={() => void confirmBulkDelete()}
+        title={t.confirmDeleteSelected}
+        subject={t.selectedCount.replace("{count}", String(selection.selectedIds.length))}
+        description={t.confirmDeleteSelectedDescription}
+        pending={state.bulkDelete.isPending}
+        confirmLabel={t.deleteSelected}
       />
     </section>
   );

@@ -68,8 +68,7 @@ export async function syncEventConductScore(
           result: delta > 0 ? "ATTENDED" : "REVERSED",
           source: delta > 0 ? "EVENT" : "REVERSAL",
           reason:
-            options.reason ??
-            (delta > 0 ? "Event attendance completed" : "Event attendance no longer complete"),
+            options.reason ?? (delta > 0 ? "Đã điểm danh sự kiện" : "Không điểm danh sự kiện"),
           idempotencyKey: `event:${eventId}:student:${studentId}:entry:${aggregate._count._all}:state:${stateHash}`,
         },
       });

@@ -4,7 +4,7 @@ import type { AuthContext } from "@middleware/auth.middleware";
 import * as userService from "@services/users/user.service";
 import { ApiError } from "@utils/ApiError";
 import { parsePagination } from "@utils/pagination";
-import { enumInput, optionalQuery } from "@utils/crudValidation";
+import { enumInput, objectInput, optionalQuery, uuidArrayInput } from "@utils/crudValidation";
 
 function parseInput(req: Request): userService.UserInput {
   const {
@@ -68,4 +68,23 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   const auth = res.locals.auth as AuthContext;
   await userService.deleteUser(auth.sub, req.params.id);
   res.status(204).end();
+}
+
+export async function deleteStudents(req: Request, res: Response): Promise<void> {
+  const auth = res.locals.auth as AuthContext;
+  const body = objectInput(req.body);
+  res.json({
+    ok: true,
+    data: await userService.deleteStudents(auth.sub, uuidArrayInput(body.ids)),
+  });
+}
+
+export async function setStaffStatuses(req: Request, res: Response): Promise<void> {
+  const auth = res.locals.auth as AuthContext;
+  const body = objectInput(req.body);
+  const status = enumInput(body.status, ["ACTIVE", "DISABLED"] as const, "status");
+  res.json({
+    ok: true,
+    data: await userService.setStaffStatuses(auth.sub, uuidArrayInput(body.ids), status),
+  });
 }

@@ -7,6 +7,7 @@ import {
   integerQuery,
   objectInput,
   optionalQuery,
+  uuidArrayInput,
   uuidInput,
 } from "@utils/crudValidation";
 import { parsePagination } from "@utils/pagination";
@@ -56,4 +57,9 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await semesters.deleteSemester(uuidInput(req.params.id));
   res.status(204).end();
+}
+
+export async function removeMany(req: Request, res: Response) {
+  const body = objectInput(req.body);
+  res.json({ ok: true, data: await semesters.deleteSemesters(uuidArrayInput(body.ids)) });
 }

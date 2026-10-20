@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -10,10 +10,10 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ExternalLink,
   MapPin,
   ShieldCheck,
   Users,
-  XCircle,
 } from "lucide-react";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -27,7 +27,6 @@ import { useState } from "react";
 
 export default function EventDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { locale } = useLanguage();
   const t = studentEventMessages[locale];
@@ -89,8 +88,13 @@ export default function EventDetailPage() {
   const now = Date.now();
   const startTime = new Date(eventData.timeStart).getTime();
   const endTime = new Date(eventData.timeEnd).getTime();
-  const regStartTime = new Date(eventData.registrationStart).getTime();
-  const regEndTime = new Date(eventData.registrationEnd).getTime();
+  const online = eventData.deliveryMode === "ONLINE";
+  const regStartTime = eventData.registrationStart
+    ? new Date(eventData.registrationStart).getTime()
+    : Number.POSITIVE_INFINITY;
+  const regEndTime = eventData.registrationEnd
+    ? new Date(eventData.registrationEnd).getTime()
+    : Number.NEGATIVE_INFINITY;
 
   const isPendingReg = now < regStartTime;
   const isFull = eventData.remainingSlots === 0;
@@ -133,19 +137,27 @@ export default function EventDetailPage() {
               <span className="rounded-lg bg-[#f1f5f9] px-3 py-1 text-xs font-bold text-[#52647d]">
                 {t[eventData.deliveryMode]}
               </span>
-              <span className="rounded-lg bg-[#f1f5f9] px-3 py-1 text-xs font-bold text-[#52647d]">
-                {eventData.checkInMode === "ONE_WAY" ? t.oneWay : t.twoWay}
-              </span>
+              {!online ? (
+                <span className="rounded-lg bg-[#f1f5f9] px-3 py-1 text-xs font-bold text-[#52647d]">
+                  {eventData.checkInMode === "ONE_WAY" ? t.oneWay : t.twoWay}
+                </span>
+              ) : null}
             </div>
 
             <h1 className="text-2xl font-bold tracking-tight text-[#102a50] md:text-3xl">
               {eventData.name}
             </h1>
 
-            <p className="flex items-center gap-2 text-sm text-[#52647d]">
-              <MapPin size={18} className="shrink-0 text-[#154a9b]" />
-              <span>{eventData.location || t.locationPending}</span>
-            </p>
+            {!online ? (
+              <p className="flex items-center gap-2 text-sm text-[#52647d]">
+                <MapPin size={18} className="shrink-0 text-[#154a9b]" />
+                <span>{eventData.location || t.locationPending}</span>
+              </p>
+            ) : (
+              <p className="max-w-2xl text-sm leading-6 text-[#52647d]">
+                {t.onlineParticipationNote}
+              </p>
+            )}
           </div>
 
           <div className="flex shrink-0 flex-col items-stretch gap-3 rounded-2xl bg-[#f8fafc] p-4 sm:flex-row lg:flex-col">
@@ -157,7 +169,29 @@ export default function EventDetailPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {isRegistered ? (
+              {online ? (
+                <button
+                  type="button"
+                  disabled={now < startTime || now >= endTime || !eventData.googleFormUrl}
+                  onClick={() => {
+                    if (eventData.googleFormUrl) {
+                      window.open(eventData.googleFormUrl, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-6 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-40"
+                >
+                  {now >= startTime && now < endTime && eventData.googleFormUrl ? (
+                    <ExternalLink size={17} />
+                  ) : null}
+                  {now < startTime
+                    ? t.googleFormNotOpen
+                    : now >= endTime
+                      ? t.eventEnded
+                      : eventData.googleFormUrl
+                        ? t.openGoogleForm
+                        : t.googleFormNotConfigured}
+                </button>
+              ) : isRegistered ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-center gap-1.5 rounded-xl bg-[#ecfdf5] px-4 py-2.5 text-xs font-bold text-[#047857]">
                     <CheckCircle2 size={16} />
@@ -209,15 +243,17 @@ export default function EventDetailPage() {
               {formatDate(eventData.timeEnd, locale)}
             </dd>
           </div>
-          <div className="rounded-2xl border border-[#e1e8f0] bg-white p-4">
-            <Users size={18} className="text-[#154a9b]" />
-            <dt className="mt-3 text-xs font-semibold text-[#718096]">{t.capacity}</dt>
-            <dd className="mt-1 font-bold text-[#263b58]">
-              {eventData.capacity === null
-                ? t.unlimited
-                : `${eventData.registeredCount}/${eventData.capacity} (${eventData.remainingSlots} ${t.remaining})`}
-            </dd>
-          </div>
+          {!online ? (
+            <div className="rounded-2xl border border-[#e1e8f0] bg-white p-4">
+              <Users size={18} className="text-[#154a9b]" />
+              <dt className="mt-3 text-xs font-semibold text-[#718096]">{t.capacity}</dt>
+              <dd className="mt-1 font-bold text-[#263b58]">
+                {eventData.capacity === null
+                  ? t.unlimited
+                  : `${eventData.registeredCount}/${eventData.capacity} (${eventData.remainingSlots} ${t.remaining})`}
+              </dd>
+            </div>
+          ) : null}
           <div className="rounded-2xl border border-[#e1e8f0] bg-white p-4">
             <Building2 size={18} className="text-[#154a9b]" />
             <dt className="mt-3 text-xs font-semibold text-[#718096]">{t.organizer}</dt>
@@ -239,13 +275,15 @@ export default function EventDetailPage() {
           </div>
         </dl>
 
-        <div className="mt-6 rounded-2xl border border-[#e1e8f0] bg-[#fbfcfd] p-4">
-          <p className="text-xs font-semibold text-[#718096]">{t.registrationTime}</p>
-          <p className="mt-2 text-sm font-semibold text-[#263b58]">
-            {formatDate(eventData.registrationStart, locale)} –{" "}
-            {formatDate(eventData.registrationEnd, locale)}
-          </p>
-        </div>
+        {!online && eventData.registrationStart && eventData.registrationEnd ? (
+          <div className="mt-6 rounded-2xl border border-[#e1e8f0] bg-[#fbfcfd] p-4">
+            <p className="text-xs font-semibold text-[#718096]">{t.registrationTime}</p>
+            <p className="mt-2 text-sm font-semibold text-[#263b58]">
+              {formatDate(eventData.registrationStart, locale)} –{" "}
+              {formatDate(eventData.registrationEnd, locale)}
+            </p>
+          </div>
+        ) : null}
 
         {(() => {
           const { cleanedHtml, images: extractedImages } = extractImagesFromHtml(
@@ -277,7 +315,7 @@ export default function EventDetailPage() {
       </div>
 
       <ConfirmDialog
-        open={cancelling}
+        open={!online && cancelling}
         onClose={() => setCancelling(false)}
         onConfirm={() => cancelMutation.mutate()}
         title={t.cancelRegistration}

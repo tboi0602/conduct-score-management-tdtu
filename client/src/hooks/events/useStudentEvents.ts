@@ -6,10 +6,18 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { studentEventMessages } from "@/i18n/student-event-messages";
+import { organizerLabel } from "@/lib/event-form";
 import { queryKeys } from "@/lib/query-keys";
 import { eventRegistrationService } from "@/services/events";
 import type { PaginatedResponse } from "@/types/admin";
-import type { MyEventRegistration, PublicEvent, StudentEventFilters } from "@/types/events";
+import type {
+  EventDeliveryMode,
+  EventType,
+  MyEventRegistration,
+  OrganizingUnit,
+  PublicEvent,
+  StudentEventFilters,
+} from "@/types/events";
 
 export type StudentEventTab = "all" | "recommended" | "mine";
 export const studentEventViews = ["", "UPCOMING", "ATTENDED", "ABSENT", "CANCELLED"] as const;
@@ -24,6 +32,7 @@ export function useStudentEvents() {
   const [page, setPage] = useState(1);
   const [term, setTerm] = useState("");
   const [organizerTerm, setOrganizerTerm] = useState("");
+  const [selectedOrganizer, setSelectedOrganizer] = useState<OrganizingUnit | null>(null);
   const [filters, setFilters] = useState<StudentEventFilters>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [view, setView] = useState<StudentEventView>("");
@@ -37,6 +46,7 @@ export function useStudentEvents() {
   const organizers = useQuery({
     queryKey: queryKeys.studentEvents.organizerOptions(filters.type, appliedOrganizerSearch),
     queryFn: () => eventRegistrationService.organizerOptions(filters.type, appliedOrganizerSearch),
+    enabled: organizerSearch.length === 0 || organizerSearch.length >= 3,
     staleTime: 5 * 60_000,
   });
   const listQuery = useQuery({
@@ -108,6 +118,7 @@ export function useStudentEvents() {
           data = [
             {
               id: `event-registration:${event.id}`,
+              source: "REGISTRATION" as const,
               status,
               registeredAt: now,
               cancelledAt: status === "CANCELLED" ? now : null,
@@ -202,9 +213,38 @@ export function useStudentEvents() {
     setFilters(update);
     setPage(1);
   };
+  const updateEventType = (type: EventType | undefined) => {
+    setSelectedOrganizer(null);
+    setOrganizerTerm("");
+    setFilters((current) => ({ ...current, type, organizerId: undefined }));
+    setPage(1);
+  };
+  const updateDeliveryMode = (deliveryMode: EventDeliveryMode | undefined) => {
+    setFilters((current) => ({
+      ...current,
+      deliveryMode,
+      checkInMode: deliveryMode === "OFFLINE" ? current.checkInMode : undefined,
+    }));
+    setPage(1);
+  };
+  const updateOrganizerSearch = (value: string) => {
+    setOrganizerTerm(value);
+    if (selectedOrganizer) {
+      setSelectedOrganizer(null);
+      setFilters((current) => ({ ...current, organizerId: undefined }));
+      setPage(1);
+    }
+  };
+  const selectOrganizer = (organizer: OrganizingUnit | null) => {
+    setSelectedOrganizer(organizer);
+    setOrganizerTerm(organizer ? organizerLabel(organizer) : "");
+    setFilters((current) => ({ ...current, organizerId: organizer?.id }));
+    setPage(1);
+  };
   const clearFilters = () => {
     setFilters({});
     setOrganizerTerm("");
+    setSelectedOrganizer(null);
     setPage(1);
   };
 
@@ -217,9 +257,13 @@ export function useStudentEvents() {
     term,
     updateTerm,
     organizerTerm,
-    setOrganizerTerm,
+    updateOrganizerSearch,
+    selectedOrganizer,
+    selectOrganizer,
     filters,
     updateFilters,
+    updateEventType,
+    updateDeliveryMode,
     clearFilters,
     filtersOpen,
     setFiltersOpen,

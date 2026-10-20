@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { CheckCircle2, LocateFixed, MapPin, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { attendanceMessages } from "@/i18n/attendance-messages";
 import { useStudentCheckIn } from "@/hooks/attendance/useStudentCheckIn";
@@ -21,6 +21,7 @@ export function StudentCheckIn({
   eventStart: string;
   direction: "CHECK_IN" | "CHECK_OUT" | null;
 }) {
+  const router = useRouter();
   const { locale } = useLanguage();
   const t = attendanceMessages[locale];
   const {
@@ -38,12 +39,13 @@ export function StudentCheckIn({
   const ended = Boolean(eventEnd) && Date.now() >= new Date(eventEnd).getTime();
   return (
     <section className="mx-auto max-w-xl">
-      <Link
-        href="/events"
+      <button
+        type="button"
+        onClick={() => router.back()}
         className="inline-flex items-center rounded-lg px-2 py-1 text-sm font-semibold text-[#154a9b] transition hover:bg-[#eaf2fc]"
       >
         ← {t.back}
-      </Link>
+      </button>
       <div className="relative mt-5 overflow-hidden rounded-[28px] border border-[#d9e3ee] bg-white p-7 text-center shadow-[0_28px_65px_-44px_rgba(16,42,80,.7)] sm:p-9">
         <span className="absolute inset-x-0 top-0 h-1 bg-[#154a9b]" />
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#edf4fc] text-[#154a9b]">

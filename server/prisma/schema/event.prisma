@@ -77,6 +77,7 @@ model Event {
   images                 String[]          @default([])
   location               String            @default("") @db.VarChar(255)
   deliveryMode           EventDeliveryMode @default(OFFLINE)
+  googleFormUrl          String?           @db.VarChar(2048)
   organizerId            String?           @db.Uuid
   timeStart              DateTime
   timeEnd                DateTime
@@ -89,8 +90,8 @@ model Event {
   attendanceRadiusMeters Int               @default(100)
   capacity               Int?
   registeredCount        Int               @default(0)
-  registrationStart      DateTime
-  registrationEnd        DateTime
+  registrationStart      DateTime?
+  registrationEnd        DateTime?
 
   // ON DELETE RESTRICT = mặc định của Prisma với quan hệ bắt buộc
   criteria  Criteria        @relation(fields: [criteriaId], references: [id])

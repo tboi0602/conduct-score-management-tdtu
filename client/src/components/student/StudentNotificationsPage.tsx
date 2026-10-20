@@ -51,6 +51,12 @@ export function StudentNotificationsPage() {
       <div className="mt-7 space-y-3">
         {items.map((item) => {
           const unread = !item.readAt;
+          const warningBody =
+            item.title === "CONDUCT_SCORE_WARNING_MIDPOINT"
+              ? t.conductScoreMidpointWarningBody
+              : item.title === "CONDUCT_SCORE_WARNING_FINAL_WINDOW"
+                ? t.conductScoreFinalWarningBody
+                : t.conductScoreWarningBody;
           return (
             <article
               key={item.id}
@@ -77,7 +83,7 @@ export function StudentNotificationsPage() {
                   </div>
                   <p className="mt-2 text-sm leading-6 text-[#52647d]">
                     {item.type === "CONDUCT_SCORE_WARNING"
-                      ? t.conductScoreWarningBody.replace("{threshold}", item.message || "80")
+                      ? warningBody.replace("{threshold}", item.message || "80")
                       : null}
                     {item.type !== "CONDUCT_SCORE_WARNING" ? (
                       <>

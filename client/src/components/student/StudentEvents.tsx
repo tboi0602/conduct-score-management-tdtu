@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CalendarDays,
   ChevronDown,
+  ExternalLink,
   MapPin,
   Search,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { PaginationControls } from "@/components/admin/PaginationControls";
@@ -23,7 +25,13 @@ import { studentEventMessages } from "@/i18n/student-event-messages";
 import { formatDate, organizerFacultyName, organizerLabel } from "@/lib/event-form";
 import { buildEventSlug } from "@/lib/slug";
 import { EventCardGallery } from "@/components/ui/EventCardGallery";
-import type { EventType, PublicEvent, StudentEventFilters } from "@/types/events";
+import type {
+  CheckInMode,
+  EventDeliveryMode,
+  EventType,
+  PublicEvent,
+  StudentEventFilters,
+} from "@/types/events";
 
 export function StudentEvents() {
   const { locale } = useLanguage();
@@ -142,15 +150,40 @@ export function StudentEvents() {
               ]}
             />
             <CustomSelect
+              ariaLabel={t.deliveryMode}
+              value={state.filters.deliveryMode ?? ""}
+              placeholder={t.allDeliveryModes}
+              onChange={(value) => {
+                state.updateDeliveryMode((value || undefined) as EventDeliveryMode | undefined);
+              }}
+              options={[
+                { value: "OFFLINE", label: t.OFFLINE },
+                { value: "ONLINE", label: t.ONLINE },
+              ]}
+            />
+            {state.filters.deliveryMode === "OFFLINE" ? (
+              <CustomSelect
+                ariaLabel={t.checkInMode}
+                value={state.filters.checkInMode ?? ""}
+                placeholder={t.allCheckInModes}
+                onChange={(value) => {
+                  state.updateFilters((current) => ({
+                    ...current,
+                    checkInMode: (value || undefined) as CheckInMode | undefined,
+                  }));
+                }}
+                options={[
+                  { value: "ONE_WAY", label: t.oneWay },
+                  { value: "TWO_WAY", label: t.twoWay },
+                ]}
+              />
+            ) : null}
+            <CustomSelect
               ariaLabel={t.eventType}
               value={state.filters.type ?? ""}
               placeholder={t.allTypes}
               onChange={(value) => {
-                state.updateFilters((current) => ({
-                  ...current,
-                  type: (value || undefined) as EventType | undefined,
-                  organizerId: undefined,
-                }));
+                state.updateEventType((value || undefined) as EventType | undefined);
               }}
               options={[
                 { value: "", label: t.allTypes },
@@ -161,39 +194,40 @@ export function StudentEvents() {
               ]}
             />
             <div className="space-y-2">
-              <label className="relative block">
-                <Search className="absolute left-3 top-3 text-[#718096]" size={17} />
-                <input
-                  type="search"
-                  value={state.organizerTerm}
-                  onChange={(event) => state.setOrganizerTerm(event.target.value)}
-                  placeholder={t.organizerSearch}
-                  aria-label={t.organizerSearch}
-                  maxLength={100}
-                  className="h-11 w-full rounded-xl border border-[#cdd9e7] pl-10 pr-3 text-sm outline-none focus:border-[#154a9b]"
-                />
-              </label>
-              {state.organizerTerm.trim().length > 0 && state.organizerTerm.trim().length < 3 ? (
-                <p className="text-xs text-[#66758a]">{t.searchHint}</p>
-              ) : null}
-              <CustomSelect
-                ariaLabel={t.organizerFilter}
-                value={state.filters.organizerId ?? ""}
-                placeholder={t.allOrganizers}
-                disabled={state.organizers.isFetching}
-                onChange={(value) => {
-                  state.updateFilters((current) => ({
-                    ...current,
-                    organizerId: value || undefined,
-                  }));
+              <p className="text-xs font-semibold text-[#66758a]">{t.organizer}</p>
+              <SearchableCombobox
+                selected={
+                  state.selectedOrganizer
+                    ? {
+                        value: state.selectedOrganizer.id,
+                        label: organizerLabel(state.selectedOrganizer),
+                      }
+                    : null
+                }
+                search={state.organizerTerm}
+                onSearchChange={state.updateOrganizerSearch}
+                onSelect={(option) => {
+                  const organizer = option
+                    ? ((state.organizers.data?.data ?? []).find(
+                        (item) => item.id === option.value,
+                      ) ?? null)
+                    : null;
+                  state.selectOrganizer(organizer);
                 }}
-                options={[
-                  { value: "", label: t.allOrganizers },
-                  ...(state.organizers.data?.data ?? []).map((item) => ({
-                    value: item.id,
-                    label: organizerLabel(item),
-                  })),
-                ]}
+                options={(state.organizers.data?.data ?? []).map((item) => ({
+                  value: item.id,
+                  label: organizerLabel(item),
+                }))}
+                placeholder={t.allOrganizers}
+                ariaLabel={t.organizer}
+                clearLabel={t.clearOrganizer}
+                loadingLabel={t.loadingOptions}
+                emptyMessage={t.noOptions}
+                minimumCharactersMessage={t.searchHint}
+                errorMessage={state.organizers.error ? t.organizerLoadError : undefined}
+                retryLabel={t.retry}
+                onRetry={() => void state.organizers.refetch()}
+                loading={state.organizers.isFetching}
               />
             </div>
           </div>
@@ -212,7 +246,12 @@ export function StudentEvents() {
       <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {state.items.map(({ event, participation }) => {
           const now = Date.now();
-          const pending = now < new Date(event.registrationStart).getTime();
+          const online = event.deliveryMode === "ONLINE";
+          const eventStarted = now >= new Date(event.timeStart).getTime();
+          const eventEnded = now >= new Date(event.timeEnd).getTime();
+          const pending = Boolean(
+            !online && event.registrationStart && now < new Date(event.registrationStart).getTime(),
+          );
           const full = event.remainingSlots === 0;
           const lifecycle =
             now < new Date(event.timeStart).getTime()
@@ -253,13 +292,23 @@ export function StudentEvents() {
                       ? t.absent
                       : participation === "CANCELLED"
                         ? t.cancelled
-                        : event.registrationStatus === "REGISTERED"
-                          ? t.registered
-                          : pending
-                            ? t.registrationPending
-                            : event.registrationOpen
-                              ? t.registrationOpen
-                              : t.registrationClosed}
+                        : online
+                          ? event.attendanceConfirmed
+                            ? t.onlineAttendanceConfirmed
+                            : !eventStarted
+                              ? t.googleFormNotOpen
+                              : eventEnded
+                                ? t.eventEnded
+                                : event.googleFormUrl
+                                  ? t.openGoogleForm
+                                  : t.googleFormNotConfigured
+                          : event.registrationStatus === "REGISTERED"
+                            ? t.registered
+                            : pending
+                              ? t.registrationPending
+                              : event.registrationOpen
+                                ? t.registrationOpen
+                                : t.registrationClosed}
                 </span>
               </div>
               <EventCardGallery images={event.images} />
@@ -287,20 +336,24 @@ export function StudentEvents() {
                   {event.descriptionPreview}
                 </p>
               ) : null}
-              <p className="mt-3 flex items-start gap-2 text-sm text-[#52647d]">
-                <MapPin size={16} className="mt-0.5 shrink-0 text-[#154a9b]" />
-                <span className="line-clamp-2">{event.location || t.locationPending}</span>
-              </p>
+              {!online ? (
+                <p className="mt-3 flex items-start gap-2 text-sm text-[#52647d]">
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-[#154a9b]" />
+                  <span className="line-clamp-2">{event.location || t.locationPending}</span>
+                </p>
+              ) : null}
               <p className="mt-4 flex items-center gap-2 text-sm text-[#52647d]">
                 <CalendarDays size={16} /> {t.starts}: {formatDate(event.timeStart, locale)}
               </p>
               <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
                 <CalendarDays size={16} /> {t.ends}: {formatDate(event.timeEnd, locale)}
               </p>
-              <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
-                <Users size={16} />{" "}
-                {event.capacity === null ? t.unlimited : `${event.remainingSlots} ${t.remaining}`}
-              </p>
+              {!online ? (
+                <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
+                  <Users size={16} />{" "}
+                  {event.capacity === null ? t.unlimited : `${event.remainingSlots} ${t.remaining}`}
+                </p>
+              ) : null}
               <div className="mt-auto flex gap-2 pt-5">
                 <Link
                   href={`/events/${buildEventSlug(event.name, event.id)}`}
@@ -308,10 +361,36 @@ export function StudentEvents() {
                 >
                   {t.details}
                 </Link>
-                {event.registrationStatus === "REGISTERED" ? (
+                {online ? (
                   <button
                     type="button"
-                    disabled={now > new Date(event.registrationEnd).getTime()}
+                    disabled={!eventStarted || eventEnded || !event.googleFormUrl}
+                    onClick={() => {
+                      if (event.googleFormUrl) {
+                        window.open(event.googleFormUrl, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    className="flex-1 rounded-xl bg-[#154a9b] px-3 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-40"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {eventStarted && !eventEnded && event.googleFormUrl ? (
+                        <ExternalLink size={16} />
+                      ) : null}
+                      {!eventStarted
+                        ? t.googleFormNotOpen
+                        : eventEnded
+                          ? t.eventEnded
+                          : event.googleFormUrl
+                            ? t.openGoogleForm
+                            : t.googleFormNotConfigured}
+                    </span>
+                  </button>
+                ) : event.registrationStatus === "REGISTERED" ? (
+                  <button
+                    type="button"
+                    disabled={
+                      !event.registrationEnd || now > new Date(event.registrationEnd).getTime()
+                    }
                     onClick={() => state.setCancelling(event)}
                     className="flex-1 rounded-xl bg-[#fff0f1] px-3 py-2.5 text-sm font-bold text-[#bd3343] transition hover:bg-[#ffe5e8] active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -324,7 +403,13 @@ export function StudentEvents() {
                     onClick={() => state.register.mutate(event.id)}
                     className="flex-1 rounded-xl bg-[#154a9b] px-3 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-40"
                   >
-                    {full ? t.full : t.register}
+                    {full
+                      ? t.full
+                      : pending
+                        ? t.registrationPending
+                        : !event.registrationOpen
+                          ? t.registrationClosed
+                          : t.register}
                   </button>
                 )}
               </div>
@@ -383,10 +468,14 @@ function EventDetail({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-[#102a50]">{event.name}</h2>
-            <p className="mt-2 flex items-center gap-2">
-              <MapPin size={17} className="text-[#154a9b]" />
-              {event.location || t.locationPending}
-            </p>
+            {event.deliveryMode === "OFFLINE" ? (
+              <p className="mt-2 flex items-center gap-2">
+                <MapPin size={17} className="text-[#154a9b]" />
+                {event.location || t.locationPending}
+              </p>
+            ) : (
+              <p className="mt-2 max-w-xl leading-6">{t.onlineParticipationNote}</p>
+            )}
           </div>
           <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-sm">
             <strong className="block text-2xl text-[#154a9b]">{event.points}</strong>
@@ -401,13 +490,15 @@ function EventDetail({
           value={formatDate(event.timeStart, locale)}
         />
         <DetailField icon={CalendarDays} label={t.ends} value={formatDate(event.timeEnd, locale)} />
-        <DetailField
-          icon={Users}
-          label={t.capacity}
-          value={
-            event.capacity === null ? t.unlimited : `${event.registeredCount}/${event.capacity}`
-          }
-        />
+        {event.deliveryMode === "OFFLINE" ? (
+          <DetailField
+            icon={Users}
+            label={t.capacity}
+            value={
+              event.capacity === null ? t.unlimited : `${event.registeredCount}/${event.capacity}`
+            }
+          />
+        ) : null}
         <DetailField
           icon={Building2}
           label={t.organizer}
@@ -424,24 +515,53 @@ function EventDetail({
           }
         />
         <DetailField icon={ShieldCheck} label={t.deliveryMode} value={t[event.deliveryMode]} />
-        <DetailField
-          icon={ShieldCheck}
-          label={t.checkInMode}
-          value={event.checkInMode === "ONE_WAY" ? t.oneWay : t.twoWay}
-        />
+        {event.deliveryMode === "OFFLINE" ? (
+          <DetailField
+            icon={ShieldCheck}
+            label={t.checkInMode}
+            value={event.checkInMode === "ONE_WAY" ? t.oneWay : t.twoWay}
+          />
+        ) : null}
         <DetailField
           icon={CalendarDays}
           label={t.semester}
           value={`${event.semester.type} · ${event.semester.year}`}
         />
       </dl>
-      <div className="mt-4 rounded-2xl border border-[#e1e8f0] p-4">
-        <p className="text-xs font-semibold text-[#718096]">{t.registrationTime}</p>
-        <p className="mt-2 font-semibold text-[#263b58]">
-          {formatDate(event.registrationStart, locale)} –{" "}
-          {formatDate(event.registrationEnd, locale)}
-        </p>
-      </div>
+      {event.deliveryMode === "OFFLINE" && event.registrationStart && event.registrationEnd ? (
+        <div className="mt-4 rounded-2xl border border-[#e1e8f0] p-4">
+          <p className="text-xs font-semibold text-[#718096]">{t.registrationTime}</p>
+          <p className="mt-2 font-semibold text-[#263b58]">
+            {formatDate(event.registrationStart, locale)} –{" "}
+            {formatDate(event.registrationEnd, locale)}
+          </p>
+        </div>
+      ) : null}
+      {event.deliveryMode === "ONLINE" ? (
+        <button
+          type="button"
+          disabled={
+            Date.now() < new Date(event.timeStart).getTime() ||
+            Date.now() >= new Date(event.timeEnd).getTime() ||
+            !event.googleFormUrl
+          }
+          onClick={() => {
+            if (event.googleFormUrl) {
+              window.open(event.googleFormUrl, "_blank", "noopener,noreferrer");
+            }
+          }}
+          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#154a9b] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ExternalLink size={17} />
+          {Date.now() < new Date(event.timeStart).getTime()
+            ? t.googleFormNotOpen
+            : Date.now() >= new Date(event.timeEnd).getTime()
+              ? t.eventEnded
+              : event.googleFormUrl
+                ? t.openGoogleForm
+                : t.googleFormNotConfigured}
+        </button>
+      ) : null}
       {event.description ? (
         <div
           className="event-rich-content mt-5 rounded-2xl border border-[#e1e8f0] p-5"

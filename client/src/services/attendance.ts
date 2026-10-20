@@ -57,20 +57,14 @@ export const attendanceService = {
       `/api/v1/attendance/events/${eventId}/scan`,
       json("POST", payload),
     ),
-  importAttendance: (
-    eventId: string,
-    payload: {
-      studentCodes: string[];
-      direction: AttendanceDirection;
-      status: "ATTENDED" | "LATE";
-    },
-  ) =>
+  importAttendance: (eventId: string, payload: { identifiers: string[] }) =>
     authHttp<{ ok: true; data: AttendanceImportResult }>(
       `/api/v1/attendance/events/${eventId}/import`,
       json("POST", payload),
     ),
-  requests: (eventId: string, page: number, search = "", status = "") => {
-    const query = new URLSearchParams({ page: String(page), limit: "20", search, status });
+  requests: (eventId: string, page: number, search = "") => {
+    const query = new URLSearchParams({ page: String(page), limit: "20" });
+    if (search) query.set("search", search);
     return authHttp<PaginatedResponse<AttendanceRequest>>(
       `/api/v1/attendance/events/${eventId}/requests?${query}`,
     );
@@ -108,7 +102,9 @@ export const attendanceService = {
       data: { id: string; clientAttemptId: string; status: "OPEN" | "RESOLVED" };
     }>("/api/v1/attendance/incidents", json("POST", { ...payload, digest })),
   reconciliation: (eventId: string, page: number, search = "", state = "") => {
-    const query = new URLSearchParams({ page: String(page), limit: "20", search, state });
+    const query = new URLSearchParams({ page: String(page), limit: "20" });
+    if (search) query.set("search", search);
+    if (state) query.set("state", state);
     return authHttp<PaginatedResponse<AttendanceReconciliationRow>>(
       `/api/v1/attendance/events/${eventId}/reconciliation?${query}`,
     );

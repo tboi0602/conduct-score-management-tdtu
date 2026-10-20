@@ -9,6 +9,7 @@ import {
   optionalQuery,
   searchInput,
   textInput,
+  uuidArrayInput,
   uuidInput,
 } from "@utils/crudValidation";
 import { parsePagination } from "@utils/pagination";
@@ -51,4 +52,9 @@ export async function updateOrganizer(req: Request, res: Response) {
 export async function deleteOrganizer(req: Request, res: Response) {
   await organizer.deleteClub(uuidInput(req.params.id));
   res.status(204).end();
+}
+
+export async function deleteOrganizers(req: Request, res: Response) {
+  const body = objectInput(req.body);
+  res.json({ ok: true, data: await organizer.deleteClubs(uuidArrayInput(body.ids)) });
 }

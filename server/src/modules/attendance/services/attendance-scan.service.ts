@@ -180,13 +180,37 @@ export async function submitStudentQr(
   const sessionId = verifyAttendanceQrToken(token);
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
-    include: { event: { select: { id: true, name: true, timeStart: true, timeEnd: true } } },
+    include: {
+      event: {
+        select: { id: true, name: true, deliveryMode: true, timeStart: true, timeEnd: true },
+      },
+    },
   });
   if (!session || session.status !== "OPEN")
     throw new ApiError(409, "Attendance session is closed");
+  if (session.event.deliveryMode !== "OFFLINE") {
+    throw new ApiError(409, "Online events do not use QR attendance", "ONLINE_QR_NOT_AVAILABLE");
+  }
   assertAttendanceWindow(session.event);
   const activeId = await redisClient.getClient().get(activeSessionKey(session.eventId));
   if (activeId !== session.id) throw new ApiError(409, "Attendance session is closed");
+  const existingRecord = await prisma.attendanceRecord.findUnique({
+    where: {
+      studentId_eventId_direction: {
+        studentId: student.id,
+        eventId: session.eventId,
+        direction: session.direction,
+      },
+    },
+    select: { id: true },
+  });
+  if (existingRecord) {
+    throw new ApiError(
+      409,
+      "Attendance has already been recorded for this event",
+      "ATTENDANCE_ALREADY_RECORDED",
+    );
+  }
   const result = await createScanRequest({
     eventId: session.eventId,
     sessionId,
@@ -227,6 +251,13 @@ export async function submitManagedScan(
   },
 ) {
   const event = await managedEvent(eventId, access);
+  if (event.deliveryMode !== "OFFLINE") {
+    throw new ApiError(
+      409,
+      "Online events only support attendance import",
+      "ONLINE_IMPORT_REQUIRED",
+    );
+  }
   assertAttendanceStarted(event);
   if (event.checkInMode === "ONE_WAY" && input.direction === "CHECK_OUT")
     throw new ApiError(409, "One-way events do not support check-out");

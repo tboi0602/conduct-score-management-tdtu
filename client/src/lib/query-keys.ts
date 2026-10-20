@@ -46,8 +46,8 @@ export const queryKeys = {
       ["admin", "event-options", "criteria", page, search] as const,
     semesterPage: (page: number, year?: string) =>
       [...queryKeys.eventOptions.semesters, page, year] as const,
-    organizerPage: (page: number, search?: string, facultyId?: string) =>
-      ["admin", "event-options", "organizers", page, search, facultyId] as const,
+    organizerPage: (page: number, search?: string, facultyId?: string, writableOnly = true) =>
+      ["admin", "event-options", "organizers", page, search, facultyId, writableOnly] as const,
   },
   organizers: {
     all: ["admin", "organizers"] as const,
@@ -76,8 +76,8 @@ export const queryKeys = {
     events: ["admin", "attendance", "events"] as const,
     session: (eventId: string) => ["admin", "attendance", eventId, "session"] as const,
     qr: (eventId: string) => ["admin", "attendance", eventId, "qr"] as const,
-    requests: (eventId: string, search: string, status: string) =>
-      ["admin", "attendance", eventId, "requests", search, status] as const,
+    requests: (eventId: string, search: string) =>
+      ["admin", "attendance", eventId, "requests", search] as const,
     request: (requestId: string) => ["student", "attendance", "request", requestId] as const,
     reconciliation: (eventId: string, search: string, state: string, page: number) =>
       ["admin", "attendance", eventId, "reconciliation", search, state, page] as const,

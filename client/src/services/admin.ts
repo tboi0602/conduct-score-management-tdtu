@@ -11,6 +11,7 @@ import type {
   AcademicKind,
   AcademicPayload,
   AcademicRecord,
+  BulkActionResponse,
   StudentProfilePayload,
 } from "@/types/admin";
 
@@ -49,18 +50,30 @@ export const adminService = {
       body: JSON.stringify(payload),
     }),
   createUser: (payload: UserPayload) =>
-    authHttp<{ data: AdminUser }>("/api/v1/users", {
+    authHttp<{ ok: true; data: AdminUser }>("/api/v1/users", {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify(payload),
     }),
   updateUser: (id: string, payload: UserPayload) =>
-    authHttp<{ data: AdminUser }>(`/api/v1/users/${id}`, {
+    authHttp<{ ok: true; data: AdminUser }>(`/api/v1/users/${id}`, {
       method: "PUT",
       headers: jsonHeaders,
       body: JSON.stringify(payload),
     }),
   deleteUser: (id: string) => authHttp<void>(`/api/v1/users/${id}`, { method: "DELETE" }),
+  deleteStudents: (ids: string[]) =>
+    authHttp<BulkActionResponse>("/api/v1/users/students/bulk", {
+      method: "DELETE",
+      headers: jsonHeaders,
+      body: JSON.stringify({ ids }),
+    }),
+  setStaffStatuses: (ids: string[], status: "ACTIVE" | "DISABLED") =>
+    authHttp<BulkActionResponse>("/api/v1/users/staff/bulk-status", {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify({ ids, status }),
+    }),
   listFacultyUsers: (page: number, limit = 20, filters: UserFilters = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
     Object.entries(filters).forEach(([key, value]) => {
@@ -69,13 +82,13 @@ export const adminService = {
     return authHttp<PaginatedResponse<AdminUser>>(`/api/v1/faculty-users?${query}`);
   },
   createFacultyUser: (payload: UserPayload) =>
-    authHttp<{ data: AdminUser }>("/api/v1/faculty-users", {
+    authHttp<{ ok: true; data: AdminUser }>("/api/v1/faculty-users", {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify({ ...payload, roleName: payload.roleIds[0] }),
     }),
   updateFacultyUser: (id: string, payload: UserPayload) =>
-    authHttp<{ data: AdminUser }>(`/api/v1/faculty-users/${id}`, {
+    authHttp<{ ok: true; data: AdminUser }>(`/api/v1/faculty-users/${id}`, {
       method: "PUT",
       headers: jsonHeaders,
       body: JSON.stringify({ ...payload, roleName: payload.roleIds[0] }),
@@ -88,6 +101,18 @@ export const adminService = {
           headers: jsonHeaders,
           body: JSON.stringify({ status: user.status === "ACTIVE" ? "DISABLED" : "ACTIVE" }),
         }),
+  deleteFacultyStudents: (ids: string[]) =>
+    authHttp<BulkActionResponse>("/api/v1/faculty-users/students/bulk", {
+      method: "DELETE",
+      headers: jsonHeaders,
+      body: JSON.stringify({ ids }),
+    }),
+  setFacultyStaffStatuses: (ids: string[], status: "ACTIVE" | "DISABLED") =>
+    authHttp<BulkActionResponse>("/api/v1/faculty-users/staff/bulk-status", {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify({ ids, status }),
+    }),
 
   listPermissions: (page: number, limit = 20) =>
     authHttp<PaginatedResponse<Permission>>(`/api/v1/rbac/permissions?page=${page}&limit=${limit}`),

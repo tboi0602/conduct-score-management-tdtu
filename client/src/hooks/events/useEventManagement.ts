@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { usePaginatedData } from "@/hooks/shared/usePaginatedData";
 import { useCrudManagement } from "@/hooks/shared/useCrudManagement";
+import { useBulkAction } from "@/hooks/shared/useBulkAction";
 import { queryKeys } from "@/lib/query-keys";
 import { eventPayload } from "@/lib/event-form";
 import { eventService } from "@/services/events";
@@ -42,9 +43,14 @@ export function useEventManagement() {
         setPage(list.page - 1);
     },
   });
+  const bulkDelete = useBulkAction({
+    mutationFn: eventService.deleteMany,
+    queryKeys: [queryKeys.events.all, queryKeys.studentEvents.all],
+  });
   return {
     ...list,
     ...crud,
+    bulkDelete,
     filters,
     searchTerm,
     setSearchTerm,

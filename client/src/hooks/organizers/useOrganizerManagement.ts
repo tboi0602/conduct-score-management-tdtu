@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useCrudManagement } from "@/hooks/shared/useCrudManagement";
+import { useBulkAction } from "@/hooks/shared/useBulkAction";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { usePaginatedData } from "@/hooks/shared/usePaginatedData";
 import { queryKeys } from "@/lib/query-keys";
@@ -43,5 +44,9 @@ export function useOrganizerManagement() {
         setPage(list.page - 1);
     },
   });
-  return { ...list, ...crud, searchTerm, setSearchTerm };
+  const bulkDelete = useBulkAction({
+    mutationFn: organizerService.deleteMany,
+    queryKeys: [queryKeys.organizers.all, queryKeys.events.all],
+  });
+  return { ...list, ...crud, bulkDelete, searchTerm, setSearchTerm };
 }

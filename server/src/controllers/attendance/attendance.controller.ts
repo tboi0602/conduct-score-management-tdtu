@@ -1,5 +1,5 @@
 ﻿import type { Request, Response } from "express";
-import { AttendanceDirection, AttendanceScanStatus, AttendanceStatus } from "@prisma/client";
+import { AttendanceDirection, AttendanceStatus } from "@prisma/client";
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
 import * as attendance from "@modules/attendance";
@@ -107,18 +107,14 @@ export async function managedScan(req: Request, res: Response) {
 
 export async function bulkImport(req: Request, res: Response) {
   const body = objectInput(req.body);
-  if (!Array.isArray(body.studentCodes)) {
-    throw new ApiError(400, "studentCodes must be an array");
+  if (!Array.isArray(body.identifiers)) {
+    throw new ApiError(400, "identifiers must be an array");
   }
-  const studentCodes = body.studentCodes.map((value) => textInput(value, "studentCode", 20));
+  const identifiers = body.identifiers.map((value) => textInput(value, "identifier", 150));
   const result = await attendance.submitBulkImport(
     await getEventAccess(auth(res).sub),
     uuidInput(req.params.eventId),
-    {
-      studentCodes,
-      direction: enumInput(body.direction, Object.values(AttendanceDirection), "direction"),
-      status: enumInput(body.status ?? "ATTENDED", ["ATTENDED", "LATE"] as const, "status"),
-    },
+    { identifiers },
   );
   res.status(202).json({ ok: true, data: result });
 }
@@ -209,9 +205,6 @@ export async function requests(req: Request, res: Response) {
     uuidInput(req.params.eventId),
     parsePagination(req.query, { maxOffset: 10000 }),
     optionalQuery(req.query.search, searchInput),
-    optionalQuery(req.query.status, (value) =>
-      enumInput(value, Object.values(AttendanceScanStatus), "status"),
-    ),
   );
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }

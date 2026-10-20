@@ -38,6 +38,7 @@ export type LoadedAttendanceRequest = AttendanceScanRequest & {
 export function attendanceRejectionReason(
   request: LoadedAttendanceRequest,
   registered: boolean,
+  alreadyRecorded = false,
 ): string | null {
   if (!registered && request.source !== "BULK_IMPORT" && request.source !== "MANUAL_ENTRY")
     return "NOT_REGISTERED";
@@ -96,25 +97,61 @@ async function processLocked(requestId: string): Promise<void> {
     where: { eventId_studentId: { eventId: request.eventId, studentId: request.studentId } },
     select: { status: true },
   });
-  const reason = attendanceRejectionReason(request, registration?.status === "REGISTERED");
+  const existingRecord = await prisma.attendanceRecord.findUnique({
+    where: {
+      studentId_eventId_direction: {
+        studentId: request.studentId,
+        eventId: request.eventId,
+        direction: request.direction,
+      },
+    },
+    select: { id: true, status: true },
+  });
+  const reason = attendanceRejectionReason(
+    request,
+    registration?.status === "REGISTERED",
+    existingRecord?.status === "ATTENDED" || existingRecord?.status === "LATE",
+  );
   if (reason?.startsWith("LOCATION") || reason === "OUTSIDE_GEOFENCE")
     attendanceGeofenceRejections.inc({ reason });
   const processedAt = new Date();
   const finalStatus = reason ? "REJECTED" : "ACCEPTED";
   await prisma.$transaction(async (tx) => {
     if (!reason) {
-      await tx.attendanceRecord.createMany({
-        data: {
-          studentId: request.studentId,
-          eventId: request.eventId,
-          direction: request.direction,
-          timeChecking: processedAt,
-          status: request.requestedStatus,
-          pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
-          scanRequestId: request.id,
-        },
-        skipDuplicates: true,
-      });
+      const attendanceData = {
+        timeChecking: processedAt,
+        status: request.requestedStatus,
+        pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
+        scanRequestId: request.id,
+      };
+      if (request.source === "BULK_IMPORT") {
+        await tx.attendanceRecord.upsert({
+          where: {
+            studentId_eventId_direction: {
+              studentId: request.studentId,
+              eventId: request.eventId,
+              direction: request.direction,
+            },
+          },
+          update: attendanceData,
+          create: {
+            studentId: request.studentId,
+            eventId: request.eventId,
+            direction: request.direction,
+            ...attendanceData,
+          },
+        });
+      } else {
+        await tx.attendanceRecord.createMany({
+          data: {
+            studentId: request.studentId,
+            eventId: request.eventId,
+            direction: request.direction,
+            ...attendanceData,
+          },
+          skipDuplicates: true,
+        });
+      }
     }
     await tx.attendanceScanRequest.update({
       where: { id: request.id },
@@ -225,9 +262,14 @@ export async function handleAttendanceMessage(payload: Record<string, unknown>):
     )
       source = payload.source;
     if (payload.direction === "CHECK_OUT") direction = "CHECK_OUT";
-    const processed = await redisClient.withLock(`attendance-request:${requestId}`, 30_000, () =>
-      processLocked(requestId),
-    );
+    const eventId = typeof payload.eventId === "string" ? payload.eventId : null;
+    const studentId = typeof payload.studentId === "string" ? payload.studentId : null;
+    const lockDirection = payload.direction === "CHECK_OUT" ? "CHECK_OUT" : "CHECK_IN";
+    const lockKey =
+      eventId && studentId
+        ? `attendance-slot:${eventId}:${studentId}:${lockDirection}`
+        : `attendance-request:${requestId}`;
+    const processed = await redisClient.withLock(lockKey, 30_000, () => processLocked(requestId));
     if (processed === null) throw new Error("Attendance request is already being processed");
     result = "processed";
   } finally {

@@ -85,6 +85,9 @@ export async function openSession(
     );
   }
   const event = await managedEvent(eventId, access);
+  if (event.deliveryMode !== "OFFLINE") {
+    throw new ApiError(409, "Online events do not use QR attendance", "ONLINE_QR_NOT_AVAILABLE");
+  }
   assertAttendanceWindow(event);
   if (event.checkInMode === "ONE_WAY" && direction === "CHECK_OUT")
     throw new ApiError(409, "One-way events do not support check-out");
@@ -167,6 +170,9 @@ export async function closeSession(access: EventAccess, eventId: string) {
 
 export async function getActiveSession(access: EventAccess, eventId: string) {
   const event = await managedEvent(eventId, access);
+  if (event.deliveryMode !== "OFFLINE") {
+    throw new ApiError(409, "Online events do not use QR attendance", "ONLINE_QR_NOT_AVAILABLE");
+  }
   assertAttendanceStarted(event);
   return prisma.attendanceSession.findFirst({
     where: { eventId, status: "OPEN" },
