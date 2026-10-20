@@ -40,7 +40,6 @@ export function attendanceRejectionReason(
   registered: boolean,
   alreadyRecorded = false,
 ): string | null {
-  if (alreadyRecorded) return "ATTENDANCE_ALREADY_RECORDED";
   if (!registered && request.source !== "BULK_IMPORT" && request.source !== "MANUAL_ENTRY")
     return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")

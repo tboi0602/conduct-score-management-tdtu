@@ -272,7 +272,7 @@ export async function submitManagedScan(
     where: { eventId, studentId: student.id, status: "REGISTERED" },
     select: { id: true },
   });
-  if (!registration) {
+  if (!registration && input.source !== "MANUAL_ENTRY") {
     throw new ApiError(409, "Student is not actively registered for this event");
   }
   const studentId = student.id;

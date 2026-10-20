@@ -3,14 +3,29 @@ services:
     environment:
       ATTENDANCE_STUDENT_RATE_LIMIT_MAX: 100
       ATTENDANCE_MANAGER_RATE_LIMIT_MAX: 1000
+
   api-2:
     environment:
       ATTENDANCE_STUDENT_RATE_LIMIT_MAX: 100
       ATTENDANCE_MANAGER_RATE_LIMIT_MAX: 1000
+
   nginx:
     volumes:
       - ./docker/nginx/nginx.attendance-test.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/snippets:/etc/nginx/snippets:ro
+
   worker:
     deploy:
       replicas: ${ATTENDANCE_TEST_WORKERS:-3}
+
+  # Đảm bảo Prometheus & Grafana luôn sẵn sàng phục vụ việc quan sát và chụp ảnh Dashboard
+  prometheus:
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"

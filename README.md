@@ -233,7 +233,9 @@ Mở <http://localhost:3001>.
 
 ## Kiểm thử điểm danh và hiệu suất
 
-Khởi động topology test:
+### 1. Khởi động cụm Docker kiểm thử (Lần đầu hoặc khi sửa code Backend/Client)
+
+Sử dụng file override `docker-compose.attendance-test.yml` để áp dụng cấu hình Nginx riêng cho k6 test (rate limit 3.000 req/s), nâng giới hạn Redis rate limit cho manager và bật sẵn Prometheus/Grafana:
 
 ```powershell
 docker compose --env-file .env.docker `
@@ -242,25 +244,39 @@ docker compose --env-file .env.docker `
   up -d --build
 ```
 
-Chạy unit, integration, QR 1.000 sinh viên và barcode 2/3 scanner:
+### 2. Thực thi kịch bản kiểm thử (Lần sau)
 
-```powershell
-.\run-attendance-tests.cmd
-```
+* **Trường hợp A — Docker đã chạy sẵn ở nền**:
+  ```powershell
+  # Chạy toàn bộ Unit, Integration, QR 1.000 sinh viên và Barcode 2/3 scanner
+  .\run-attendance-tests.cmd
 
-Chạy nhanh với fixture nhỏ:
+  # Hoặc chạy thử nhanh với fixture nhỏ (20 sinh viên)
+  .\run-attendance-tests.cmd -StudentCount 20
+  ```
 
-```powershell
-.\run-attendance-tests.cmd -StudentCount 20
-```
+* **Trường hợp B — Khi bật lại Docker sau khi đã tắt (Không cần `--build` lại)**:
+  ```powershell
+  docker compose --env-file .env.docker `
+    -f docker-compose.yml `
+    -f docker-compose.attendance-test.yml `
+    up -d
+  ```
 
-Mỗi lần chạy sinh một báo cáo Word duy nhất:
+* **Trường hợp C — Dừng toàn bộ cụm Docker**:
+  ```powershell
+  docker compose down
+  ```
+
+### 3. Xuất báo cáo nghiệm thu `.docx`
+
+Mỗi lần chạy script `run-attendance-tests.cmd` sẽ tự động đối soát dữ liệu và xuất báo cáo Word duy nhất lưu tại:
 
 ```text
 Docs/testing-results/<run-id>/ATTENDANCE_TEST_REPORT.docx
 ```
 
-Xem chi tiết tại [kịch bản kiểm thử](Docs/Kichban.md).
+Xem chi tiết tại [Kịch bản kiểm thử](Docs/Kichban.md).
 
 ## Kiểm tra mã nguồn
 
