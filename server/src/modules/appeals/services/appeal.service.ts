@@ -340,7 +340,7 @@ export async function reviewAppeal(
   if (decision === "APPROVED") {
     await syncEventConductScore(current.studentId, current.eventId, {
       allowFinalized: true,
-      reason: `Attendance restored after approved appeal ${id}`,
+      reason: `Xác nhận tham gia sự kiện sau khi khiếu nại: ${id}`,
     });
   }
   return managedDetail(id, access);

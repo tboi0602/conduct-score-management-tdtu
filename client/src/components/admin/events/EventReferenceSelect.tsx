@@ -15,6 +15,7 @@ export function EventReferenceSelect({
   placeholder,
   name,
   disabled = false,
+  showSearch = true,
 }: {
   kind: "criteria" | "semesters";
   selected: EventReference | null;
@@ -22,6 +23,7 @@ export function EventReferenceSelect({
   placeholder: string;
   name?: string;
   disabled?: boolean;
+  showSearch?: boolean;
 }) {
   const { t } = useAdminTranslations();
   const query = useEventOptions(kind);
@@ -43,19 +45,24 @@ export function EventReferenceSelect({
         placeholder={placeholder}
         disabled={disabled || query.isFetching || Boolean(query.error) || query.invalidYear}
       />
-      <input
-        aria-label={kind === "criteria" ? t.optionSearch : t.yearSearch}
-        type={kind === "semesters" ? "number" : "search"}
-        min={kind === "semesters" ? 0 : undefined}
-        max={kind === "semesters" ? 2147483647 : undefined}
-        maxLength={100}
-        value={query.search}
-        onChange={(event) => query.setSearch(event.target.value)}
-        disabled={disabled}
-        placeholder={kind === "criteria" ? t.optionSearch : t.yearSearch}
-        className={`${inputClass} !mt-2 !min-h-9 !text-xs`}
-      />
-      {kind === "criteria" && query.search.trim().length > 0 && query.search.trim().length < 3 ? (
+      {showSearch ? (
+        <input
+          aria-label={kind === "criteria" ? t.optionSearch : t.yearSearch}
+          type={kind === "semesters" ? "number" : "search"}
+          min={kind === "semesters" ? 0 : undefined}
+          max={kind === "semesters" ? 2147483647 : undefined}
+          maxLength={100}
+          value={query.search}
+          onChange={(event) => query.setSearch(event.target.value)}
+          disabled={disabled}
+          placeholder={kind === "criteria" ? t.optionSearch : t.yearSearch}
+          className={`${inputClass} !mt-2 !min-h-9 !text-xs`}
+        />
+      ) : null}
+      {showSearch &&
+      kind === "criteria" &&
+      query.search.trim().length > 0 &&
+      query.search.trim().length < 3 ? (
         <p className="text-xs font-normal text-[#66758a]">{t.searchHint}</p>
       ) : null}
       {query.invalidYear ? (

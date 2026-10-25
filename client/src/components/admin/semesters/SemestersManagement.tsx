@@ -1,9 +1,12 @@
 "use client";
 
 import { Pencil, Plus, RotateCw, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { ManagementNotice } from "@/components/admin/ManagementFeedback";
 import { ManagementTable } from "@/components/admin/ManagementTable";
+import { SelectionCheckbox } from "@/components/admin/SelectionCheckbox";
 import { primaryButton } from "@/components/admin/management-styles";
 import { SemesterFilters } from "@/components/admin/semesters/SemesterFilters";
 import { SemesterForm } from "@/components/admin/semesters/SemesterForm";
@@ -13,12 +16,33 @@ import { Modal } from "@/components/ui/Modal";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useSemesterManagement } from "@/hooks/semesters/useSemesterManagement";
+import { usePageSelection } from "@/hooks/shared/usePageSelection";
 import { formatDate, managementError } from "@/lib/event-form";
 
 export function SemestersManagement() {
   const state = useSemesterManagement();
   const { can } = useAdminAccess();
   const { t, locale } = useAdminTranslations();
+  const canDelete = can("semester.delete");
+  const selection = usePageSelection(canDelete ? state.items.map((item) => item.id) : []);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const confirmBulkDelete = async () => {
+    try {
+      const itemCount = state.items.length;
+      const response = await state.bulkDelete.mutateAsync(selection.selectedIds);
+      if (
+        response.data.succeededIds.length >= itemCount &&
+        !state.pagination.hasNextPage &&
+        state.page > 1
+      ) {
+        state.setPage(state.page - 1);
+      }
+      selection.clear();
+      setBulkDeleteOpen(false);
+    } catch {
+      // The shared mutation reports a localized error and keeps the dialog open.
+    }
+  };
   return (
     <section>
       <AdminPageHeader
@@ -44,6 +68,15 @@ export function SemestersManagement() {
       />
       <ManagementNotice notice={state.notice} />
       <SemesterFilters onApply={state.applyFilters} onClear={state.clearFilters} />
+      <BulkActionBar count={selection.selectedIds.length} onClear={selection.clear}>
+        <button
+          type="button"
+          onClick={() => setBulkDeleteOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#bd3343] px-4 py-2 text-sm font-bold text-white hover:bg-[#a72a38]"
+        >
+          <Trash2 size={16} /> {t.deleteSelected}
+        </button>
+      </BulkActionBar>
       <ManagementTable
         headers={[
           t.year,
@@ -54,6 +87,32 @@ export function SemestersManagement() {
           t.createdAt,
           t.actions,
         ]}
+        leadingHeader={
+          canDelete ? (
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label={t.selectAllPage}
+            />
+          ) : undefined
+        }
+        leadingCell={
+          canDelete
+            ? (index) => {
+                const semester = state.items[index];
+                return (
+                  <td key="selection" className="w-12 px-3 py-4 text-center">
+                    <SelectionCheckbox
+                      checked={selection.selectedSet.has(semester.id)}
+                      onChange={() => selection.toggle(semester.id)}
+                      label={`${t.selectRow}: ${t[semester.type]} ${semester.year}`}
+                    />
+                  </td>
+                );
+              }
+            : undefined
+        }
         loading={state.isLoading}
         fetching={state.isFetching}
         error={state.requestError}
@@ -124,6 +183,16 @@ export function SemestersManagement() {
         description={t.semesterDeleteWarning}
         pending={state.isDeleting}
         error={state.actionError ? managementError(state.actionError, t, t.deleteError) : null}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={() => void confirmBulkDelete()}
+        title={t.confirmDeleteSelected}
+        subject={t.selectedCount.replace("{count}", String(selection.selectedIds.length))}
+        description={t.confirmDeleteSelectedDescription}
+        pending={state.bulkDelete.isPending}
+        confirmLabel={t.deleteSelected}
       />
     </section>
   );

@@ -5,30 +5,21 @@ export type AttendanceScanStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 export type AttendanceSource =
   "STUDENT_QR" | "STAFF_BARCODE" | "MANUAL_ENTRY" | "BULK_IMPORT" | "REGISTERED";
 export type AttendanceImportResult = {
+  id: string;
+  eventId: string;
+  status: "PROCESSING" | "PARTIALLY_QUEUED" | "COMPLETED" | "FAILED";
   requested: number;
   queued: number;
-  duplicateCodes: string[];
-  notFoundCodes: string[];
-};
-export type AttendanceReconciliationState = "MATCHED" | "CLIENT_ONLY" | "SERVER_ONLY" | "RESOLVED";
-export type AttendanceReconciliationRow = {
-  incidentId: string | null;
-  auditId: string | null;
-  clientAttemptId: string;
-  studentCode: string | null;
-  studentName: string | null;
-  failureCategory: string | null;
-  failedAt: string | null;
-  digest: string | null;
-  incidentStatus: "OPEN" | "RESOLVED" | null;
-  resolutionNote: string | null;
-  requestId: string | null;
-  httpStatus: number | null;
-  durationMs: number | null;
-  instance: string | null;
-  scanStatus: AttendanceScanStatus | null;
-  rejectionReason: string | null;
-  attendanceStatus: "ATTENDED" | "LATE" | "ABSENT" | null;
+  processed: number;
+  accepted: number;
+  rejected: number;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  duplicateIdentifiers?: string[];
+  invalidIdentifiers?: string[];
+  notFoundIdentifiers?: string[];
+  alreadyRecordedIdentifiers?: string[];
 };
 export type AttendanceSession = {
   id: string;
@@ -103,6 +94,7 @@ export type DashboardSummary = {
   topEvents: Array<{
     id: string;
     name: string;
+    deliveryMode: "OFFLINE" | "ONLINE";
     capacity: number | null;
     registrations: number;
     attendance: number;

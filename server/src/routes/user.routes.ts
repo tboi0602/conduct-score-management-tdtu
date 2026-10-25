@@ -18,6 +18,16 @@ router.patch(
   asyncHandler(roleAssignment.update),
 );
 router.get("/", requirePermission("user.read"), asyncHandler(controller.listUsers));
+router.delete(
+  "/students/bulk",
+  requirePermission("user.delete"),
+  asyncHandler(controller.deleteStudents),
+);
+router.patch(
+  "/staff/bulk-status",
+  requirePermission("user.update"),
+  asyncHandler(controller.setStaffStatuses),
+);
 router.get("/:id", requirePermission("user.read"), asyncHandler(controller.getUser));
 router.post("/", requirePermission("user.create"), asyncHandler(controller.createUser));
 router.put("/:id", requirePermission("user.update"), asyncHandler(controller.updateUser));

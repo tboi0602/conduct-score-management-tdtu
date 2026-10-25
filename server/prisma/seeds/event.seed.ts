@@ -7,6 +7,8 @@ type SeedEvent = {
   images?: string[];
   location: string;
   deliveryMode: EventDeliveryMode;
+  googleFormUrl?: string;
+  onlinePassingScore?: number;
   organizerCode: string;
   criterionId: string;
   timeStart: Date;
@@ -191,6 +193,7 @@ const events: SeedEvent[] = [
     ],
     location: "Microsoft Teams",
     deliveryMode: "ONLINE",
+    googleFormUrl: "https://forms.gle/TDTUOnlineEvent09",
     organizerCode: "TDTU",
     criterionId: "10000000-0000-4000-8000-000000000001",
     timeStart: vietnamTime("2026-09-27", "19:00"),
@@ -210,6 +213,7 @@ const events: SeedEvent[] = [
     ],
     location: "Cổng hoạt động sinh viên trực tuyến",
     deliveryMode: "ONLINE",
+    googleFormUrl: "https://forms.gle/TDTUOnlineEvent10",
     organizerCode: "TDTU-CLUB-011",
     criterionId: "10000000-0000-4000-8000-000000000004",
     timeStart: vietnamTime("2026-09-30", "19:00"),
@@ -229,6 +233,7 @@ const events: SeedEvent[] = [
     ],
     location: "Zoom Webinar",
     deliveryMode: "ONLINE",
+    googleFormUrl: "https://forms.gle/TDTUOnlineEvent11",
     organizerCode: "FACULTY:FBA",
     criterionId: "10000000-0000-4000-8000-000000000001",
     timeStart: vietnamTime("2026-10-05", "19:00"),
@@ -248,6 +253,7 @@ const events: SeedEvent[] = [
     ],
     location: "Google Meet",
     deliveryMode: "ONLINE",
+    googleFormUrl: "https://forms.gle/TDTUOnlineEvent12",
     organizerCode: "TDTU-CLUB-023",
     criterionId: "10000000-0000-4000-8000-000000000003",
     timeStart: vietnamTime("2026-10-12", "19:00"),
@@ -287,14 +293,16 @@ export async function seedEvents(prisma: PrismaClient): Promise<void> {
       images: event.images ?? [],
       location: event.location,
       deliveryMode: event.deliveryMode,
+      googleFormUrl: event.deliveryMode === "ONLINE" ? event.googleFormUrl : null,
+      onlinePassingScore: event.deliveryMode === "ONLINE" ? (event.onlinePassingScore ?? 6) : null,
       timeStart: event.timeStart,
       timeEnd: event.timeEnd,
-      registrationStart: event.registrationStart,
-      registrationEnd: event.registrationEnd,
-      capacity: event.capacity,
+      registrationStart: event.deliveryMode === "ONLINE" ? null : event.registrationStart,
+      registrationEnd: event.deliveryMode === "ONLINE" ? null : event.registrationEnd,
+      capacity: event.deliveryMode === "ONLINE" ? null : event.capacity,
       points: event.points,
       type: organizer.type as EventType,
-      checkInMode: event.checkInMode,
+      checkInMode: event.deliveryMode === "ONLINE" ? "ONE_WAY" : event.checkInMode,
       attendanceRadiusMeters: 100,
     };
     await prisma.event.upsert({

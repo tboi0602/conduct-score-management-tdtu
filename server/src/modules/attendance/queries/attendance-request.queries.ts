@@ -1,4 +1,4 @@
-﻿import { Prisma, type AttendanceScanStatus } from "@prisma/client";
+﻿import { AttendanceDirection, Prisma } from "@prisma/client";
 
 import { prisma } from "@config/prisma";
 import { managedEvent } from "@modules/attendance/services/attendance-session.service";
@@ -26,12 +26,18 @@ export async function listRequests(
   eventId: string,
   params: PaginationParams,
   search?: string,
-  status?: AttendanceScanStatus,
+  direction?: AttendanceDirection,
 ) {
   await managedEvent(eventId, access);
   const requestWhere: Prisma.AttendanceScanRequestWhereInput = {
     eventId,
-    status,
+    direction,
+    status: "ACCEPTED",
+    attendanceRecord: {
+      is: {
+        status: { in: ["ATTENDED", "LATE"] },
+      },
+    },
     OR: search
       ? [
           { student: { studentCode: { contains: search, mode: "insensitive" } } },
@@ -40,40 +46,8 @@ export async function listRequests(
         ]
       : undefined,
   };
-  const [allRegistrations, requests] = await prisma.$transaction([
-    prisma.eventRegistration.findMany({
-      where: {
-        eventId,
-        status: "REGISTERED",
-        student: search
-          ? {
-              OR: [
-                { studentCode: { contains: search, mode: "insensitive" } },
-                { user: { name: { contains: search, mode: "insensitive" } } },
-                { user: { email: { contains: search, mode: "insensitive" } } },
-              ],
-            }
-          : undefined,
-      },
-      select: {
-        id: true,
-        registeredAt: true,
-        student: {
-          select: {
-            id: true,
-            studentCode: true,
-            user: { select: { name: true, email: true } },
-            attendanceRecords: {
-              where: { eventId, direction: "CHECK_IN" },
-              select: { id: true, status: true },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: [{ registeredAt: "desc" }, { id: "desc" }],
-    }),
+  const [total, requests] = await prisma.$transaction([
+    prisma.attendanceScanRequest.count({ where: requestWhere }),
     prisma.attendanceScanRequest.findMany({
       where: requestWhere,
       select: {
@@ -91,31 +65,12 @@ export async function listRequests(
         },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: params.skip,
+      take: params.limit,
     }),
   ]);
-
-  const requestStudentIds = new Set(requests.map((item) => item.student.id));
-  const registrationRows = (status ? [] : allRegistrations)
-    .filter((registration) => !requestStudentIds.has(registration.student.id))
-    .map((registration) => ({
-      id: `registration:${registration.id}`,
-      direction: "CHECK_IN" as const,
-      source: "REGISTERED" as const,
-      requestedStatus: "ATTENDED" as const,
-      status: "PENDING" as const,
-      rejectionReason: null,
-      processedAt: null,
-      createdAt: registration.registeredAt,
-      student: registration.student,
-      attendanceRecord: registration.student.attendanceRecords[0] ?? null,
-      isRegistrationOnly: true,
-    }));
-  const items = [...requests, ...registrationRows].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-  const total = items.length;
   return {
-    items: items.slice(params.skip, params.skip + params.limit),
+    items: requests,
     pagination: createPaginationMeta(total, params),
   };
 }

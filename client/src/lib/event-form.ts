@@ -9,6 +9,8 @@ type ValidationKey =
   | "invalidTime"
   | "invalidRegistrationTime"
   | "registrationEndsAfterEventStarts"
+  | "invalidGoogleFormUrl"
+  | "invalidOnlinePassingScore"
   | "missingReference"
   | "invalidRange";
 export class FormValidationError extends Error {
@@ -20,6 +22,21 @@ export class FormValidationError extends Error {
 export function managementError(error: unknown, t: Messages, fallback: string): string {
   if (error instanceof FormValidationError) return t[error.key];
   if (error instanceof HttpError) {
+    const eventError = {
+      EVENT_ALREADY_STARTED: t.eventAlreadyStartedConversionError,
+      EVENT_HAS_ATTENDANCE_SESSIONS: t.eventHasAttendanceSessionsError,
+      EVENT_HAS_ATTENDANCE_REQUESTS: t.eventHasAttendanceRequestsError,
+      EVENT_HAS_ATTENDANCE_RECORDS: t.eventHasAttendanceRecordsError,
+      EVENT_HAS_APPEALS: t.eventHasAppealsError,
+      EVENT_HAS_CONDUCT_SCORE_ENTRIES: t.eventHasConductScoreEntriesError,
+      EVENT_ONLINE_CONVERSION_CONFIRMATION_REQUIRED: t.onlineConversionConfirmationRequired,
+      GOOGLE_FORM_URL_REQUIRED: t.invalidGoogleFormUrl,
+      INVALID_GOOGLE_FORM_URL: t.invalidGoogleFormUrl,
+      ONLINE_PASSING_SCORE_REQUIRED: t.invalidOnlinePassingScore,
+      INVALID_ONLINE_PASSING_SCORE: t.invalidOnlinePassingScore,
+      ONLINE_PASSING_SCORE_LOCKED: t.onlinePassingScoreLocked,
+    }[error.code];
+    if (eventError) return eventError;
     if (error.status === 401) return t.sessionExpired;
     if (error.status === 403) return t.accessDenied;
     if (error.status === 404) return t.resourceMissing;
@@ -59,26 +76,55 @@ export function eventPayload(form: FormData): EventPayload {
   if (!criteriaId || !semesterId || !organizerId) throw new FormValidationError("missingReference");
   const start = new Date(String(form.get("timeStart") ?? ""));
   const end = new Date(String(form.get("timeEnd") ?? ""));
-  const registrationStart = new Date(String(form.get("registrationStart") ?? ""));
-  const registrationEnd = new Date(String(form.get("registrationEnd") ?? ""));
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)
     throw new FormValidationError("invalidTime");
+  const deliveryMode = form.get("deliveryMode");
+  if (deliveryMode !== "OFFLINE" && deliveryMode !== "ONLINE")
+    throw new FormValidationError("invalidFields");
+  const online = deliveryMode === "ONLINE";
+  let googleFormUrl: string | null = null;
+  let onlinePassingScore: number | null = null;
+  if (online) {
+    const rawUrl = String(form.get("googleFormUrl") ?? "").trim();
+    try {
+      const url = new URL(rawUrl);
+      if (
+        url.protocol !== "https:" ||
+        (url.hostname !== "forms.gle" &&
+          !(url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/")))
+      ) {
+        throw new Error("INVALID_HOST");
+      }
+      googleFormUrl = url.toString();
+    } catch {
+      throw new FormValidationError("invalidGoogleFormUrl");
+    }
+    const rawPassingScore = String(form.get("onlinePassingScore") ?? "").trim();
+    onlinePassingScore = Number(rawPassingScore);
+    if (!rawPassingScore || !Number.isFinite(onlinePassingScore) || onlinePassingScore < 0) {
+      throw new FormValidationError("invalidOnlinePassingScore");
+    }
+  }
+  const registrationStart = online ? null : new Date(String(form.get("registrationStart") ?? ""));
+  const registrationEnd = online ? null : new Date(String(form.get("registrationEnd") ?? ""));
   if (
-    !Number.isFinite(registrationStart.getTime()) ||
-    !Number.isFinite(registrationEnd.getTime()) ||
-    registrationStart >= registrationEnd
+    !online &&
+    (!registrationStart ||
+      !registrationEnd ||
+      !Number.isFinite(registrationStart.getTime()) ||
+      !Number.isFinite(registrationEnd.getTime()) ||
+      registrationStart >= registrationEnd)
   )
     throw new FormValidationError("invalidRegistrationTime");
-  if (registrationEnd > start) throw new FormValidationError("registrationEndsAfterEventStarts");
-  const capacityRaw = String(form.get("capacity") ?? "").trim();
+  if (!online && registrationEnd && registrationEnd > start)
+    throw new FormValidationError("registrationEndsAfterEventStarts");
+  const capacityRaw = online ? "" : String(form.get("capacity") ?? "").trim();
   const capacity = capacityRaw === "" ? null : Number(capacityRaw);
   if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1 || capacity > 2147483647))
     throw new FormValidationError("invalidFields");
-  const checkInMode = form.get("checkInMode");
+  const rawCheckInMode = form.get("checkInMode");
+  const checkInMode = online ? "ONE_WAY" : rawCheckInMode;
   if (checkInMode !== "ONE_WAY" && checkInMode !== "TWO_WAY")
-    throw new FormValidationError("invalidFields");
-  const deliveryMode = form.get("deliveryMode");
-  if (deliveryMode !== "OFFLINE" && deliveryMode !== "ONLINE")
     throw new FormValidationError("invalidFields");
   if (deliveryMode === "OFFLINE" && start.toLocaleDateString() !== end.toLocaleDateString())
     throw new FormValidationError("invalidTime");
@@ -89,19 +135,22 @@ export function eventPayload(form: FormData): EventPayload {
       .getAll("images")
       .map(String)
       .filter((url) => Boolean(url && url.trim())),
-    location: requiredText(form, "location"),
+    location: online ? "" : requiredText(form, "location"),
+    googleFormUrl,
+    onlinePassingScore,
     organizerId,
     criteriaId,
     semesterId,
     timeStart: start.toISOString(),
     timeEnd: end.toISOString(),
-    registrationStart: registrationStart.toISOString(),
-    registrationEnd: registrationEnd.toISOString(),
+    registrationStart: registrationStart?.toISOString() ?? null,
+    registrationEnd: registrationEnd?.toISOString() ?? null,
     capacity,
-    attendanceRadiusMeters: pointsInput(form, "attendanceRadiusMeters"),
+    attendanceRadiusMeters: online ? 100 : pointsInput(form, "attendanceRadiusMeters"),
     points: pointsInput(form, "points"),
     checkInMode,
     deliveryMode,
+    confirmOnlineConversion: form.get("confirmOnlineConversion") === "true",
   };
 }
 
@@ -124,7 +173,7 @@ export function organizerFacultyName(
   return unit.faculty.name;
 }
 
-export function localDateTime(value?: string): string {
+export function localDateTime(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 19);

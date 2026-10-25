@@ -3,7 +3,7 @@
 import { Award, CalendarDays, GraduationCap } from "lucide-react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { conductScoreMessages } from "@/i18n/conduct-score-messages";
+import { conductScoreMessages, criteriaTitleMessages } from "@/i18n";
 import type {
   ConductScoreDetail,
   ConductScoreEntrySource,
@@ -164,7 +164,10 @@ export function ConductScoreReport({
                   id={`criterion-${criteria.id}`}
                   className="text-pretty text-base font-bold leading-6 text-[#087da5] md:text-lg"
                 >
-                  {roman(criteriaIndex)}. {criteria.title}{" "}
+                  {roman(criteriaIndex)}.{" "}
+                  {criteriaTitleMessages[criteria.id as keyof typeof criteriaTitleMessages]?.[
+                    locale
+                  ] ?? criteria.title}{" "}
                   <span className="whitespace-nowrap text-sm font-bold text-[#e55345]">
                     ({t.maximum} {criteria.maxPoints} {t.points.toLowerCase()})
                   </span>

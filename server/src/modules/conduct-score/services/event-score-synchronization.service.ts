@@ -7,14 +7,16 @@ import { invalidateDashboardCache } from "@modules/dashboard";
 export type EventScoreSyncOptions = {
   allowFinalized?: boolean;
   reason?: string;
+  invalidateDashboard?: boolean;
 };
 
-export async function syncEventConductScore(
+export async function syncEventConductScoreInTransaction(
+  tx: Prisma.TransactionClient,
   studentId: string,
   eventId: string,
   options: EventScoreSyncOptions = {},
-): Promise<void> {
-  const event = await prisma.event.findUnique({
+): Promise<string | null | undefined> {
+  const event = await tx.event.findUnique({
     where: { id: eventId },
     select: {
       id: true,
@@ -26,8 +28,8 @@ export async function syncEventConductScore(
       organizer: { select: { facultyId: true } },
     },
   });
-  if (!event) return;
-  const records = await prisma.attendanceRecord.findMany({
+  if (!event) return undefined;
+  const records = await tx.attendanceRecord.findMany({
     where: { studentId, eventId },
     select: { id: true, direction: true, status: true, timeChecking: true },
     orderBy: [{ direction: "asc" }, { id: "asc" }],
@@ -42,44 +44,52 @@ export async function syncEventConductScore(
   const completed =
     eventEnded && valid("CHECK_IN") && (event.checkInMode === "ONE_WAY" || valid("CHECK_OUT"));
   const stateHash = createHash("sha256").update(JSON.stringify(records)).digest("hex").slice(0, 20);
+  const score = await tx.conductScore.upsert({
+    where: { studentId_semesterId: { studentId, semesterId: event.semesterId } },
+    update: {},
+    create: { studentId, semesterId: event.semesterId },
+  });
+  if (score.status === "FINAL" && !options.allowFinalized) return event.organizer?.facultyId;
+  const aggregate = await tx.conductScoreEntry.aggregate({
+    where: { conductScoreId: score.id, eventId },
+    _sum: { points: true },
+    _count: { _all: true },
+  });
+  const current = aggregate._sum.points ?? 0;
+  const desired = completed ? event.points : 0;
+  const delta = desired - current;
+  if (!delta) return event.organizer?.facultyId;
+  await tx.conductScoreEntry.create({
+    data: {
+      conductScoreId: score.id,
+      criteriaId: event.criteriaId,
+      eventId,
+      points: delta,
+      result: delta > 0 ? "ATTENDED" : "REVERSED",
+      source: delta > 0 ? "EVENT" : "REVERSAL",
+      reason: options.reason ?? (delta > 0 ? "Đã điểm danh sự kiện" : "Không điểm danh sự kiện"),
+      idempotencyKey: `event:${eventId}:student:${studentId}:entry:${aggregate._count._all}:state:${stateHash}`,
+    },
+  });
+  await recalculate(tx, score.id);
+  return event.organizer?.facultyId;
+}
+
+export async function syncEventConductScore(
+  studentId: string,
+  eventId: string,
+  options: EventScoreSyncOptions = {},
+): Promise<void> {
+  let facultyId: string | null | undefined;
   await prisma
     .$transaction(async (tx) => {
-      const score = await tx.conductScore.upsert({
-        where: { studentId_semesterId: { studentId, semesterId: event.semesterId } },
-        update: {},
-        create: { studentId, semesterId: event.semesterId },
-      });
-      if (score.status === "FINAL" && !options.allowFinalized) return;
-      const aggregate = await tx.conductScoreEntry.aggregate({
-        where: { conductScoreId: score.id, eventId },
-        _sum: { points: true },
-        _count: { _all: true },
-      });
-      const current = aggregate._sum.points ?? 0;
-      const desired = completed ? event.points : 0;
-      const delta = desired - current;
-      if (!delta) return;
-      await tx.conductScoreEntry.create({
-        data: {
-          conductScoreId: score.id,
-          criteriaId: event.criteriaId,
-          eventId,
-          points: delta,
-          result: delta > 0 ? "ATTENDED" : "REVERSED",
-          source: delta > 0 ? "EVENT" : "REVERSAL",
-          reason:
-            options.reason ??
-            (delta > 0 ? "Event attendance completed" : "Event attendance no longer complete"),
-          idempotencyKey: `event:${eventId}:student:${studentId}:entry:${aggregate._count._all}:state:${stateHash}`,
-        },
-      });
-      await recalculate(tx, score.id);
+      facultyId = await syncEventConductScoreInTransaction(tx, studentId, eventId, options);
     })
     .catch((error: unknown) => {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return;
       throw error;
     });
-  await invalidateDashboardCache(event.organizer?.facultyId);
+  if (options.invalidateDashboard !== false) await invalidateDashboardCache(facultyId);
 }
 
 type EndedEventScoreCandidate = {

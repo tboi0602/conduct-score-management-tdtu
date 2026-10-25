@@ -1,0 +1,2 @@
+ALTER TABLE "events"
+ADD COLUMN "onlinePassingScore" DOUBLE PRECISION;

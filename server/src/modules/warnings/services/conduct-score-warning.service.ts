@@ -1,31 +1,46 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@config/prisma";
+import {
+  CONDUCT_SCORE_WARNING_THRESHOLD,
+  FINAL_WARNING_WINDOW_DAYS,
+  dateInVietnam,
+  warningMilestonesForDate,
+  warningNotificationTitle,
+} from "@modules/warnings/services/conduct-score-warning-milestone";
 
-const WARNING_THRESHOLD = 80;
-const WARNING_WINDOW_DAYS = 14;
+const LEGACY_FINAL_WARNING_TITLE = "CONDUCT_SCORE_WARNING";
 
 export async function evaluateConductScoreWarnings(now = new Date()): Promise<number> {
-  const windowEnd = new Date(now.getTime() + WARNING_WINDOW_DAYS * 86_400_000);
+  const evaluationDate = dateInVietnam(now);
+  const finalWindowEnd = new Date(
+    evaluationDate.getTime() + FINAL_WARNING_WINDOW_DAYS * 86_400_000,
+  );
+
   return prisma.$transaction(async (tx) => {
-    const inserted = await tx.$queryRaw<Array<{ id: string; studentId: string }>>(Prisma.sql`
+    await tx.$executeRaw(Prisma.sql`
       INSERT INTO "conduct_score_warnings" (
         "id", "studentId", "semesterId", "observedScore", "threshold", "status", "createdAt", "updatedAt"
       )
       SELECT gen_random_uuid(), s."id", sem."id", COALESCE(cs."totalScore", 0),
-        ${WARNING_THRESHOLD}, 'ACTIVE'::"ConductScoreWarningStatus", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        ${CONDUCT_SCORE_WARNING_THRESHOLD}, 'ACTIVE'::"ConductScoreWarningStatus", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       FROM "semesters" sem
       CROSS JOIN "students" s
+      JOIN "users" u ON u."id" = s."userId" AND u."status" = 'ACTIVE'::"UserStatus"
       LEFT JOIN "conduct_scores" cs ON cs."studentId" = s."id" AND cs."semesterId" = sem."id"
-      WHERE sem."endDate" >= ${now} AND sem."endDate" <= ${windowEnd}
-        AND COALESCE(cs."totalScore", 0) < ${WARNING_THRESHOLD}
+      WHERE (
+          sem."startDate" + ((sem."endDate" - sem."startDate") / 2) = CAST(${evaluationDate} AS date)
+          OR (
+            sem."endDate" >= CAST(${evaluationDate} AS date)
+            AND sem."endDate" <= CAST(${finalWindowEnd} AS date)
+          )
+        )
+        AND COALESCE(cs."totalScore", 0) < ${CONDUCT_SCORE_WARNING_THRESHOLD}
       ON CONFLICT ("studentId", "semesterId") DO UPDATE SET
         "observedScore" = EXCLUDED."observedScore",
         "threshold" = EXCLUDED."threshold",
         "status" = 'ACTIVE'::"ConductScoreWarningStatus",
         "resolvedAt" = NULL,
         "updatedAt" = CURRENT_TIMESTAMP
-      WHERE "conduct_score_warnings"."status" = 'RESOLVED'::"ConductScoreWarningStatus"
-      RETURNING "id", "studentId"
     `);
 
     await tx.$executeRaw(Prisma.sql`
@@ -35,6 +50,7 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
             FROM "conduct_scores" cs
             WHERE cs."semesterId" = w."semesterId" AND cs."studentId" = w."studentId"
           ), 0),
+          "threshold" = ${CONDUCT_SCORE_WARNING_THRESHOLD},
           "updatedAt" = CURRENT_TIMESTAMP
       WHERE w."status" = 'ACTIVE'::"ConductScoreWarningStatus"
     `);
@@ -44,45 +60,91 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
           "updatedAt" = CURRENT_TIMESTAMP
       FROM "semesters" sem
       WHERE w."semesterId" = sem."id" AND w."status" = 'ACTIVE'::"ConductScoreWarningStatus"
-        AND (sem."endDate" < ${now} OR COALESCE((
+        AND (NOT EXISTS (
+          SELECT 1
+          FROM "students" s
+          JOIN "users" u ON u."id" = s."userId"
+          WHERE s."id" = w."studentId" AND u."status" = 'ACTIVE'::"UserStatus"
+        ) OR sem."endDate" < CAST(${evaluationDate} AS date) OR COALESCE((
           SELECT cs."totalScore"
           FROM "conduct_scores" cs
           WHERE cs."semesterId" = w."semesterId" AND cs."studentId" = w."studentId"
         ), 0) >= w."threshold")
     `);
 
-    const students = inserted.length
-      ? await tx.student.findMany({
-          where: { id: { in: inserted.map(({ studentId }) => studentId) } },
-          select: { id: true, userId: true },
-        })
-      : [];
-    const userByStudent = new Map(students.map((student) => [student.id, student.userId]));
-    if (inserted.length) {
-      await tx.userNotification.createMany({
-        data: inserted.flatMap((warning) => {
-          const userId = userByStudent.get(warning.studentId);
-          return userId
-            ? [
-                {
-                  userId,
-                  type: "CONDUCT_SCORE_WARNING" as const,
-                  title: "CONDUCT_SCORE_WARNING",
-                  message: String(WARNING_THRESHOLD),
-                  entityId: warning.id,
-                },
-              ]
-            : [];
+    const activeWarnings = await tx.conductScoreWarning.findMany({
+      where: {
+        status: "ACTIVE",
+        student: { user: { status: "ACTIVE" } },
+        semester: {
+          startDate: { lte: evaluationDate },
+          endDate: { gte: evaluationDate },
+        },
+      },
+      select: {
+        id: true,
+        threshold: true,
+        student: { select: { userId: true } },
+        semester: { select: { startDate: true, endDate: true } },
+      },
+    });
+    const candidates = activeWarnings.flatMap((warning) =>
+      warningMilestonesForDate(warning.semester.startDate, warning.semester.endDate, now).map(
+        (milestone) => ({
+          warningId: warning.id,
+          userId: warning.student.userId,
+          threshold: warning.threshold,
+          milestone,
+          title: warningNotificationTitle(milestone),
         }),
-      });
-    }
-    return inserted.length;
+      ),
+    );
+    if (!candidates.length) return 0;
+
+    const existingNotifications = await tx.userNotification.findMany({
+      where: {
+        type: "CONDUCT_SCORE_WARNING",
+        entityId: { in: candidates.map(({ warningId }) => warningId) },
+        title: {
+          in: [
+            LEGACY_FINAL_WARNING_TITLE,
+            "CONDUCT_SCORE_WARNING_MIDPOINT",
+            "CONDUCT_SCORE_WARNING_FINAL_WINDOW",
+          ],
+        },
+      },
+      select: { entityId: true, title: true },
+    });
+    const alreadySent = new Set(
+      existingNotifications.flatMap((notification) =>
+        notification.entityId ? [`${notification.entityId}:${notification.title}`] : [],
+      ),
+    );
+    const notifications = candidates.filter((candidate) => {
+      if (alreadySent.has(`${candidate.warningId}:${candidate.title}`)) return false;
+      return !(
+        candidate.milestone === "FINAL_WINDOW" &&
+        alreadySent.has(`${candidate.warningId}:${LEGACY_FINAL_WARNING_TITLE}`)
+      );
+    });
+    if (!notifications.length) return 0;
+
+    const created = await tx.userNotification.createMany({
+      data: notifications.map((notification) => ({
+        userId: notification.userId,
+        type: "CONDUCT_SCORE_WARNING" as const,
+        title: notification.title,
+        message: String(notification.threshold),
+        entityId: notification.warningId,
+      })),
+    });
+    return created.count;
   });
 }
 
 export async function listActiveForUser(userId: string) {
   return prisma.conductScoreWarning.findMany({
-    where: { student: { userId }, status: "ACTIVE" },
+    where: { student: { userId, user: { status: "ACTIVE" } }, status: "ACTIVE" },
     orderBy: [{ semester: { endDate: "asc" } }, { id: "asc" }],
     select: {
       id: true,
@@ -96,9 +158,8 @@ export async function listActiveForUser(userId: string) {
 
 export async function cleanupAttendanceEvidence(now = new Date()): Promise<number> {
   const cutoff = new Date(now.getTime() - 30 * 86_400_000);
-  const [incidents, audits] = await prisma.$transaction([
-    prisma.attendanceClientIncident.deleteMany({ where: { failedAt: { lt: cutoff } } }),
-    prisma.attendanceAccessAudit.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-  ]);
-  return incidents.count + audits.count;
+  const audits = await prisma.attendanceAccessAudit.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+  return audits.count;
 }

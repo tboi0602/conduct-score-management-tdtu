@@ -4,7 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { ApiError } from "@utils/ApiError";
+import { runBulkAction } from "@utils/bulkAction";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
+import { deleteStudentAccount } from "@services/users/student-account-deletion.service";
 
 export type UserInput = {
   email: string;
@@ -24,6 +26,10 @@ export type UserFilters = {
   roleId?: string;
   userType?: "STUDENT" | "STAFF";
 };
+
+const STAFF_ROLE_NAME_LIST = ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] as const;
+const STAFF_ROLE_NAMES = new Set<string>(STAFF_ROLE_NAME_LIST);
+const STAFF_EMAIL_PATTERN = /^[^@\s]+@tdtu\.edu\.vn$/i;
 
 const publicUserSelect = {
   id: true,
@@ -83,8 +89,8 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
         }
       : filters.userType === "STAFF"
         ? {
-            student: { is: null },
-            userRoles: { some: { role: { name: { notIn: ["STUDENT", "ADMIN"] } } } },
+            userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
+            NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
           }
         : {}),
     ...(filters.classId
@@ -139,17 +145,58 @@ function normalizeInput(input: UserInput) {
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim();
   if (!email) throw new ApiError(400, "Email is required");
+  if (email.length > 150) throw new ApiError(400, "Email must not exceed 150 characters");
   if (!name) throw new ApiError(400, "Name is required");
+  if (name.length > 100) throw new ApiError(400, "Name must not exceed 100 characters");
   if (input.password !== undefined && input.password !== null && input.password.length < 6) {
     throw new ApiError(400, "Password must contain at least 6 characters");
   }
   return { email, name };
 }
 
+function validateStaffInput(
+  input: UserInput,
+  email: string,
+  roles: Array<{ name: string }>,
+  requirePassword: boolean,
+) {
+  const isStudent = roles.some((role) => role.name === "STUDENT");
+  const staffRoles = roles.filter((role) => STAFF_ROLE_NAMES.has(role.name));
+  if (isStudent || staffRoles.length === 0) return;
+
+  if (roles.length !== 1 || staffRoles.length !== 1) {
+    throw new ApiError(
+      400,
+      "Staff accounts must have exactly one supported staff role",
+      "STAFF_ROLE_INVALID",
+      { roleIds: ["Select either EVENT_ORGANIZER or STUDENT_AFFAIRS"] },
+    );
+  }
+  if (!STAFF_EMAIL_PATTERN.test(email)) {
+    throw new ApiError(400, "Staff email must use the @tdtu.edu.vn domain", "STAFF_EMAIL_INVALID", {
+      email: ["Staff email must use the @tdtu.edu.vn domain"],
+    });
+  }
+  if (requirePassword && !input.password) {
+    throw new ApiError(400, "Password is required for staff accounts", "STAFF_PASSWORD_REQUIRED", {
+      password: ["Password is required for staff accounts"],
+    });
+  }
+  if (!input.primaryFacultyId?.trim()) {
+    throw new ApiError(
+      400,
+      "Primary faculty is required for staff accounts",
+      "STAFF_FACULTY_REQUIRED",
+      { primaryFacultyId: ["Select a primary faculty"] },
+    );
+  }
+}
+
 export async function createUser(input: UserInput) {
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
   const isStudent = roles.some((role) => role.name === "STUDENT");
+  validateStaffInput(input, email, roles, true);
   const studentCode = input.studentCode?.trim();
   if (isStudent && !studentCode)
     throw new ApiError(400, "studentCode is required for STUDENT role");
@@ -159,7 +206,10 @@ export async function createUser(input: UserInput) {
       where: { id: input.primaryFacultyId },
       select: { id: true },
     });
-    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
+    if (!faculty)
+      throw new ApiError(400, "Primary faculty does not exist", "STAFF_FACULTY_NOT_FOUND", {
+        primaryFacultyId: ["Primary faculty does not exist"],
+      });
   }
 
   try {
@@ -202,8 +252,19 @@ export async function updateUser(id: string, input: UserInput) {
   if (!current) throw new ApiError(404, "User not found");
 
   const { email, name } = normalizeInput(input);
-  const roles = await getRoles(input.roleIds);
+  let roles = await getRoles(input.roleIds);
+  const keepsStudentOrganizerRole =
+    Boolean(current.student) && roles.some((role) => role.name === "EVENT_ORGANIZER");
+  if (keepsStudentOrganizerRole && !roles.some((role) => role.name === "STUDENT")) {
+    const studentRole = await prisma.role.findUnique({ where: { name: "STUDENT" } });
+    if (!studentRole) throw new ApiError(500, "STUDENT role does not exist");
+    roles = [...roles, studentRole];
+  }
+  if (current.student && roles.some((role) => role.name === "STUDENT_AFFAIRS")) {
+    throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
+  }
   const isStudent = roles.some((role) => role.name === "STUDENT");
+  validateStaffInput(input, email, roles, false);
   const isAdmin = roles.some((role) => role.name === "ADMIN");
   if (current.email === "admin" && (email !== "admin" || !isAdmin)) {
     throw new ApiError(400, "The default admin account must keep its email and ADMIN role");
@@ -218,7 +279,10 @@ export async function updateUser(id: string, input: UserInput) {
       where: { id: input.primaryFacultyId },
       select: { id: true },
     });
-    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
+    if (!faculty)
+      throw new ApiError(400, "Primary faculty does not exist", "STAFF_FACULTY_NOT_FOUND", {
+        primaryFacultyId: ["Primary faculty does not exist"],
+      });
   }
 
   try {
@@ -228,7 +292,11 @@ export async function updateUser(id: string, input: UserInput) {
         data: {
           email,
           name,
-          primaryFacultyId: isStudent ? null : (input.primaryFacultyId ?? null),
+          primaryFacultyId: isStudent
+            ? keepsStudentOrganizerRole
+              ? current.primaryFacultyId
+              : null
+            : (input.primaryFacultyId ?? null),
           ...(password ? { password } : {}),
         },
       });
@@ -250,7 +318,7 @@ export async function updateUser(id: string, input: UserInput) {
         });
       }
     });
-    await redisClient.revokeRefreshSession(id);
+    await redisClient.revokeUserRefreshSessions(id);
     return findUserById(id);
   } catch (error) {
     throw mapPrismaError(error);
@@ -261,17 +329,75 @@ export async function deleteUser(actorUserId: string, id: string) {
   if (actorUserId === id) {
     throw new ApiError(409, "You cannot delete your own account");
   }
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, student: { select: { id: true } } },
+  });
   if (!user) throw new ApiError(404, "User not found");
   if (user.email === "admin")
     throw new ApiError(400, "The default admin account cannot be deleted");
+  if (user.student) {
+    await deleteStudentAccount({ actorUserId, targetUserId: id });
+    return;
+  }
   await prisma.user.delete({ where: { id } });
-  await redisClient.revokeRefreshSession(id);
+  await redisClient.revokeUserRefreshSessions(id);
+}
+
+export async function deleteStudents(actorUserId: string, ids: string[]) {
+  return runBulkAction(ids, async (id) => {
+    await deleteStudentAccount({ actorUserId, targetUserId: id });
+  });
+}
+
+export async function setStaffStatus(
+  actorUserId: string,
+  id: string,
+  status: "ACTIVE" | "DISABLED",
+) {
+  if (actorUserId === id) throw new ApiError(409, "You cannot change your own status");
+  const staff = await prisma.user.findFirst({
+    where: {
+      id,
+      userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
+      NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
+    },
+    select: { id: true },
+  });
+  if (!staff) throw new ApiError(404, "Staff member not found");
+  const updated = await prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.update({
+      where: { id },
+      data: { status },
+      select: publicUserSelect,
+    });
+    if (status === "DISABLED") {
+      const resolvedAt = new Date();
+      await transaction.conductScoreWarning.updateMany({
+        where: { student: { userId: id }, status: "ACTIVE" },
+        data: { status: "RESOLVED", resolvedAt },
+      });
+    }
+    return user;
+  });
+  await redisClient.revokeUserRefreshSessions(id);
+  return updated;
+}
+
+export async function setStaffStatuses(
+  actorUserId: string,
+  ids: string[],
+  status: "ACTIVE" | "DISABLED",
+) {
+  return runBulkAction(ids, async (id) => {
+    await setStaffStatus(actorUserId, id, status);
+  });
 }
 
 function mapPrismaError(error: unknown): Error {
   const code = (error as { code?: string }).code;
-  if (code === "P2002") return new ApiError(409, "Email or student code already exists");
+  if (code === "P2002")
+    return new ApiError(409, "Email or student code already exists", "USER_ALREADY_EXISTS");
   if (code === "P2003") return new ApiError(400, "Referenced class does not exist");
   if (code === "P2025") return new ApiError(404, "User or related resource not found");
   return error instanceof Error ? error : new Error("Unknown database error");

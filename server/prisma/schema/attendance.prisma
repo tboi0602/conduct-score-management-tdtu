@@ -28,6 +28,36 @@ enum AttendanceScanSource {
   BULK_IMPORT
 }
 
+enum AttendanceImportBatchStatus {
+  PROCESSING
+  PARTIALLY_QUEUED
+  COMPLETED
+  FAILED
+}
+
+model AttendanceImportBatch {
+  id              String                      @id @default(uuid()) @db.Uuid
+  eventId         String                      @db.Uuid
+  createdByUserId String?                     @db.Uuid
+  status          AttendanceImportBatchStatus @default(PROCESSING)
+  requestedCount  Int
+  queuedCount     Int                         @default(0)
+  processedCount  Int                         @default(0)
+  acceptedCount   Int                         @default(0)
+  rejectedCount   Int                         @default(0)
+  completedAt     DateTime?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  event        Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy    User?                   @relation("AttendanceImportBatchCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  scanRequests AttendanceScanRequest[]
+
+  @@index([eventId, createdAt, id])
+  @@index([status, createdAt, id])
+  @@map("attendance_import_batches")
+}
+
 // Nhật ký điểm danh: MỖI LƯỢT QUÉT là một bản ghi, phân biệt chiều
 // bằng `direction`. Một sinh viên chỉ quét 1 lần mỗi chiều mỗi sự kiện
 // (unique gồm cả direction). Giờ check-out thực tế = timeChecking của
@@ -87,6 +117,7 @@ model AttendanceScanRequest {
   sessionId         String?              @db.Uuid
   studentId         String               @db.Uuid
   submittedByUserId String               @db.Uuid
+  importBatchId     String?              @db.Uuid
   direction         AttendanceDirection
   source            AttendanceScanSource
   requestedStatus   AttendanceStatus     @default(ATTENDED)
@@ -100,15 +131,17 @@ model AttendanceScanRequest {
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 
-  event            Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  session          AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  student          Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  submittedBy      User               @relation("AttendanceScanSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  event            Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  session          AttendanceSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  student          Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submittedBy      User                   @relation("AttendanceScanSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  importBatch      AttendanceImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   attendanceRecord AttendanceRecord?
 
   @@index([eventId, status, createdAt, id])
   @@index([studentId, status, createdAt, id])
   @@index([sessionId, createdAt, id])
+  @@index([importBatchId, status])
   @@map("attendance_scan_requests")
 }
 
@@ -131,56 +164,19 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
-enum AttendanceIncidentStatus {
-  OPEN
-  RESOLVED
-}
-
-model AttendanceClientIncident {
-  id                 String                   @id @default(uuid()) @db.Uuid
-  clientAttemptId    String                   @unique @db.Uuid
-  studentId          String                   @db.Uuid
-  eventId            String                   @db.Uuid
-  direction          AttendanceDirection?
-  failureCategory    AttendanceFailureCategory
-  failedAt           DateTime
-  latitude           Float?
-  longitude          Float?
-  accuracyMeters     Float?
-  tokenFingerprint   String?                  @db.VarChar(64)
-  clientOnline       Boolean
-  userAgent          String?                  @db.VarChar(500)
-  payload            Json
-  digest             String                   @db.VarChar(64)
-  status             AttendanceIncidentStatus @default(OPEN)
-  resolutionNote     String?                  @db.VarChar(1000)
-  resolvedByUserId   String?                  @db.Uuid
-  resolvedAt         DateTime?
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-
-  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  event      Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  resolvedBy User?   @relation("AttendanceIncidentResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
-
-  @@index([eventId, status, failedAt, id])
-  @@index([studentId, failedAt, id])
-  @@map("attendance_client_incidents")
-}
-
 model AttendanceAccessAudit {
-  id              String    @id @default(uuid()) @db.Uuid
-  requestId       String    @unique @db.VarChar(100)
-  clientAttemptId String?   @db.Uuid
-  userId          String?   @db.Uuid
-  studentId       String?   @db.Uuid
-  eventId         String?   @db.Uuid
-  method          String    @db.VarChar(10)
-  path            String    @db.VarChar(255)
+  id              String   @id @default(uuid()) @db.Uuid
+  requestId       String   @unique @db.VarChar(100)
+  clientAttemptId String?  @db.Uuid
+  userId          String?  @db.Uuid
+  studentId       String?  @db.Uuid
+  eventId         String?  @db.Uuid
+  method          String   @db.VarChar(10)
+  path            String   @db.VarChar(255)
   statusCode      Int
   durationMs      Int
-  instance        String    @db.VarChar(100)
-  createdAt       DateTime  @default(now())
+  instance        String   @db.VarChar(100)
+  createdAt       DateTime @default(now())
 
   student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
   event   Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)

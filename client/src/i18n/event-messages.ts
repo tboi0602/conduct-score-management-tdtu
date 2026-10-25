@@ -17,6 +17,16 @@ const vi = {
   eventName: "Tên sự kiện",
   location: "Địa điểm",
   locationPending: "Chưa cập nhật địa điểm",
+  googleFormUrl: "Liên kết Google Form",
+  googleFormUrlHint:
+    "Google Form được cấu hình bên ngoài hệ thống. Chỉ chấp nhận liên kết HTTPS từ forms.gle hoặc docs.google.com/forms.",
+  onlinePassingScore: "Điểm tối thiểu để đạt",
+  onlinePassingScoreHint:
+    "Ngưỡng này được dùng cho mọi lần import kết quả của sự kiện và sẽ bị khóa sau lần import đầu tiên.",
+  onlinePassingScoreLockedHint: "Điểm tối thiểu đã bị khóa vì sự kiện đã phát sinh dữ liệu import.",
+  googleFormNotConfigured: "Chưa cấu hình Google Form",
+  openGoogleForm: "Mở Google Form",
+  notApplicable: "Không áp dụng",
   criteriaName: "Tên tiêu chí",
   criterion: "Tiêu chí",
   semester: "Học kỳ",
@@ -34,6 +44,9 @@ const vi = {
   filters: "Bộ lọc",
   organizer: "Đơn vị tổ chức",
   organizerSearch: "Tìm đơn vị tổ chức",
+  allOrganizers: "Tất cả đơn vị",
+  clearOrganizer: "Xóa đơn vị tổ chức đã chọn",
+  loadingOptions: "Đang tải gợi ý",
   selectOrganizer: "Chọn đơn vị tổ chức",
   eventFaculty: "Khoa tổ chức",
   selectEventFaculty: "Chọn khoa",
@@ -88,6 +101,7 @@ const vi = {
   HK2: "Học kỳ 2",
   HK3: "Học kỳ hè",
   allEventTypes: "Tất cả cấp",
+  allDeliveryModes: "Tất cả hình thức",
   allCheckInModes: "Tất cả chế độ",
   allCriteria: "Tất cả tiêu chí",
   allSemesters: "Tất cả học kỳ",
@@ -107,6 +121,23 @@ const vi = {
   confirmDeleteSemester: "Xóa học kỳ",
   eventDeleteWarning:
     "Điểm danh và thông báo của sự kiện cũng sẽ bị xóa. Thao tác này không thể hoàn tác.",
+  confirmOnlineConversionTitle: "Chuyển sự kiện sang trực tuyến?",
+  confirmOnlineConversionDescription:
+    "{count} sinh viên đang đăng ký sẽ nhận thông báo và toàn bộ dữ liệu đăng ký của sự kiện sẽ bị xóa. Thao tác này không thể hoàn tác.",
+  confirmOnlineConversionAction: "Chuyển sang trực tuyến",
+  eventAlreadyStartedConversionError:
+    "Không thể chuyển hình thức vì sự kiện đã bắt đầu hoặc đã kết thúc.",
+  eventHasAttendanceSessionsError: "Không thể chuyển hình thức vì sự kiện đã có phiên điểm danh.",
+  eventHasAttendanceRequestsError:
+    "Không thể chuyển hình thức vì sự kiện đã có yêu cầu quét hoặc nhập điểm danh.",
+  eventHasAttendanceRecordsError: "Không thể chuyển hình thức vì sự kiện đã có kết quả điểm danh.",
+  eventHasAppealsError: "Không thể chuyển hình thức vì sự kiện đã có dữ liệu khiếu nại.",
+  eventHasConductScoreEntriesError:
+    "Không thể chuyển hình thức vì sự kiện đã phát sinh điểm rèn luyện.",
+  onlineConversionConfirmationRequired:
+    "Bạn phải xác nhận việc thông báo cho sinh viên và xóa dữ liệu đăng ký trước khi chuyển sang trực tuyến.",
+  onlinePassingScoreLocked:
+    "Không thể thay đổi điểm tối thiểu sau khi sự kiện đã phát sinh lần import đầu tiên.",
   criteriaDeleteWarning:
     "Chỉ xóa được tiêu chí chưa có sự kiện hoặc điểm rèn luyện sử dụng. Thao tác này không thể hoàn tác.",
   semesterDeleteWarning: "Chỉ xóa được học kỳ chưa có sự kiện hoặc bảng điểm rèn luyện sử dụng.",
@@ -121,6 +152,9 @@ const vi = {
   invalidPoints: "Điểm phải là số nguyên không âm.",
   invalidTime: "Thời gian kết thúc phải sau thời gian bắt đầu.",
   invalidRegistrationTime: "Thời gian đóng đăng ký phải sau thời gian mở đăng ký.",
+  invalidGoogleFormUrl:
+    "Vui lòng nhập liên kết Google Form HTTPS hợp lệ từ forms.gle hoặc docs.google.com/forms.",
+  invalidOnlinePassingScore: "Điểm tối thiểu phải là một số không âm hợp lệ.",
   registrationEndsAfterEventStarts:
     "Thời gian đóng đăng ký phải trước hoặc bằng thời gian bắt đầu sự kiện.",
   invalidRange: "Giá trị từ phải nhỏ hơn hoặc bằng giá trị đến.",
@@ -161,6 +195,17 @@ const en = {
   eventName: "Event name",
   location: "Location",
   locationPending: "Location not updated",
+  googleFormUrl: "Google Form link",
+  googleFormUrlHint:
+    "The Google Form is configured outside the system. Only HTTPS links from forms.gle or docs.google.com/forms are accepted.",
+  onlinePassingScore: "Minimum passing score",
+  onlinePassingScoreHint:
+    "This threshold applies to every result import for the event and is locked after the first import.",
+  onlinePassingScoreLockedHint:
+    "The minimum passing score is locked because the event already has import data.",
+  googleFormNotConfigured: "Google Form not configured",
+  openGoogleForm: "Open Google Form",
+  notApplicable: "Not applicable",
   criteriaName: "Criterion title",
   criterion: "Criterion",
   semester: "Semester",
@@ -178,6 +223,9 @@ const en = {
   filters: "Filters",
   organizer: "Organizer",
   organizerSearch: "Search organizers",
+  allOrganizers: "All organizers",
+  clearOrganizer: "Clear selected organizer",
+  loadingOptions: "Loading suggestions",
   selectOrganizer: "Select organizer",
   eventFaculty: "Organizing faculty",
   selectEventFaculty: "Select faculty",
@@ -232,6 +280,7 @@ const en = {
   HK2: "Semester 2",
   HK3: "Summer semester",
   allEventTypes: "All levels",
+  allDeliveryModes: "All delivery modes",
   allCheckInModes: "All modes",
   allCriteria: "All criteria",
   allSemesters: "All semesters",
@@ -251,6 +300,26 @@ const en = {
   confirmDeleteSemester: "Delete semester",
   eventDeleteWarning:
     "Attendance records and notifications for this event will also be deleted. This cannot be undone.",
+  confirmOnlineConversionTitle: "Move this event online?",
+  confirmOnlineConversionDescription:
+    "{count} registered student(s) will be notified and all event registration data will be deleted. This action cannot be undone.",
+  confirmOnlineConversionAction: "Move online",
+  eventAlreadyStartedConversionError:
+    "The delivery mode cannot be changed because the event has already started or ended.",
+  eventHasAttendanceSessionsError:
+    "The delivery mode cannot be changed because attendance sessions already exist.",
+  eventHasAttendanceRequestsError:
+    "The delivery mode cannot be changed because attendance scan requests already exist.",
+  eventHasAttendanceRecordsError:
+    "The delivery mode cannot be changed because attendance results already exist.",
+  eventHasAppealsError:
+    "The delivery mode cannot be changed because attendance appeals already exist.",
+  eventHasConductScoreEntriesError:
+    "The delivery mode cannot be changed because conduct score entries already exist.",
+  onlineConversionConfirmationRequired:
+    "Confirm that students will be notified and registration data will be deleted before moving the event online.",
+  onlinePassingScoreLocked:
+    "The minimum passing score cannot be changed after the event's first import.",
   criteriaDeleteWarning:
     "Only criteria unused by events or conduct scores can be deleted. This cannot be undone.",
   semesterDeleteWarning:
@@ -266,6 +335,9 @@ const en = {
   invalidPoints: "Points must be non-negative integers.",
   invalidTime: "The end time must be after the start time.",
   invalidRegistrationTime: "Registration must close after it opens.",
+  invalidGoogleFormUrl:
+    "Enter a valid HTTPS Google Form link from forms.gle or docs.google.com/forms.",
+  invalidOnlinePassingScore: "The minimum passing score must be a valid non-negative number.",
   registrationEndsAfterEventStarts: "Registration must close before or when the event starts.",
   invalidRange: "The lower bound must not exceed the upper bound.",
   missingReference: "Select a criterion and semester.",

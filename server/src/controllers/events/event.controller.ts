@@ -10,17 +10,44 @@ import {
   dateInput,
   enumInput,
   integerInput,
+  nonNegativeNumberInput,
   objectInput,
   optionalQuery,
   searchInput,
   textInput,
+  uuidArrayInput,
   uuidInput,
 } from "@utils/crudValidation";
 
 function parseInput(req: Request): events.EventInput {
   const body = objectInput(req.body);
+  const deliveryMode = enumInput(
+    body.deliveryMode === undefined ? EventDeliveryMode.OFFLINE : body.deliveryMode,
+    Object.values(EventDeliveryMode),
+    "deliveryMode",
+  );
+  const online = deliveryMode === EventDeliveryMode.ONLINE;
+  const onlinePassingScore = (() => {
+    if (!online) return null;
+    if (body.onlinePassingScore === undefined || body.onlinePassingScore === null) {
+      throw new ApiError(
+        400,
+        "onlinePassingScore is required for online events",
+        "ONLINE_PASSING_SCORE_REQUIRED",
+      );
+    }
+    try {
+      return nonNegativeNumberInput(body.onlinePassingScore, "onlinePassingScore");
+    } catch {
+      throw new ApiError(
+        400,
+        "onlinePassingScore must be a finite non-negative number",
+        "INVALID_ONLINE_PASSING_SCORE",
+      );
+    }
+  })();
   const capacity =
-    body.capacity === null || body.capacity === "" || body.capacity === undefined
+    online || body.capacity === null || body.capacity === "" || body.capacity === undefined
       ? null
       : integerInput(body.capacity, "capacity");
   if (capacity !== null && capacity < 1)
@@ -34,30 +61,32 @@ function parseInput(req: Request): events.EventInput {
     name: textInput(body.name, "name"),
     description: sanitizeEventDescription(body.description ?? ""),
     images,
-    location: textInput(body.location, "location"),
+    location: online ? "" : textInput(body.location, "location"),
+    googleFormUrl: online ? textInput(body.googleFormUrl, "googleFormUrl", 2048) : null,
+    onlinePassingScore,
     organizerId: uuidInput(body.organizerId, "organizerId"),
     criteriaId: uuidInput(body.criteriaId, "criteriaId"),
     semesterId: uuidInput(body.semesterId, "semesterId"),
     timeStart: dateInput(body.timeStart, "timeStart"),
     timeEnd: dateInput(body.timeEnd, "timeEnd"),
-    registrationStart: dateInput(body.registrationStart, "registrationStart"),
-    registrationEnd: dateInput(body.registrationEnd, "registrationEnd"),
+    registrationStart: online ? null : dateInput(body.registrationStart, "registrationStart"),
+    registrationEnd: online ? null : dateInput(body.registrationEnd, "registrationEnd"),
     capacity,
-    attendanceRadiusMeters: integerInput(
-      body.attendanceRadiusMeters === undefined ? 100 : body.attendanceRadiusMeters,
-      "attendanceRadiusMeters",
-    ),
+    attendanceRadiusMeters: online
+      ? 100
+      : integerInput(
+          body.attendanceRadiusMeters === undefined ? 100 : body.attendanceRadiusMeters,
+          "attendanceRadiusMeters",
+        ),
     points: integerInput(body.points === undefined ? 0 : body.points, "points"),
-    checkInMode: enumInput(
-      body.checkInMode === undefined ? CheckInMode.ONE_WAY : body.checkInMode,
-      Object.values(CheckInMode),
-      "checkInMode",
-    ),
-    deliveryMode: enumInput(
-      body.deliveryMode === undefined ? EventDeliveryMode.OFFLINE : body.deliveryMode,
-      Object.values(EventDeliveryMode),
-      "deliveryMode",
-    ),
+    checkInMode: online
+      ? CheckInMode.ONE_WAY
+      : enumInput(
+          body.checkInMode === undefined ? CheckInMode.ONE_WAY : body.checkInMode,
+          Object.values(CheckInMode),
+          "checkInMode",
+        ),
+    deliveryMode,
   };
 }
 
@@ -71,6 +100,9 @@ export async function listEvents(req: Request, res: Response): Promise<void> {
     facultyId: optionalQuery(req.query.facultyId, (value) => uuidInput(value, "facultyId")),
     type: optionalQuery(req.query.type, (value) =>
       enumInput(value, Object.values(EventType), "type"),
+    ),
+    deliveryMode: optionalQuery(req.query.deliveryMode, (value) =>
+      enumInput(value, Object.values(EventDeliveryMode), "deliveryMode"),
     ),
     checkInMode: optionalQuery(req.query.checkInMode, (value) =>
       enumInput(value, Object.values(CheckInMode), "checkInMode"),
@@ -103,10 +135,22 @@ export async function createEvent(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateEvent(req: Request, res: Response): Promise<void> {
+  const body = objectInput(req.body);
+  if (
+    body.confirmOnlineConversion !== undefined &&
+    typeof body.confirmOnlineConversion !== "boolean"
+  ) {
+    throw new ApiError(400, "confirmOnlineConversion must be a boolean");
+  }
   const access = await getEventAccess((res.locals.auth as AuthContext).sub);
   res.json({
     ok: true,
-    data: await events.updateEvent(uuidInput(req.params.id), parseInput(req), access),
+    data: await events.updateEvent(
+      uuidInput(req.params.id),
+      parseInput(req),
+      access,
+      body.confirmOnlineConversion === true,
+    ),
   });
 }
 
@@ -114,4 +158,10 @@ export async function deleteEvent(req: Request, res: Response): Promise<void> {
   const access = await getEventAccess((res.locals.auth as AuthContext).sub);
   await events.deleteEvent(uuidInput(req.params.id), access);
   res.status(204).end();
+}
+
+export async function deleteEvents(req: Request, res: Response): Promise<void> {
+  const access = await getEventAccess((res.locals.auth as AuthContext).sub);
+  const body = objectInput(req.body);
+  res.json({ ok: true, data: await events.deleteEvents(uuidArrayInput(body.ids), access) });
 }

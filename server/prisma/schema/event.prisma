@@ -77,6 +77,8 @@ model Event {
   images                 String[]          @default([])
   location               String            @default("") @db.VarChar(255)
   deliveryMode           EventDeliveryMode @default(OFFLINE)
+  googleFormUrl          String?           @db.VarChar(2048)
+  onlinePassingScore     Float?
   organizerId            String?           @db.Uuid
   timeStart              DateTime
   timeEnd                DateTime
@@ -89,26 +91,26 @@ model Event {
   attendanceRadiusMeters Int               @default(100)
   capacity               Int?
   registeredCount        Int               @default(0)
-  registrationStart      DateTime
-  registrationEnd        DateTime
+  registrationStart      DateTime?
+  registrationEnd        DateTime?
 
   // ON DELETE RESTRICT = mặc định của Prisma với quan hệ bắt buộc
   criteria  Criteria        @relation(fields: [criteriaId], references: [id])
   semester  Semester        @relation(fields: [semesterId], references: [id])
   organizer OrganizingUnit? @relation(fields: [organizerId], references: [id], onDelete: Restrict)
 
-  attendanceRecords      AttendanceRecord[]
-  attendanceSessions     AttendanceSession[]
-  attendanceScanRequests AttendanceScanRequest[]
-  registrations          EventRegistration[]
-  conductScoreEntries    ConductScoreEntry[]
-  notifications          Notification[]
-  attendanceAppeals      AttendanceAppeal[]
+  attendanceRecords        AttendanceRecord[]
+  attendanceSessions       AttendanceSession[]
+  attendanceScanRequests   AttendanceScanRequest[]
+  attendanceImportBatches  AttendanceImportBatch[]
+  registrations            EventRegistration[]
+  conductScoreEntries      ConductScoreEntry[]
+  notifications            Notification[]
+  attendanceAppeals        AttendanceAppeal[]
   attendanceAppealAttempts AttendanceAppealAttempt[]
-  attendanceClientIncidents AttendanceClientIncident[]
   attendanceAccessAudits   AttendanceAccessAudit[]
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@index([criteriaId])
   @@index([semesterId])

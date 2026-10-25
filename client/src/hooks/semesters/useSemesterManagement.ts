@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { usePaginatedData } from "@/hooks/shared/usePaginatedData";
 import { useCrudManagement } from "@/hooks/shared/useCrudManagement";
+import { useBulkAction } from "@/hooks/shared/useBulkAction";
 import { queryKeys } from "@/lib/query-keys";
 import { semesterService } from "@/services/events";
 import type { SemesterFilters, SemesterPayload, SemesterType } from "@/types/events";
@@ -42,9 +43,14 @@ export function useSemesterManagement() {
       }
     },
   });
+  const bulkDelete = useBulkAction({
+    mutationFn: semesterService.deleteMany,
+    queryKeys: [queryKeys.semesters.all, queryKeys.events.all, queryKeys.eventOptions.semesters],
+  });
   return {
     ...list,
     ...crud,
+    bulkDelete,
     filters,
     applyFilters: (next: SemesterFilters) => {
       setPage(1);

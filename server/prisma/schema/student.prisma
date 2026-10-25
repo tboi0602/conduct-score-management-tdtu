@@ -11,20 +11,19 @@ model Student {
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade) // ON DELETE CASCADE
   class Class? @relation(fields: [classId], references: [id]) // ON DELETE RESTRICT
 
-  schedules              Schedule[]
-  scheduleExceptions     ScheduleException[]
-  freeTimes              FreeTime[]
-  conductScores          ConductScore[]
-  attendanceRecords      AttendanceRecord[]
-  attendanceScanRequests AttendanceScanRequest[]
-  eventRegistrations     EventRegistration[]
-  attendanceAppeals      AttendanceAppeal[]
+  schedules                Schedule[]
+  scheduleExceptions       ScheduleException[]
+  freeTimes                FreeTime[]
+  conductScores            ConductScore[]
+  attendanceRecords        AttendanceRecord[]
+  attendanceScanRequests   AttendanceScanRequest[]
+  eventRegistrations       EventRegistration[]
+  attendanceAppeals        AttendanceAppeal[]
   attendanceAppealAttempts AttendanceAppealAttempt[]
   conductScoreWarnings     ConductScoreWarning[]
-  attendanceClientIncidents AttendanceClientIncident[]
   attendanceAccessAudits   AttendanceAccessAudit[]
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@index([classId])
   @@map("students")
