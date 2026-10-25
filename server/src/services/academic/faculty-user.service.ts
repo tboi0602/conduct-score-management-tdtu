@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { getEventAccess } from "@services/events/event-access.service";
+import { deleteStudentAccount } from "@services/users/student-account-deletion.service";
 import { ApiError } from "@utils/ApiError";
 import { runBulkAction } from "@utils/bulkAction";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
@@ -213,7 +214,7 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
     else if (current.student && !isStudentOrganizer)
       await tx.student.delete({ where: { userId: id } });
   });
-  await redisClient.revokeRefreshSession(id);
+  await redisClient.revokeUserRefreshSessions(id);
   return prisma.user.findUniqueOrThrow({ where: { id }, select });
 }
 
@@ -235,7 +236,7 @@ export async function setFacultyStaffStatus(
   });
   if (!staff) throw new ApiError(404, "Staff member not found in your faculty scope");
   const updated = await prisma.user.update({ where: { id }, data: { status }, select });
-  await redisClient.revokeRefreshSession(id);
+  await redisClient.revokeUserRefreshSessions(id);
   return updated;
 }
 
@@ -253,16 +254,11 @@ export async function deleteFacultyStudent(actorId: string, id: string) {
   const actor = await access(actorId);
   if (actor.manageAnyUnit)
     throw new ApiError(400, "Use the global user endpoint for administrators");
-  const student = await prisma.user.findFirst({
-    where: {
-      id,
-      student: { is: { class: { is: { major: { is: { facultyId: actor.facultyId! } } } } } },
-    },
-    select: { id: true },
+  await deleteStudentAccount({
+    actorUserId: actorId,
+    targetUserId: id,
+    facultyScopeId: actor.facultyId!,
   });
-  if (!student) throw new ApiError(404, "Student not found in your faculty scope");
-  await prisma.user.delete({ where: { id } });
-  await redisClient.revokeRefreshSession(id);
 }
 
 export async function deleteFacultyStudents(actorId: string, ids: string[]) {

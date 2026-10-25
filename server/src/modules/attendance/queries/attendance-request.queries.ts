@@ -1,4 +1,4 @@
-﻿import { Prisma } from "@prisma/client";
+﻿import { AttendanceDirection, Prisma } from "@prisma/client";
 
 import { prisma } from "@config/prisma";
 import { managedEvent } from "@modules/attendance/services/attendance-session.service";
@@ -26,10 +26,12 @@ export async function listRequests(
   eventId: string,
   params: PaginationParams,
   search?: string,
+  direction?: AttendanceDirection,
 ) {
   await managedEvent(eventId, access);
   const requestWhere: Prisma.AttendanceScanRequestWhereInput = {
     eventId,
+    direction,
     status: "ACCEPTED",
     attendanceRecord: {
       is: {

@@ -25,6 +25,7 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
         ${CONDUCT_SCORE_WARNING_THRESHOLD}, 'ACTIVE'::"ConductScoreWarningStatus", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       FROM "semesters" sem
       CROSS JOIN "students" s
+      JOIN "users" u ON u."id" = s."userId" AND u."status" = 'ACTIVE'::"UserStatus"
       LEFT JOIN "conduct_scores" cs ON cs."studentId" = s."id" AND cs."semesterId" = sem."id"
       WHERE (
           sem."startDate" + ((sem."endDate" - sem."startDate") / 2) = CAST(${evaluationDate} AS date)
@@ -59,7 +60,12 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
           "updatedAt" = CURRENT_TIMESTAMP
       FROM "semesters" sem
       WHERE w."semesterId" = sem."id" AND w."status" = 'ACTIVE'::"ConductScoreWarningStatus"
-        AND (sem."endDate" < CAST(${evaluationDate} AS date) OR COALESCE((
+        AND (NOT EXISTS (
+          SELECT 1
+          FROM "students" s
+          JOIN "users" u ON u."id" = s."userId"
+          WHERE s."id" = w."studentId" AND u."status" = 'ACTIVE'::"UserStatus"
+        ) OR sem."endDate" < CAST(${evaluationDate} AS date) OR COALESCE((
           SELECT cs."totalScore"
           FROM "conduct_scores" cs
           WHERE cs."semesterId" = w."semesterId" AND cs."studentId" = w."studentId"
@@ -69,6 +75,7 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
     const activeWarnings = await tx.conductScoreWarning.findMany({
       where: {
         status: "ACTIVE",
+        student: { user: { status: "ACTIVE" } },
         semester: {
           startDate: { lte: evaluationDate },
           endDate: { gte: evaluationDate },
@@ -137,7 +144,7 @@ export async function evaluateConductScoreWarnings(now = new Date()): Promise<nu
 
 export async function listActiveForUser(userId: string) {
   return prisma.conductScoreWarning.findMany({
-    where: { student: { userId }, status: "ACTIVE" },
+    where: { student: { userId, user: { status: "ACTIVE" } }, status: "ACTIVE" },
     orderBy: [{ semester: { endDate: "asc" } }, { id: "asc" }],
     select: {
       id: true,
@@ -151,9 +158,8 @@ export async function listActiveForUser(userId: string) {
 
 export async function cleanupAttendanceEvidence(now = new Date()): Promise<number> {
   const cutoff = new Date(now.getTime() - 30 * 86_400_000);
-  const [incidents, audits] = await prisma.$transaction([
-    prisma.attendanceClientIncident.deleteMany({ where: { failedAt: { lt: cutoff } } }),
-    prisma.attendanceAccessAudit.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-  ]);
-  return incidents.count + audits.count;
+  const audits = await prisma.attendanceAccessAudit.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+  return audits.count;
 }

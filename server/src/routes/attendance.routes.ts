@@ -44,11 +44,6 @@ router.post(
   asyncHandler(controller.studentQr),
 );
 router.post(
-  "/incidents",
-  requirePermission("attendance.create"),
-  asyncHandler(controller.submitIncident),
-);
-router.post(
   "/events/:eventId/sse-ticket",
   requirePermission("attendance.read"),
   asyncHandler(controller.eventTicket),
@@ -86,19 +81,14 @@ router.post(
   asyncHandler(controller.bulkImport),
 );
 router.get(
+  "/events/:eventId/imports/:batchId",
+  requirePermission("attendance.read"),
+  asyncHandler(controller.importBatch),
+);
+router.get(
   "/events/:eventId/requests",
   requirePermission("attendance.read"),
   asyncHandler(controller.requests),
-);
-router.get(
-  "/events/:eventId/reconciliation",
-  requirePermission("attendance.manage"),
-  asyncHandler(controller.reconciliationList),
-);
-router.patch(
-  "/events/:eventId/reconciliation/:incidentId",
-  requirePermission("attendance.manage"),
-  asyncHandler(controller.resolveIncident),
 );
 router.patch(
   "/events/:eventId/records/:recordId",

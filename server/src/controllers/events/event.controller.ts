@@ -10,6 +10,7 @@ import {
   dateInput,
   enumInput,
   integerInput,
+  nonNegativeNumberInput,
   objectInput,
   optionalQuery,
   searchInput,
@@ -26,6 +27,25 @@ function parseInput(req: Request): events.EventInput {
     "deliveryMode",
   );
   const online = deliveryMode === EventDeliveryMode.ONLINE;
+  const onlinePassingScore = (() => {
+    if (!online) return null;
+    if (body.onlinePassingScore === undefined || body.onlinePassingScore === null) {
+      throw new ApiError(
+        400,
+        "onlinePassingScore is required for online events",
+        "ONLINE_PASSING_SCORE_REQUIRED",
+      );
+    }
+    try {
+      return nonNegativeNumberInput(body.onlinePassingScore, "onlinePassingScore");
+    } catch {
+      throw new ApiError(
+        400,
+        "onlinePassingScore must be a finite non-negative number",
+        "INVALID_ONLINE_PASSING_SCORE",
+      );
+    }
+  })();
   const capacity =
     online || body.capacity === null || body.capacity === "" || body.capacity === undefined
       ? null
@@ -43,6 +63,7 @@ function parseInput(req: Request): events.EventInput {
     images,
     location: online ? "" : textInput(body.location, "location"),
     googleFormUrl: online ? textInput(body.googleFormUrl, "googleFormUrl", 2048) : null,
+    onlinePassingScore,
     organizerId: uuidInput(body.organizerId, "organizerId"),
     criteriaId: uuidInput(body.criteriaId, "criteriaId"),
     semesterId: uuidInput(body.semesterId, "semesterId"),
@@ -114,10 +135,22 @@ export async function createEvent(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateEvent(req: Request, res: Response): Promise<void> {
+  const body = objectInput(req.body);
+  if (
+    body.confirmOnlineConversion !== undefined &&
+    typeof body.confirmOnlineConversion !== "boolean"
+  ) {
+    throw new ApiError(400, "confirmOnlineConversion must be a boolean");
+  }
   const access = await getEventAccess((res.locals.auth as AuthContext).sub);
   res.json({
     ok: true,
-    data: await events.updateEvent(uuidInput(req.params.id), parseInput(req), access),
+    data: await events.updateEvent(
+      uuidInput(req.params.id),
+      parseInput(req),
+      access,
+      body.confirmOnlineConversion === true,
+    ),
   });
 }
 

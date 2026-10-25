@@ -9,10 +9,7 @@ import { attendanceMessages } from "@/i18n/attendance-messages";
 import {
   attendanceFailureStore,
   failureCategoryForRejection,
-  incidentPayload,
   qrRetryExpiry,
-  sha256,
-  tokenFingerprint,
 } from "@/lib/attendance-failure-store";
 import { getAuthSession } from "@/lib/auth-storage";
 import { env } from "@/lib/env";
@@ -136,9 +133,7 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
                   accuracyMeters: position.coords.accuracy,
                 }
               : undefined,
-            tokenFingerprint: token ? await tokenFingerprint(token) : null,
           };
-          draft.digest = await sha256(incidentPayload(draft));
           localDraft.current = draft;
           await attendanceFailureStore.put(draft);
         }
@@ -215,7 +210,6 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
         status: "FAILED",
       };
       void (async () => {
-        draft.digest = await sha256(incidentPayload(draft));
         localDraft.current = draft;
         await attendanceFailureStore.put(draft);
       })();

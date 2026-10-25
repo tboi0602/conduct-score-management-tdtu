@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -21,6 +22,7 @@ import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { studentEventViews, useStudentEvents } from "@/hooks/events/useStudentEvents";
+import { useLifecycleClock } from "@/hooks/shared/useLifecycleClock";
 import { studentEventMessages } from "@/i18n/student-event-messages";
 import { formatDate, organizerFacultyName, organizerLabel } from "@/lib/event-form";
 import { buildEventSlug } from "@/lib/slug";
@@ -37,6 +39,17 @@ export function StudentEvents() {
   const { locale } = useLanguage();
   const t = studentEventMessages[locale];
   const state = useStudentEvents();
+  const lifecycleBoundaries = useMemo(
+    () =>
+      [...state.items.map(({ event }) => event), state.detailQuery.data]
+        .filter((event): event is PublicEvent => Boolean(event))
+        .flatMap((event) => [
+          new Date(event.timeStart).getTime(),
+          new Date(event.timeEnd).getTime(),
+        ]),
+    [state.detailQuery.data, state.items],
+  );
+  const now = useLifecycleClock(lifecycleBoundaries);
 
   if (state.query.isPending) return <PageLoadingSkeleton />;
   return (
@@ -245,7 +258,6 @@ export function StudentEvents() {
       ) : null}
       <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {state.items.map(({ event, participation }) => {
-          const now = Date.now();
           const online = event.deliveryMode === "ONLINE";
           const eventStarted = now >= new Date(event.timeStart).getTime();
           const eventEnded = now >= new Date(event.timeEnd).getTime();
@@ -256,7 +268,7 @@ export function StudentEvents() {
           const lifecycle =
             now < new Date(event.timeStart).getTime()
               ? t.upcoming
-              : now <= new Date(event.timeEnd).getTime()
+              : now < new Date(event.timeEnd).getTime()
                 ? t.ongoing
                 : t.completed;
           return (
@@ -274,7 +286,7 @@ export function StudentEvents() {
                     className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${
                       now < new Date(event.timeStart).getTime()
                         ? "border-amber-200 bg-amber-50 text-amber-700"
-                        : now <= new Date(event.timeEnd).getTime()
+                        : now < new Date(event.timeEnd).getTime()
                           ? "border-blue-200 bg-blue-50 text-[#154a9b]"
                           : "border-emerald-200 bg-emerald-50 text-emerald-700"
                     }`}
@@ -362,29 +374,31 @@ export function StudentEvents() {
                   {t.details}
                 </Link>
                 {online ? (
-                  <button
-                    type="button"
-                    disabled={!eventStarted || eventEnded || !event.googleFormUrl}
-                    onClick={() => {
-                      if (event.googleFormUrl) {
-                        window.open(event.googleFormUrl, "_blank", "noopener,noreferrer");
-                      }
-                    }}
-                    className="flex-1 rounded-xl bg-[#154a9b] px-3 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-40"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      {eventStarted && !eventEnded && event.googleFormUrl ? (
+                  eventStarted && !eventEnded && event.googleFormUrl ? (
+                    <a
+                      href={event.googleFormUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 rounded-xl bg-[#154a9b] px-3 py-2.5 text-center text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98]"
+                    >
+                      <span className="inline-flex items-center gap-2">
                         <ExternalLink size={16} />
-                      ) : null}
+                        {t.openGoogleForm}
+                      </span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 rounded-xl bg-[#154a9b] px-3 py-2.5 text-sm font-bold text-white opacity-40"
+                    >
                       {!eventStarted
                         ? t.googleFormNotOpen
                         : eventEnded
                           ? t.eventEnded
-                          : event.googleFormUrl
-                            ? t.openGoogleForm
-                            : t.googleFormNotConfigured}
-                    </span>
-                  </button>
+                          : t.googleFormNotConfigured}
+                    </button>
+                  )
                 ) : event.registrationStatus === "REGISTERED" ? (
                   <button
                     type="button"
@@ -435,7 +449,7 @@ export function StudentEvents() {
         {state.detailQuery.isPending ? (
           <div className="h-48 animate-pulse rounded-xl bg-[#edf2f7]" />
         ) : state.detailQuery.data ? (
-          <EventDetail event={state.detailQuery.data} locale={locale} t={t} />
+          <EventDetail event={state.detailQuery.data} locale={locale} t={t} now={now} />
         ) : (
           <p className="text-sm text-[#b72e3f]">{t.loadError}</p>
         )}
@@ -457,10 +471,12 @@ function EventDetail({
   event,
   locale,
   t,
+  now,
 }: {
   event: PublicEvent;
   locale: string;
   t: (typeof studentEventMessages)["vi"] | (typeof studentEventMessages)["en"];
+  now: number;
 }) {
   return (
     <div className="text-sm text-[#52647d]">
@@ -538,29 +554,31 @@ function EventDetail({
         </div>
       ) : null}
       {event.deliveryMode === "ONLINE" ? (
-        <button
-          type="button"
-          disabled={
-            Date.now() < new Date(event.timeStart).getTime() ||
-            Date.now() >= new Date(event.timeEnd).getTime() ||
-            !event.googleFormUrl
-          }
-          onClick={() => {
-            if (event.googleFormUrl) {
-              window.open(event.googleFormUrl, "_blank", "noopener,noreferrer");
-            }
-          }}
-          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#154a9b] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ExternalLink size={17} />
-          {Date.now() < new Date(event.timeStart).getTime()
-            ? t.googleFormNotOpen
-            : Date.now() >= new Date(event.timeEnd).getTime()
-              ? t.eventEnded
-              : event.googleFormUrl
-                ? t.openGoogleForm
+        now >= new Date(event.timeStart).getTime() &&
+        now < new Date(event.timeEnd).getTime() &&
+        event.googleFormUrl ? (
+          <a
+            href={event.googleFormUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#154a9b] px-4 text-sm font-bold text-white"
+          >
+            <ExternalLink size={17} />
+            {t.openGoogleForm}
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#154a9b] px-4 text-sm font-bold text-white opacity-40"
+          >
+            {now < new Date(event.timeStart).getTime()
+              ? t.googleFormNotOpen
+              : now >= new Date(event.timeEnd).getTime()
+                ? t.eventEnded
                 : t.googleFormNotConfigured}
-        </button>
+          </button>
+        )
       ) : null}
       {event.description ? (
         <div

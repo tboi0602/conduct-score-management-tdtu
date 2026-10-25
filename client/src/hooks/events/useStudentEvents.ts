@@ -145,7 +145,7 @@ export function useStudentEvents() {
     }
   };
 
-  const reconcileEvent = (event: PublicEvent) => {
+  const reconcileEvent = (event: PublicEvent, removeFromRecommended = false) => {
     queryClient.setQueryData(queryKeys.studentEvents.detail(event.id), event);
     queryClient.setQueriesData<PaginatedResponse<PublicEvent>>(
       { queryKey: queryKeys.studentEvents.listAll },
@@ -157,13 +157,34 @@ export function useStudentEvents() {
             }
           : current,
     );
+    if (removeFromRecommended) {
+      queryClient.setQueriesData<PaginatedResponse<PublicEvent>>(
+        { queryKey: queryKeys.studentEvents.recommended({}).slice(0, 3) },
+        (current) => {
+          if (!current || !current.data.some((item) => item.id === event.id)) return current;
+          const data = current.data.filter((item) => item.id !== event.id);
+          const total = Math.max(0, current.pagination.total - 1);
+          const totalPages = Math.ceil(total / current.pagination.limit);
+          return {
+            ...current,
+            data,
+            pagination: {
+              ...current.pagination,
+              total,
+              totalPages,
+              hasNextPage: current.pagination.page < totalPages,
+            },
+          };
+        },
+      );
+    }
     reconcileMyEventQueries(event);
   };
 
   const register = useMutation({
     mutationFn: (eventId: string) => eventRegistrationService.register(eventId),
     onSuccess: (response) => {
-      reconcileEvent(response.data);
+      reconcileEvent(response.data, true);
       showToast(messages.registerSuccess);
     },
     onError: () => showToast(messages.actionError, "error"),
@@ -172,6 +193,9 @@ export function useStudentEvents() {
     mutationFn: (eventId: string) => eventRegistrationService.cancel(eventId),
     onSuccess: (response) => {
       reconcileEvent(response.data);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.studentEvents.recommended({}).slice(0, 3),
+      });
       setCancelling(null);
       showToast(messages.cancelSuccess);
     },

@@ -76,11 +76,12 @@ export const queryKeys = {
     events: ["admin", "attendance", "events"] as const,
     session: (eventId: string) => ["admin", "attendance", eventId, "session"] as const,
     qr: (eventId: string) => ["admin", "attendance", eventId, "qr"] as const,
-    requests: (eventId: string, search: string) =>
-      ["admin", "attendance", eventId, "requests", search] as const,
+    requestsAll: (eventId: string) => ["admin", "attendance", eventId, "requests"] as const,
+    requests: (eventId: string, search: string, direction = "ALL") =>
+      ["admin", "attendance", eventId, "requests", search, direction] as const,
+    importBatch: (eventId: string, batchId?: string) =>
+      ["admin", "attendance", eventId, "imports", batchId] as const,
     request: (requestId: string) => ["student", "attendance", "request", requestId] as const,
-    reconciliation: (eventId: string, search: string, state: string, page: number) =>
-      ["admin", "attendance", eventId, "reconciliation", search, state, page] as const,
   },
   conductScores: {
     all: ["conduct-scores"] as const,

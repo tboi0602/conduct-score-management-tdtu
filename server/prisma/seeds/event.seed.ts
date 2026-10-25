@@ -8,6 +8,7 @@ type SeedEvent = {
   location: string;
   deliveryMode: EventDeliveryMode;
   googleFormUrl?: string;
+  onlinePassingScore?: number;
   organizerCode: string;
   criterionId: string;
   timeStart: Date;
@@ -293,6 +294,7 @@ export async function seedEvents(prisma: PrismaClient): Promise<void> {
       location: event.location,
       deliveryMode: event.deliveryMode,
       googleFormUrl: event.deliveryMode === "ONLINE" ? event.googleFormUrl : null,
+      onlinePassingScore: event.deliveryMode === "ONLINE" ? (event.onlinePassingScore ?? 6) : null,
       timeStart: event.timeStart,
       timeEnd: event.timeEnd,
       registrationStart: event.deliveryMode === "ONLINE" ? null : event.registrationStart,

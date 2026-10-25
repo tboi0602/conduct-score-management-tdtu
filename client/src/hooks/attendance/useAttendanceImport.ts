@@ -1,12 +1,14 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { attendanceMessages } from "@/i18n/attendance-messages";
 import { parseCsv } from "@/lib/csv";
+import { queryKeys } from "@/lib/query-keys";
 import { attendanceService } from "@/services/attendance";
+import { HttpError } from "@/services/http";
 import type { AttendanceImportResult } from "@/types/attendance";
 
 const studentEmailSuffix = "@student.tdtu.edu.vn";
@@ -68,7 +70,7 @@ function parseScore(value: string): number | null {
   return Number.isFinite(score) ? score : null;
 }
 
-export function useAttendanceImport(eventId: string) {
+export function useAttendanceImport(eventId: string, onlinePassingScore: number | null) {
   const { locale } = useAdminTranslations();
   const t = attendanceMessages[locale];
   const { showToast } = useToast();
@@ -78,10 +80,40 @@ export function useAttendanceImport(eventId: string) {
   const [rows, setRows] = useState<string[][]>([]);
   const [identifierColumnIndex, setIdentifierColumnIndex] = useState(0);
   const [scoreColumnIndex, setScoreColumnIndex] = useState<number | null>(null);
-  const [minimumScore, setMinimumScore] = useState(6);
   const [confirmed, setConfirmed] = useState(false);
   const [fileError, setFileError] = useState("");
   const [result, setResult] = useState<AttendanceImportResult | null>(null);
+  const notifiedBatchId = useRef<string | null>(null);
+  const isProcessing = result?.status === "PROCESSING" || result?.status === "PARTIALLY_QUEUED";
+  const minimumScore = onlinePassingScore ?? Number.POSITIVE_INFINITY;
+
+  const batchQuery = useQuery({
+    queryKey: queryKeys.attendance.importBatch(eventId, result?.id),
+    queryFn: () => attendanceService.importBatch(eventId, result!.id),
+    enabled: Boolean(result?.id && isProcessing),
+    refetchInterval: isProcessing ? 2_000 : false,
+    refetchOnWindowFocus: true,
+  });
+
+  useEffect(() => {
+    const batch = batchQuery.data?.data;
+    if (!batch) return;
+    setResult((current) => (current?.id === batch.id ? { ...current, ...batch } : current));
+    if (notifiedBatchId.current === batch.id) return;
+    if (batch.status === "FAILED") {
+      notifiedBatchId.current = batch.id;
+      showToast(t.importFailed, "error");
+      return;
+    }
+    if (batch.status !== "COMPLETED") return;
+    notifiedBatchId.current = batch.id;
+    void client.invalidateQueries({ queryKey: queryKeys.attendance.requestsAll(eventId) });
+    showToast(
+      t.importCompleted
+        .replace("{accepted}", String(batch.accepted))
+        .replace("{rejected}", String(batch.rejected)),
+    );
+  }, [batchQuery.data, client, eventId, showToast, t.importCompleted, t.importFailed]);
 
   const headerRow = rows[0] ?? [];
   const dataRows = useMemo(
@@ -164,25 +196,38 @@ export function useAttendanceImport(eventId: string) {
     mutationFn: () => attendanceService.importAttendance(eventId, { identifiers }),
     onSuccess: ({ data }) => {
       setResult(data);
-      void client.invalidateQueries({ queryKey: ["admin", "attendance", eventId, "requests"] });
-      showToast(
-        data.queued > 0 ? t.importSucceeded.replace("{count}", String(data.queued)) : t.importEmpty,
-      );
+      void client.invalidateQueries({ queryKey: queryKeys.events.all });
+      if (data.status === "COMPLETED") {
+        notifiedBatchId.current = data.id;
+        showToast(
+          t.importCompleted
+            .replace("{accepted}", String(data.accepted))
+            .replace("{rejected}", String(data.rejected)),
+        );
+      } else {
+        showToast(t.importAccepted.replace("{count}", String(data.queued)));
+      }
     },
-    onError: () => showToast(t.importError, "error"),
+    onError: (error) =>
+      showToast(
+        error instanceof HttpError && error.code === "ONLINE_PASSING_SCORE_REQUIRED"
+          ? t.importPassingScoreMissing
+          : t.importError,
+        "error",
+      ),
   });
 
   const close = () => {
-    if (mutation.isPending) return;
+    if (mutation.isPending || isProcessing) return;
     setOpen(false);
     setFileName("");
     setRows([]);
     setIdentifierColumnIndex(0);
     setScoreColumnIndex(null);
-    setMinimumScore(6);
     setConfirmed(false);
     setFileError("");
     setResult(null);
+    notifiedBatchId.current = null;
     mutation.reset();
   };
 
@@ -206,11 +251,7 @@ export function useAttendanceImport(eventId: string) {
       setResult(null);
     },
     minimumScore,
-    setMinimumScore: (value: number) => {
-      setMinimumScore(value);
-      setConfirmed(false);
-      setResult(null);
-    },
+    hasPassingScore: onlinePassingScore !== null,
     columnOptions,
     identifiers,
     uniqueValidIdentifiers,
@@ -223,6 +264,7 @@ export function useAttendanceImport(eventId: string) {
     setConfirmed,
     fileError,
     result,
+    isProcessing,
     readFile,
     mutation,
   };

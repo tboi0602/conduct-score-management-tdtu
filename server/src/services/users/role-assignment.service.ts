@@ -223,6 +223,6 @@ export async function updateRoleAssignment(
       });
     }
   });
-  await redisClient.revokeRefreshSession(targetId);
+  await redisClient.revokeUserRefreshSessions(targetId);
   return prisma.user.findUniqueOrThrow({ where: { id: targetId }, select: targetSelect });
 }

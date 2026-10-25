@@ -78,6 +78,7 @@ model Event {
   location               String            @default("") @db.VarChar(255)
   deliveryMode           EventDeliveryMode @default(OFFLINE)
   googleFormUrl          String?           @db.VarChar(2048)
+  onlinePassingScore     Float?
   organizerId            String?           @db.Uuid
   timeStart              DateTime
   timeEnd                DateTime
@@ -98,18 +99,18 @@ model Event {
   semester  Semester        @relation(fields: [semesterId], references: [id])
   organizer OrganizingUnit? @relation(fields: [organizerId], references: [id], onDelete: Restrict)
 
-  attendanceRecords      AttendanceRecord[]
-  attendanceSessions     AttendanceSession[]
-  attendanceScanRequests AttendanceScanRequest[]
-  registrations          EventRegistration[]
-  conductScoreEntries    ConductScoreEntry[]
-  notifications          Notification[]
-  attendanceAppeals      AttendanceAppeal[]
+  attendanceRecords        AttendanceRecord[]
+  attendanceSessions       AttendanceSession[]
+  attendanceScanRequests   AttendanceScanRequest[]
+  attendanceImportBatches  AttendanceImportBatch[]
+  registrations            EventRegistration[]
+  conductScoreEntries      ConductScoreEntry[]
+  notifications            Notification[]
+  attendanceAppeals        AttendanceAppeal[]
   attendanceAppealAttempts AttendanceAppealAttempt[]
-  attendanceClientIncidents AttendanceClientIncident[]
   attendanceAccessAudits   AttendanceAccessAudit[]
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@index([criteriaId])
   @@index([semesterId])

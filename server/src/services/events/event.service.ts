@@ -18,6 +18,7 @@ export type EventInput = {
   images: string[];
   location: string;
   googleFormUrl: string | null;
+  onlinePassingScore: number | null;
   organizerId: string;
   criteriaId: string;
   semesterId: string;
@@ -67,6 +68,7 @@ const eventSelect = {
   location: true,
   deliveryMode: true,
   googleFormUrl: true,
+  onlinePassingScore: true,
   timeStart: true,
   timeEnd: true,
   registrationStart: true,
@@ -79,12 +81,70 @@ const eventSelect = {
   registeredCount: true,
   createdAt: true,
   updatedAt: true,
+  _count: { select: { attendanceImportBatches: true } },
   organizer: { select: organizerSelect },
   criteria: { select: { id: true, title: true, maxPoints: true } },
   semester: { select: { id: true, year: true, type: true, startDate: true, endDate: true } },
 } satisfies Prisma.EventSelect;
 
 const eventDetailSelect = { ...eventSelect, description: true } satisfies Prisma.EventSelect;
+
+export type OnlineConversionBlocker =
+  | "EVENT_ALREADY_STARTED"
+  | "EVENT_HAS_ATTENDANCE_SESSIONS"
+  | "EVENT_HAS_ATTENDANCE_REQUESTS"
+  | "EVENT_HAS_ATTENDANCE_RECORDS"
+  | "EVENT_HAS_APPEALS"
+  | "EVENT_HAS_CONDUCT_SCORE_ENTRIES";
+
+type OnlineConversionState = {
+  timeStart: Date;
+  attendanceSessions: number;
+  attendanceScanRequests: number;
+  attendanceRecords: number;
+  attendanceAppeals: number;
+  attendanceAppealAttempts: number;
+  conductScoreEntries: number;
+};
+
+export function onlineConversionBlocker(
+  state: OnlineConversionState,
+  now = new Date(),
+): OnlineConversionBlocker | null {
+  if (state.timeStart <= now) return "EVENT_ALREADY_STARTED";
+  if (state.attendanceSessions > 0) return "EVENT_HAS_ATTENDANCE_SESSIONS";
+  if (state.attendanceScanRequests > 0) return "EVENT_HAS_ATTENDANCE_REQUESTS";
+  if (state.attendanceRecords > 0) return "EVENT_HAS_ATTENDANCE_RECORDS";
+  if (state.attendanceAppeals > 0 || state.attendanceAppealAttempts > 0) {
+    return "EVENT_HAS_APPEALS";
+  }
+  if (state.conductScoreEntries > 0) return "EVENT_HAS_CONDUCT_SCORE_ENTRIES";
+  return null;
+}
+
+export function onlinePassingScoreChangeBlocked(input: {
+  currentDeliveryMode: EventDeliveryMode;
+  nextDeliveryMode: EventDeliveryMode;
+  currentScore: number | null;
+  nextScore: number | null;
+  importBatchCount: number;
+}): boolean {
+  return (
+    input.currentDeliveryMode === "ONLINE" &&
+    input.nextDeliveryMode === "ONLINE" &&
+    input.importBatchCount > 0 &&
+    input.currentScore !== input.nextScore
+  );
+}
+
+const onlineConversionErrorMessages: Record<OnlineConversionBlocker, string> = {
+  EVENT_ALREADY_STARTED: "An event cannot be moved online after it has started",
+  EVENT_HAS_ATTENDANCE_SESSIONS: "The event already has attendance sessions",
+  EVENT_HAS_ATTENDANCE_REQUESTS: "The event already has attendance scan requests",
+  EVENT_HAS_ATTENDANCE_RECORDS: "The event already has attendance records",
+  EVENT_HAS_APPEALS: "The event already has attendance appeals",
+  EVENT_HAS_CONDUCT_SCORE_ENTRIES: "The event already has conduct score entries",
+};
 
 export async function listEvents(
   params: PaginationParams,
@@ -170,6 +230,17 @@ function validateTimes(input: EventInput): void {
   if (!input.googleFormUrl) {
     throw new ApiError(400, "Online events require a Google Form URL", "GOOGLE_FORM_URL_REQUIRED");
   }
+  if (
+    input.onlinePassingScore === null ||
+    !Number.isFinite(input.onlinePassingScore) ||
+    input.onlinePassingScore < 0
+  ) {
+    throw new ApiError(
+      400,
+      "Online events require a finite non-negative passing score",
+      "ONLINE_PASSING_SCORE_REQUIRED",
+    );
+  }
   let url: URL;
   try {
     url = new URL(input.googleFormUrl);
@@ -217,7 +288,12 @@ export async function create(input: EventInput, access: EventAccess) {
   return created;
 }
 
-export async function updateEvent(id: string, input: EventInput, access: EventAccess) {
+export async function updateEvent(
+  id: string,
+  input: EventInput,
+  access: EventAccess,
+  confirmOnlineConversion = false,
+) {
   validateTimes(input);
   const organizer = await assertOrganizerAccess(input.organizerId, access);
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -229,8 +305,21 @@ export async function updateEvent(id: string, input: EventInput, access: EventAc
             select: {
               id: true,
               deliveryMode: true,
+              onlinePassingScore: true,
+              timeStart: true,
               registeredCount: true,
               organizer: { select: { facultyId: true } },
+              _count: {
+                select: {
+                  attendanceSessions: true,
+                  attendanceScanRequests: true,
+                  attendanceRecords: true,
+                  attendanceAppeals: true,
+                  attendanceAppealAttempts: true,
+                  conductScoreEntries: true,
+                  attendanceImportBatches: true,
+                },
+              },
             },
           });
           if (!current) throw new ApiError(404, "Event not found");
@@ -241,14 +330,63 @@ export async function updateEvent(id: string, input: EventInput, access: EventAc
           ) {
             throw new ApiError(409, "capacity cannot be lower than the active registration count");
           }
-          if (input.deliveryMode === "ONLINE") {
+          const movingOnline =
+            current.deliveryMode === "OFFLINE" && input.deliveryMode === "ONLINE";
+          if (
+            onlinePassingScoreChangeBlocked({
+              currentDeliveryMode: current.deliveryMode,
+              nextDeliveryMode: input.deliveryMode,
+              currentScore: current.onlinePassingScore,
+              nextScore: input.onlinePassingScore,
+              importBatchCount: current._count.attendanceImportBatches,
+            })
+          ) {
+            throw new ApiError(
+              409,
+              "The online passing score is locked after the first import batch",
+              "ONLINE_PASSING_SCORE_LOCKED",
+            );
+          }
+          if (movingOnline) {
+            const blocker = onlineConversionBlocker({
+              timeStart: current.timeStart,
+              attendanceSessions: current._count.attendanceSessions,
+              attendanceScanRequests: current._count.attendanceScanRequests,
+              attendanceRecords: current._count.attendanceRecords,
+              attendanceAppeals: current._count.attendanceAppeals,
+              attendanceAppealAttempts: current._count.attendanceAppealAttempts,
+              conductScoreEntries: current._count.conductScoreEntries,
+            });
+            if (blocker) throw new ApiError(409, onlineConversionErrorMessages[blocker], blocker);
+            if (!confirmOnlineConversion) {
+              throw new ApiError(
+                409,
+                "Moving an offline event online requires confirmation",
+                "EVENT_ONLINE_CONVERSION_CONFIRMATION_REQUIRED",
+              );
+            }
+            const registrations = await tx.eventRegistration.findMany({
+              where: { eventId: id, status: "REGISTERED" },
+              select: { student: { select: { userId: true } } },
+            });
+            if (registrations.length > 0) {
+              await tx.userNotification.createMany({
+                data: registrations.map(({ student }) => ({
+                  userId: student.userId,
+                  type: "EVENT_MOVED_ONLINE" as const,
+                  title: input.name,
+                  message: "",
+                  entityId: current.id,
+                })),
+              });
+            }
             await tx.eventRegistration.deleteMany({ where: { eventId: id } });
           }
           const event = await tx.event.update({
             where: { id },
             data: {
               ...input,
-              registeredCount: input.deliveryMode === "ONLINE" ? 0 : undefined,
+              registeredCount: movingOnline ? 0 : undefined,
               descriptionPreview: eventDescriptionPreview(input.description),
               type: organizer.type as EventType,
             },

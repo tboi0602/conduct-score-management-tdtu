@@ -4,7 +4,6 @@ import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
 import * as attendance from "@modules/attendance";
 import * as realtime from "@services/attendance/attendance-realtime.service";
-import * as reconciliation from "@modules/attendance";
 import {
   enumInput,
   objectInput,
@@ -119,75 +118,13 @@ export async function bulkImport(req: Request, res: Response) {
   res.status(202).json({ ok: true, data: result });
 }
 
-export async function submitIncident(req: Request, res: Response) {
-  const body = objectInput(req.body);
-  const nullableNumber = (value: unknown, field: string) =>
-    value === null || value === undefined ? null : numberField(value, field);
-  const direction =
-    body.direction === null || body.direction === undefined
-      ? null
-      : enumInput(body.direction, Object.values(AttendanceDirection), "direction");
-  const payload = {
-    clientAttemptId: uuidInput(body.clientAttemptId, "clientAttemptId"),
-    eventId: uuidInput(body.eventId, "eventId"),
-    direction,
-    failureCategory: enumInput(
-      body.failureCategory,
-      [
-        "NETWORK_ERROR",
-        "QR_ERROR",
-        "SESSION_EXPIRED",
-        "TIMEOUT",
-        "LOCATION_ERROR",
-        "SERVICE_ERROR",
-        "OTHER",
-      ] as const,
-      "failureCategory",
-    ),
-    failedAt: textInput(body.failedAt, "failedAt", 50),
-    latitude: nullableNumber(body.latitude, "latitude"),
-    longitude: nullableNumber(body.longitude, "longitude"),
-    accuracyMeters: nullableNumber(body.accuracyMeters, "accuracyMeters"),
-    tokenFingerprint:
-      body.tokenFingerprint == null
-        ? null
-        : textInput(body.tokenFingerprint, "tokenFingerprint", 64),
-    clientOnline: Boolean(body.clientOnline),
-    userAgent: body.userAgent == null ? null : textInput(body.userAgent, "userAgent", 500),
-  };
-  if (!Number.isFinite(new Date(payload.failedAt).getTime()))
-    throw new ApiError(400, "failedAt must be a valid date");
-  const data = await reconciliation.submitIncident(
-    auth(res).sub,
-    payload,
-    textInput(body.digest, "digest", 64),
-  );
-  res.status(201).json({ ok: true, data });
-}
-
-export async function reconciliationList(req: Request, res: Response) {
-  const state = optionalQuery(req.query.state, (value) =>
-    enumInput(value, ["MATCHED", "CLIENT_ONLY", "SERVER_ONLY", "RESOLVED"] as const, "state"),
-  );
-  const result = await reconciliation.listReconciliation(
-    await getEventAccess(auth(res).sub),
-    uuidInput(req.params.eventId),
-    parsePagination(req.query, { maxOffset: 10000 }),
-    optionalQuery(req.query.search, searchInput) ?? "",
-    state,
-  );
-  res.json({ ok: true, data: result.items, pagination: result.pagination });
-}
-
-export async function resolveIncident(req: Request, res: Response) {
-  const body = objectInput(req.body);
+export async function importBatch(req: Request, res: Response) {
   res.json({
     ok: true,
-    data: await reconciliation.resolveIncident(
+    data: await attendance.getBulkImportBatch(
       await getEventAccess(auth(res).sub),
       uuidInput(req.params.eventId),
-      uuidInput(req.params.incidentId),
-      textInput(body.note, "note", 1000),
+      uuidInput(req.params.batchId, "batchId"),
     ),
   });
 }
@@ -205,6 +142,9 @@ export async function requests(req: Request, res: Response) {
     uuidInput(req.params.eventId),
     parsePagination(req.query, { maxOffset: 10000 }),
     optionalQuery(req.query.search, searchInput),
+    optionalQuery(req.query.direction, (value) =>
+      enumInput(value, Object.values(AttendanceDirection), "direction"),
+    ),
   );
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }

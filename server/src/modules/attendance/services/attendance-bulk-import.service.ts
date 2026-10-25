@@ -1,4 +1,5 @@
 ﻿import { createHash, randomUUID } from "crypto";
+import type { AttendanceImportBatch } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { attendanceScanRequestsTotal } from "@metrics";
 import { managedEvent, outboxData } from "@modules/attendance/services/attendance-session.service";
@@ -42,6 +43,31 @@ function bulkImportAttemptId(eventId: string, studentId: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+function serializeBatch(batch: AttendanceImportBatch) {
+  return {
+    id: batch.id,
+    eventId: batch.eventId,
+    status: batch.status,
+    requested: batch.requestedCount,
+    queued: batch.queuedCount,
+    processed: batch.processedCount,
+    accepted: batch.acceptedCount,
+    rejected: batch.rejectedCount,
+    completedAt: batch.completedAt,
+    createdAt: batch.createdAt,
+    updatedAt: batch.updatedAt,
+  };
+}
+
+export async function getBulkImportBatch(access: EventAccess, eventId: string, batchId: string) {
+  await managedEvent(eventId, access);
+  const batch = await prisma.attendanceImportBatch.findFirst({
+    where: { id: batchId, eventId },
+  });
+  if (!batch) throw new ApiError(404, "Attendance import batch not found");
+  return serializeBatch(batch);
+}
+
 export async function submitBulkImport(
   access: EventAccess,
   eventId: string,
@@ -50,6 +76,13 @@ export async function submitBulkImport(
   const event = await managedEvent(eventId, access);
   if (event.deliveryMode !== "ONLINE") {
     throw new ApiError(409, "Bulk attendance import is only available for online events");
+  }
+  if (event.onlinePassingScore === null) {
+    throw new ApiError(
+      409,
+      "Configure the online passing score before importing attendance",
+      "ONLINE_PASSING_SCORE_REQUIRED",
+    );
   }
   if (new Date() < event.timeEnd) {
     throw new ApiError(
@@ -131,7 +164,14 @@ export async function submitBulkImport(
   const skippedStudentIds = new Set<string>();
   let queued = 0;
 
-  await prisma.$transaction(async (tx) => {
+  const importBatch = await prisma.$transaction(async (tx) => {
+    const createdBatch = await tx.attendanceImportBatch.create({
+      data: {
+        eventId,
+        createdByUserId: access.userId,
+        requestedCount: input.identifiers.length,
+      },
+    });
     for (let offset = 0; offset < rows.length; offset += BULK_IMPORT_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + BULK_IMPORT_BATCH_SIZE);
       const created = await tx.attendanceScanRequest.createManyAndReturn({
@@ -141,6 +181,7 @@ export async function submitBulkImport(
           eventId,
           studentId: student.id,
           submittedByUserId: access.userId,
+          importBatchId: createdBatch.id,
           direction: "CHECK_IN",
           source: "BULK_IMPORT",
           requestedStatus: "ATTENDED",
@@ -171,6 +212,21 @@ export async function submitBulkImport(
           ),
         });
     }
+    const rejected = input.identifiers.length - queued;
+    return tx.attendanceImportBatch.update({
+      where: { id: createdBatch.id },
+      data: {
+        queuedCount: queued,
+        rejectedCount: rejected,
+        status:
+          queued === 0
+            ? "COMPLETED"
+            : queued < input.identifiers.length
+              ? "PARTIALLY_QUEUED"
+              : "PROCESSING",
+        completedAt: queued === 0 ? new Date() : null,
+      },
+    });
   });
   if (queued) {
     attendanceScanRequestsTotal.inc({ source: "BULK_IMPORT", direction: "CHECK_IN" }, queued);
@@ -181,8 +237,7 @@ export async function submitBulkImport(
     )
     .map(({ identifier }) => identifier.email ?? identifier.studentCode);
   return {
-    requested: input.identifiers.length,
-    queued,
+    ...serializeBatch(importBatch),
     duplicateIdentifiers,
     invalidIdentifiers,
     notFoundIdentifiers,

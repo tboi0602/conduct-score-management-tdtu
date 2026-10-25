@@ -56,6 +56,7 @@ export type EventPayload = {
   images?: string[];
   location: string;
   googleFormUrl: string | null;
+  onlinePassingScore: number | null;
   organizerId: string;
   criteriaId: string;
   semesterId: string;
@@ -68,6 +69,7 @@ export type EventPayload = {
   points: number;
   checkInMode: CheckInMode;
   deliveryMode: EventDeliveryMode;
+  confirmOnlineConversion?: boolean;
 };
 export type ManagedEvent = Omit<EventPayload, "description"> & {
   description?: string;
@@ -81,6 +83,7 @@ export type ManagedEvent = Omit<EventPayload, "description"> & {
   type: EventType;
   organizer: OrganizingUnit | null;
   registeredCount: number;
+  _count?: { attendanceImportBatches: number };
 };
 
 export type RegistrationStatus = "REGISTERED" | "CANCELLED";

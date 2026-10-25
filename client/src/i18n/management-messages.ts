@@ -107,6 +107,33 @@ export const organizerMessages = {
   },
 } as const;
 
+export const criteriaTitleMessages = {
+  "10000000-0000-4000-8000-000000000001": {
+    vi: "Việc tham gia học tập và tham gia các hoạt động chuyên môn học thuật",
+    en: "Academic engagement and participation in professional and scholarly activities",
+  },
+  "10000000-0000-4000-8000-000000000002": {
+    vi: "Việc chấp hành nội quy, quy chế, quy định trong Trường",
+    en: "Compliance with university rules, regulations, and policies",
+  },
+  "10000000-0000-4000-8000-000000000003": {
+    vi: "Việc tham gia các hoạt động chính trị, xã hội, văn hóa, văn nghệ, thể thao; phòng chống tội phạm và các tệ nạn xã hội; hoạt động phong trào",
+    en: "Participation in political, social, cultural, arts, sports, crime and social-evil prevention, and student movement activities",
+  },
+  "10000000-0000-4000-8000-000000000004": {
+    vi: "Việc tham gia các hoạt động cộng đồng, công tác xã hội, công tác tình nguyện",
+    en: "Participation in community, social service, and volunteer activities",
+  },
+  "10000000-0000-4000-8000-000000000005": {
+    vi: "Tinh thần tiên phong, gương mẫu",
+    en: "Pioneering and exemplary spirit",
+  },
+  "10000000-0000-4000-8000-000000000006": {
+    vi: "Điểm thưởng",
+    en: "Bonus points",
+  },
+} as const;
+
 export const appealFailureMessages = {
   NETWORK_ERROR: { vi: "Lỗi mạng", en: "Network error" },
   QR_ERROR: { vi: "Lỗi quét QR", en: "QR scan error" },

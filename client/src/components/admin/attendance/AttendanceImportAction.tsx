@@ -9,14 +9,16 @@ import { attendanceMessages } from "@/i18n/attendance-messages";
 
 export function AttendanceImportAction({
   eventId,
+  onlinePassingScore,
   disabled = false,
 }: {
   eventId: string;
+  onlinePassingScore: number | null;
   disabled?: boolean;
 }) {
   const { locale } = useAdminTranslations();
   const t = attendanceMessages[locale];
-  const state = useAttendanceImport(eventId);
+  const state = useAttendanceImport(eventId, onlinePassingScore);
   const tooManyRows = state.totalRows > 5_000;
   const previewStatus = {
     QUALIFIED: t.importQualified,
@@ -34,9 +36,15 @@ export function AttendanceImportAction({
     { label: t.importInvalidCount, value: state.invalidIdentifiers.length },
   ];
   const importResultMessage = state.result
-    ? state.result.queued > 0
-      ? t.importSucceeded.replace("{count}", String(state.result.queued))
-      : t.importEmpty
+    ? state.result.status === "COMPLETED"
+      ? t.importCompleted
+          .replace("{accepted}", String(state.result.accepted))
+          .replace("{rejected}", String(state.result.rejected))
+      : state.result.status === "FAILED"
+        ? t.importFailed
+        : t.importProcessing
+            .replace("{processed}", String(state.result.processed))
+            .replace("{queued}", String(state.result.queued))
     : "";
 
   return (
@@ -97,24 +105,22 @@ export function AttendanceImportAction({
                 />
               </div>
             </div>
-            <label className="mt-4 block max-w-xs space-y-2">
+            <div className="mt-4 block max-w-xs space-y-2">
               <span className="text-xs font-bold text-[#52647d]">{t.importMinimumScore}</span>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={state.minimumScore}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  state.setMinimumScore(Number.isFinite(value) && value >= 0 ? value : 0);
-                }}
-                className="min-h-11 w-full rounded-xl border border-[#cdd9e7] bg-white px-3.5 text-sm text-[#263b58] outline-none transition focus:border-[#154a9b] focus:ring-4 focus:ring-[#154a9b]/10"
-              />
-            </label>
+              {state.hasPassingScore ? (
+                <p className="flex min-h-11 items-center rounded-xl border border-[#cdd9e7] bg-[#f7f9fc] px-3.5 text-sm font-bold text-[#263b58]">
+                  {state.minimumScore}
+                </p>
+              ) : (
+                <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                  {t.importPassingScoreMissing}
+                </p>
+              )}
+            </div>
           </>
         ) : null}
 
-        {state.hasRows ? (
+        {state.hasRows && state.hasPassingScore ? (
           <div className="mt-4 rounded-2xl bg-[#edf4fc] p-4 text-sm text-[#40546f]">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
               {importSummary.map((item) => (
@@ -179,7 +185,7 @@ export function AttendanceImportAction({
         {state.result ? (
           <div className="mt-4 rounded-2xl border border-[#d9e3ee] p-4 text-sm">
             <p
-              className={`font-bold ${state.result.queued > 0 ? "text-emerald-700" : "text-[#52647d]"}`}
+              className={`font-bold ${state.result.status === "COMPLETED" && state.result.accepted > 0 ? "text-emerald-700" : "text-[#52647d]"}`}
             >
               {importResultMessage}
             </p>
@@ -188,22 +194,32 @@ export function AttendanceImportAction({
                 {t.importRequested}: {state.result.requested}
               </p>
               <p>
-                {t.importImportedCount}: {state.result.queued}
+                {t.importQueuedCount}: {state.result.queued}
               </p>
               <p>
-                {t.importDuplicateCount}: {state.result.duplicateIdentifiers.length}
+                {t.importProcessedCount}: {state.result.processed}
               </p>
               <p>
-                {t.importInvalidCount}: {state.result.invalidIdentifiers.length}
+                {t.importImportedCount}: {state.result.accepted}
               </p>
               <p>
-                {t.importNotFoundCount}: {state.result.notFoundIdentifiers.length}
+                {t.importRejectedCount}: {state.result.rejected}
               </p>
               <p>
-                {t.importAlreadyRecordedCount}: {state.result.alreadyRecordedIdentifiers.length}
+                {t.importDuplicateCount}: {state.result.duplicateIdentifiers?.length ?? 0}
+              </p>
+              <p>
+                {t.importInvalidCount}: {state.result.invalidIdentifiers?.length ?? 0}
+              </p>
+              <p>
+                {t.importNotFoundCount}: {state.result.notFoundIdentifiers?.length ?? 0}
+              </p>
+              <p>
+                {t.importAlreadyRecordedCount}:{" "}
+                {state.result.alreadyRecordedIdentifiers?.length ?? 0}
               </p>
             </div>
-            {state.result.notFoundIdentifiers.length ? (
+            {state.result.notFoundIdentifiers?.length ? (
               <p className="mt-3 break-words text-[#66758a]">
                 {t.importNotFound}: {state.result.notFoundIdentifiers.join(", ")}
               </p>
@@ -215,7 +231,8 @@ export function AttendanceImportAction({
           <button
             type="button"
             onClick={state.close}
-            className="min-h-11 rounded-xl border border-[#cbd6e4] px-4 text-sm font-semibold text-[#52647d]"
+            disabled={state.isProcessing}
+            className="min-h-11 rounded-xl border border-[#cbd6e4] px-4 text-sm font-semibold text-[#52647d] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t.close}
           </button>
@@ -223,15 +240,19 @@ export function AttendanceImportAction({
             type="button"
             disabled={
               !state.uniqueValidIdentifiers.length ||
+              !state.hasPassingScore ||
               state.scoreColumnIndex === null ||
               !state.confirmed ||
               tooManyRows ||
-              state.mutation.isPending
+              state.mutation.isPending ||
+              state.isProcessing
             }
             onClick={() => state.mutation.mutate()}
             className="min-h-11 rounded-xl bg-[#154a9b] px-5 text-sm font-bold text-white disabled:opacity-50"
           >
-            {state.mutation.isPending ? t.pending : t.importSubmit}
+            {state.mutation.isPending || state.isProcessing
+              ? t.importProcessingShort
+              : t.importSubmit}
           </button>
         </div>
       </Modal>

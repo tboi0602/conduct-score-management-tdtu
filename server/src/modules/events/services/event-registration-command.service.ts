@@ -85,9 +85,10 @@ async function register(eventId: string, studentId: string, actorUserId: string,
 
         const updated = await tx.event.updateMany({
           where: bypass
-            ? { id: eventId }
+            ? { id: eventId, deliveryMode: "OFFLINE" }
             : {
                 id: eventId,
+                deliveryMode: "OFFLINE",
                 registrationStart: { lte: now },
                 registrationEnd: { gte: now },
                 OR: [{ capacity: null }, { registeredCount: { lt: event.capacity ?? 0 } }],
@@ -99,12 +100,20 @@ async function register(eventId: string, studentId: string, actorUserId: string,
             where: { id: eventId },
             select: {
               capacity: true,
+              deliveryMode: true,
               registeredCount: true,
               registrationStart: true,
               registrationEnd: true,
             },
           });
           if (!latest) throw new ApiError(404, "Event not found");
+          if (latest.deliveryMode === "ONLINE") {
+            throw new ApiError(
+              409,
+              "Online events do not require registration",
+              "ONLINE_REGISTRATION_NOT_REQUIRED",
+            );
+          }
           if (!latest.registrationStart || !latest.registrationEnd) {
             throw new ApiError(409, "Registration window is not configured");
           }

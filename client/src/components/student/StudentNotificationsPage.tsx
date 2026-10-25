@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { useStudentNotifications } from "@/hooks/notifications/useStudentNotifications";
 import { studentNotificationMessages } from "@/i18n/student-notification-messages";
+import { buildEventSlug } from "@/lib/slug";
 
 export function StudentNotificationsPage() {
   const { locale } = useLanguage();
@@ -51,6 +52,7 @@ export function StudentNotificationsPage() {
       <div className="mt-7 space-y-3">
         {items.map((item) => {
           const unread = !item.readAt;
+          const eventMovedOnline = item.type === "EVENT_MOVED_ONLINE";
           const warningBody =
             item.title === "CONDUCT_SCORE_WARNING_MIDPOINT"
               ? t.conductScoreMidpointWarningBody
@@ -73,9 +75,11 @@ export function StudentNotificationsPage() {
                     <h2 className="font-bold text-[#102a50]">
                       {item.type === "CONDUCT_SCORE_WARNING"
                         ? t.conductScoreWarning
-                        : item.type === "APPEAL_APPROVED"
-                          ? t.approved
-                          : t.rejected}
+                        : eventMovedOnline
+                          ? t.eventMovedOnline
+                          : item.type === "APPEAL_APPROVED"
+                            ? t.approved
+                            : t.rejected}
                     </h2>
                     <time className="text-xs tabular-nums text-[#718096]">
                       {new Date(item.createdAt).toLocaleString(locale)}
@@ -85,7 +89,10 @@ export function StudentNotificationsPage() {
                     {item.type === "CONDUCT_SCORE_WARNING"
                       ? warningBody.replace("{threshold}", item.message || "80")
                       : null}
-                    {item.type !== "CONDUCT_SCORE_WARNING" ? (
+                    {eventMovedOnline
+                      ? t.eventMovedOnlineBody.replace("{eventName}", item.title)
+                      : null}
+                    {item.type !== "CONDUCT_SCORE_WARNING" && !eventMovedOnline ? (
                       <>
                         {t.event}: <strong>{item.title}</strong>
                         {item.message ? ` · ${item.message}` : ""}
@@ -108,6 +115,13 @@ export function StudentNotificationsPage() {
                         className="inline-flex items-center gap-1 text-sm font-bold text-[#154a9b]"
                       >
                         <ExternalLink size={14} /> {t.viewConductScore}
+                      </Link>
+                    ) : eventMovedOnline && item.entityId ? (
+                      <Link
+                        href={`/events/${buildEventSlug(item.title, item.entityId)}`}
+                        className="inline-flex items-center gap-1 text-sm font-bold text-[#154a9b]"
+                      >
+                        <ExternalLink size={14} /> {t.viewEvent}
                       </Link>
                     ) : item.entityId ? (
                       <Link

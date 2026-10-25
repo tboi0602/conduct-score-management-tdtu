@@ -13,6 +13,20 @@ import { queryKeys } from "@/lib/query-keys";
 import { attendanceService } from "@/services/attendance";
 import { eventService } from "@/services/events";
 import type { AttendanceDirection } from "@/types/attendance";
+import { HttpError } from "@/services/http";
+
+export type AttendanceRealtimeState = "CONNECTING" | "OPEN" | "FALLBACK";
+
+const SSE_INVALIDATION_DEBOUNCE_MS = 300;
+const FALLBACK_POLL_INTERVAL_MS = 15_000;
+const SSE_RECONNECT_DELAYS_MS = [2_000, 4_000, 8_000, 16_000, 30_000] as const;
+
+export function attendanceSseReconnectDelay(attempt: number, randomValue = Math.random()): number {
+  const baseDelay =
+    SSE_RECONNECT_DELAYS_MS[Math.min(Math.max(0, attempt), SSE_RECONNECT_DELAYS_MS.length - 1)];
+  const jitterMultiplier = 0.8 + Math.min(1, Math.max(0, randomValue)) * 0.4;
+  return Math.min(30_000, Math.round(baseDelay * jitterMultiplier));
+}
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -54,11 +68,13 @@ export function useAttendanceWorkspace(eventId: string) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [direction, setDirection] = useState<AttendanceDirection>("CHECK_IN");
+  const [listDirection, setListDirection] = useState<"ALL" | AttendanceDirection>("ALL");
   const [attendanceStatus, setAttendanceStatus] = useState<"ATTENDED" | "LATE">("ATTENDED");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [qrImage, setQrImage] = useState("");
   const [clock, setClock] = useState(Date.now());
+  const [realtimeState, setRealtimeState] = useState<AttendanceRealtimeState>("CONNECTING");
   const debouncedSearch = useDebounce(searchTerm.trim(), 500);
   const search = debouncedSearch.length >= 3 ? debouncedSearch : "";
 
@@ -86,13 +102,19 @@ export function useAttendanceWorkspace(eventId: string) {
     refetchInterval: 15_000,
   });
   const requestsQuery = useQuery({
-    queryKey: [...queryKeys.attendance.requests(eventId, search), page],
-    queryFn: () => attendanceService.requests(eventId, page, search),
+    queryKey: [...queryKeys.attendance.requests(eventId, search, listDirection), page],
+    queryFn: () =>
+      attendanceService.requests(
+        eventId,
+        page,
+        search,
+        listDirection === "ALL" ? undefined : listDirection,
+      ),
     placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: Boolean(sessionQuery.data) && attendanceWindow === "OPEN" ? 2_000 : false,
+    refetchInterval: realtimeState === "OPEN" ? false : FALLBACK_POLL_INTERVAL_MS,
   });
 
   useEffect(() => {
@@ -110,35 +132,55 @@ export function useAttendanceWorkspace(eventId: string) {
   useEffect(() => {
     let source: EventSource | null = null;
     let retryTimer: number | null = null;
+    let invalidationTimer: number | null = null;
+    let reconnectAttempt = 0;
     let cancelled = false;
 
+    const scheduleInvalidation = () => {
+      if (invalidationTimer !== null) return;
+      invalidationTimer = window.setTimeout(() => {
+        invalidationTimer = null;
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.attendance.requestsAll(eventId),
+        });
+      }, SSE_INVALIDATION_DEBOUNCE_MS);
+    };
+
+    const scheduleReconnect = () => {
+      setRealtimeState("FALLBACK");
+      if (cancelled || retryTimer !== null) return;
+      const delay = attendanceSseReconnectDelay(reconnectAttempt);
+      reconnectAttempt += 1;
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        void connect();
+      }, delay);
+    };
+
     const connect = async () => {
+      if (typeof window.EventSource === "undefined") {
+        setRealtimeState("FALLBACK");
+        return;
+      }
+      setRealtimeState((current) => (current === "OPEN" ? current : "CONNECTING"));
       try {
         const { data } = await attendanceService.eventTicket(eventId);
         if (cancelled) return;
-        source = new EventSource(
+        source = new window.EventSource(
           `${env.apiBaseUrl}/api/v1/attendance/stream?ticket=${encodeURIComponent(data.ticket)}`,
         );
-        source.addEventListener("message", () => {
-          void queryClient.invalidateQueries({
-            queryKey: ["admin", "attendance", eventId, "requests"],
-          });
-        });
+        source.onopen = () => {
+          reconnectAttempt = 0;
+          setRealtimeState("OPEN");
+        };
+        source.addEventListener("message", scheduleInvalidation);
         source.onerror = () => {
           source?.close();
           source = null;
-          if (cancelled || retryTimer !== null) return;
-          retryTimer = window.setTimeout(() => {
-            retryTimer = null;
-            void connect();
-          }, 2_000);
+          scheduleReconnect();
         };
       } catch {
-        if (cancelled || retryTimer !== null) return;
-        retryTimer = window.setTimeout(() => {
-          retryTimer = null;
-          void connect();
-        }, 2_000);
+        scheduleReconnect();
       }
     };
 
@@ -147,6 +189,7 @@ export function useAttendanceWorkspace(eventId: string) {
       cancelled = true;
       source?.close();
       if (retryTimer !== null) window.clearTimeout(retryTimer);
+      if (invalidationTimer !== null) window.clearTimeout(invalidationTimer);
     };
   }, [eventId, queryClient]);
 
@@ -193,18 +236,17 @@ export function useAttendanceWorkspace(eventId: string) {
       }),
     onSuccess: () => {
       showToast(messages.scanSuccess);
-      void queryClient.invalidateQueries({
-        queryKey: ["admin", "attendance", eventId],
-      });
-      // Invalidate again after worker processes EDA queue
-      setTimeout(() => {
-        void queryClient.invalidateQueries({
-          queryKey: ["admin", "attendance", eventId],
-        });
-        void requestsQuery.refetch();
-      }, 1000);
+      if (realtimeState !== "OPEN") {
+        window.setTimeout(() => void requestsQuery.refetch(), 1_000);
+      }
     },
-    onError: () => showToast(messages.actionError, "error"),
+    onError: (error) =>
+      showToast(
+        error instanceof HttpError && error.code === "ATTENDANCE_ALREADY_RECORDED"
+          ? messages.alreadyAttended
+          : messages.actionError,
+        "error",
+      ),
   });
   const submitBarcode = useCallback(
     (code: string, source: "STAFF_BARCODE" | "MANUAL_ENTRY") => scan.mutateAsync({ source, code }),
@@ -214,6 +256,10 @@ export function useAttendanceWorkspace(eventId: string) {
 
   const updateSearchTerm = (value: string) => {
     setSearchTerm(value);
+    setPage(1);
+  };
+  const updateListDirection = (value: "ALL" | AttendanceDirection) => {
+    setListDirection(value);
     setPage(1);
   };
   const qrSecondsRemaining = qrQuery.data
@@ -227,6 +273,8 @@ export function useAttendanceWorkspace(eventId: string) {
     requestsQuery,
     direction,
     setDirection,
+    listDirection,
+    updateListDirection,
     attendanceStatus,
     setAttendanceStatus,
     searchTerm,
@@ -240,5 +288,6 @@ export function useAttendanceWorkspace(eventId: string) {
     scan,
     barcode,
     attendanceWindow,
+    realtimeState,
   };
 }

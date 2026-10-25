@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +23,8 @@ import { studentEventMessages } from "@/i18n/student-event-messages";
 import { formatDate, organizerLabel } from "@/lib/event-form";
 import { parseEventIdFromSlug } from "@/lib/slug";
 import { eventRegistrationService } from "@/services/events";
-import { useState } from "react";
+import { useLifecycleClock } from "@/hooks/shared/useLifecycleClock";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -40,26 +41,44 @@ export default function EventDetailPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", "detail", eventId],
+    queryKey: queryKeys.studentEvents.detail(eventId),
     queryFn: async () => {
       const res = await eventRegistrationService.detail(eventId);
       return res.data;
     },
     enabled: Boolean(eventId),
   });
+  const lifecycleBoundaries = useMemo(
+    () =>
+      eventData
+        ? [new Date(eventData.timeStart).getTime(), new Date(eventData.timeEnd).getTime()]
+        : [],
+    [eventData],
+  );
+  const now = useLifecycleClock(lifecycleBoundaries);
 
   const registerMutation = useMutation({
     mutationFn: () => eventRegistrationService.register(eventId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+    onSuccess: ({ data }) => {
+      queryClient.setQueryData(queryKeys.studentEvents.detail(eventId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.studentEvents.listAll });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.studentEvents.mineAll });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.studentEvents.recommended({}).slice(0, 3),
+      });
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => eventRegistrationService.cancel(eventId),
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       setCancelling(false);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.setQueryData(queryKeys.studentEvents.detail(eventId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.studentEvents.listAll });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.studentEvents.mineAll });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.studentEvents.recommended({}).slice(0, 3),
+      });
     },
   });
 
@@ -85,7 +104,6 @@ export default function EventDetailPage() {
     );
   }
 
-  const now = Date.now();
   const startTime = new Date(eventData.timeStart).getTime();
   const endTime = new Date(eventData.timeEnd).getTime();
   const online = eventData.deliveryMode === "ONLINE";
@@ -101,12 +119,12 @@ export default function EventDetailPage() {
   const isRegOpen = eventData.registrationOpen;
   const isRegistered = eventData.registrationStatus === "REGISTERED";
 
-  const lifecycle = now < startTime ? t.upcoming : now <= endTime ? t.ongoing : t.completed;
+  const lifecycle = now < startTime ? t.upcoming : now < endTime ? t.ongoing : t.completed;
 
   const lifecycleBadgeStyle =
     now < startTime
       ? "border border-amber-200 bg-amber-50 text-amber-700"
-      : now <= endTime
+      : now < endTime
         ? "border border-blue-200 bg-blue-50 text-[#154a9b]"
         : "border border-emerald-200 bg-emerald-50 text-emerald-700";
 
@@ -170,27 +188,29 @@ export default function EventDetailPage() {
 
             <div className="flex flex-col gap-2">
               {online ? (
-                <button
-                  type="button"
-                  disabled={now < startTime || now >= endTime || !eventData.googleFormUrl}
-                  onClick={() => {
-                    if (eventData.googleFormUrl) {
-                      window.open(eventData.googleFormUrl, "_blank", "noopener,noreferrer");
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-6 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-40"
-                >
-                  {now >= startTime && now < endTime && eventData.googleFormUrl ? (
+                now >= startTime && now < endTime && eventData.googleFormUrl ? (
+                  <a
+                    href={eventData.googleFormUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-6 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-16px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98]"
+                  >
                     <ExternalLink size={17} />
-                  ) : null}
-                  {now < startTime
-                    ? t.googleFormNotOpen
-                    : now >= endTime
-                      ? t.eventEnded
-                      : eventData.googleFormUrl
-                        ? t.openGoogleForm
+                    {t.openGoogleForm}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#154a9b] px-6 py-3 text-sm font-bold text-white opacity-40"
+                  >
+                    {now < startTime
+                      ? t.googleFormNotOpen
+                      : now >= endTime
+                        ? t.eventEnded
                         : t.googleFormNotConfigured}
-                </button>
+                  </button>
+                )
               ) : isRegistered ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-center gap-1.5 rounded-xl bg-[#ecfdf5] px-4 py-2.5 text-xs font-bold text-[#047857]">

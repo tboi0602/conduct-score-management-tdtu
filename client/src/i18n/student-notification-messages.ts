@@ -19,6 +19,10 @@ export const studentNotificationMessages = {
     conductScoreFinalWarningBody:
       "Học kỳ còn không quá 14 ngày và điểm hiện tại của bạn thấp hơn ngưỡng {threshold}. Hãy kiểm tra các hoạt động còn thiếu.",
     viewConductScore: "Xem điểm rèn luyện",
+    eventMovedOnline: "Sự kiện đã chuyển sang trực tuyến",
+    eventMovedOnlineBody:
+      "Sự kiện “{eventName}” đã được chuyển sang hình thức trực tuyến. Bạn không cần đăng ký lại. Hãy kiểm tra thời gian tham gia và liên kết Google Form.",
+    viewEvent: "Xem sự kiện",
   },
   en: {
     title: "Notifications",
@@ -40,5 +44,9 @@ export const studentNotificationMessages = {
     conductScoreFinalWarningBody:
       "The semester ends within 14 days and your current score is below the {threshold}-point threshold. Review your remaining activities.",
     viewConductScore: "View conduct score",
+    eventMovedOnline: "Event moved online",
+    eventMovedOnlineBody:
+      "The event “{eventName}” has moved online. You do not need to register again. Review its participation time and Google Form link.",
+    viewEvent: "View event",
   },
 } as const;

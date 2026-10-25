@@ -261,12 +261,30 @@ export async function submitManagedScan(
   assertAttendanceStarted(event);
   if (event.checkInMode === "ONE_WAY" && input.direction === "CHECK_OUT")
     throw new ApiError(409, "One-way events do not support check-out");
-  const student = await prisma.student.findUnique({
-    where: { studentCode: input.studentCode },
+  const normalizedStudentCode = input.studentCode.trim();
+  const student = await prisma.student.findFirst({
+    where: { studentCode: { equals: normalizedStudentCode, mode: "insensitive" } },
     select: { id: true },
   });
   if (!student) {
     throw new ApiError(404, "Student does not exist");
+  }
+  const existingRecord = await prisma.attendanceRecord.findUnique({
+    where: {
+      studentId_eventId_direction: {
+        studentId: student.id,
+        eventId,
+        direction: input.direction,
+      },
+    },
+    select: { id: true },
+  });
+  if (existingRecord) {
+    throw new ApiError(
+      409,
+      "Attendance has already been recorded for this event",
+      "ATTENDANCE_ALREADY_RECORDED",
+    );
   }
   const registration = await prisma.eventRegistration.findFirst({
     where: { eventId, studentId: student.id, status: "REGISTERED" },

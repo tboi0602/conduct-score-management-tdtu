@@ -6,6 +6,7 @@ import { redisClient } from "@redis";
 import { ApiError } from "@utils/ApiError";
 import { runBulkAction } from "@utils/bulkAction";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
+import { deleteStudentAccount } from "@services/users/student-account-deletion.service";
 
 export type UserInput = {
   email: string;
@@ -317,7 +318,7 @@ export async function updateUser(id: string, input: UserInput) {
         });
       }
     });
-    await redisClient.revokeRefreshSession(id);
+    await redisClient.revokeUserRefreshSessions(id);
     return findUserById(id);
   } catch (error) {
     throw mapPrismaError(error);
@@ -328,22 +329,24 @@ export async function deleteUser(actorUserId: string, id: string) {
   if (actorUserId === id) {
     throw new ApiError(409, "You cannot delete your own account");
   }
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, student: { select: { id: true } } },
+  });
   if (!user) throw new ApiError(404, "User not found");
   if (user.email === "admin")
     throw new ApiError(400, "The default admin account cannot be deleted");
+  if (user.student) {
+    await deleteStudentAccount({ actorUserId, targetUserId: id });
+    return;
+  }
   await prisma.user.delete({ where: { id } });
-  await redisClient.revokeRefreshSession(id);
+  await redisClient.revokeUserRefreshSessions(id);
 }
 
 export async function deleteStudents(actorUserId: string, ids: string[]) {
   return runBulkAction(ids, async (id) => {
-    const student = await prisma.user.findUnique({
-      where: { id },
-      select: { student: { select: { id: true } } },
-    });
-    if (!student?.student) throw new ApiError(404, "Student account not found");
-    await deleteUser(actorUserId, id);
+    await deleteStudentAccount({ actorUserId, targetUserId: id });
   });
 }
 
@@ -362,12 +365,22 @@ export async function setStaffStatus(
     select: { id: true },
   });
   if (!staff) throw new ApiError(404, "Staff member not found");
-  const updated = await prisma.user.update({
-    where: { id },
-    data: { status },
-    select: publicUserSelect,
+  const updated = await prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.update({
+      where: { id },
+      data: { status },
+      select: publicUserSelect,
+    });
+    if (status === "DISABLED") {
+      const resolvedAt = new Date();
+      await transaction.conductScoreWarning.updateMany({
+        where: { student: { userId: id }, status: "ACTIVE" },
+        data: { status: "RESOLVED", resolvedAt },
+      });
+    }
+    return user;
   });
-  await redisClient.revokeRefreshSession(id);
+  await redisClient.revokeUserRefreshSessions(id);
   return updated;
 }
 

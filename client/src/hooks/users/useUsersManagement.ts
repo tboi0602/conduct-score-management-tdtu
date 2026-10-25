@@ -227,10 +227,16 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       setDeleting(null);
       showToast(locale === "vi" ? "Xóa người dùng thành công." : "User deleted successfully.");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to delete user");
-      showToast(locale === "vi" ? "Không thể xóa người dùng." : "Unable to delete user.", "error");
+      const message =
+        error instanceof HttpError && error.code === "STUDENT_HAS_STAFF_ROLE"
+          ? t.studentHasStaffRole
+          : locale === "vi"
+            ? "Không thể xóa người dùng."
+            : "Unable to delete user.";
+      setActionError(message);
+      showToast(message, "error");
     }
-  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast]);
+  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast, t]);
   const applyFilters = (next: UserFilters) => {
     list.setPage(1);
     setFilters(next);

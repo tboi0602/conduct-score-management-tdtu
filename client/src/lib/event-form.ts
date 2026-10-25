@@ -10,6 +10,7 @@ type ValidationKey =
   | "invalidRegistrationTime"
   | "registrationEndsAfterEventStarts"
   | "invalidGoogleFormUrl"
+  | "invalidOnlinePassingScore"
   | "missingReference"
   | "invalidRange";
 export class FormValidationError extends Error {
@@ -21,6 +22,21 @@ export class FormValidationError extends Error {
 export function managementError(error: unknown, t: Messages, fallback: string): string {
   if (error instanceof FormValidationError) return t[error.key];
   if (error instanceof HttpError) {
+    const eventError = {
+      EVENT_ALREADY_STARTED: t.eventAlreadyStartedConversionError,
+      EVENT_HAS_ATTENDANCE_SESSIONS: t.eventHasAttendanceSessionsError,
+      EVENT_HAS_ATTENDANCE_REQUESTS: t.eventHasAttendanceRequestsError,
+      EVENT_HAS_ATTENDANCE_RECORDS: t.eventHasAttendanceRecordsError,
+      EVENT_HAS_APPEALS: t.eventHasAppealsError,
+      EVENT_HAS_CONDUCT_SCORE_ENTRIES: t.eventHasConductScoreEntriesError,
+      EVENT_ONLINE_CONVERSION_CONFIRMATION_REQUIRED: t.onlineConversionConfirmationRequired,
+      GOOGLE_FORM_URL_REQUIRED: t.invalidGoogleFormUrl,
+      INVALID_GOOGLE_FORM_URL: t.invalidGoogleFormUrl,
+      ONLINE_PASSING_SCORE_REQUIRED: t.invalidOnlinePassingScore,
+      INVALID_ONLINE_PASSING_SCORE: t.invalidOnlinePassingScore,
+      ONLINE_PASSING_SCORE_LOCKED: t.onlinePassingScoreLocked,
+    }[error.code];
+    if (eventError) return eventError;
     if (error.status === 401) return t.sessionExpired;
     if (error.status === 403) return t.accessDenied;
     if (error.status === 404) return t.resourceMissing;
@@ -67,6 +83,7 @@ export function eventPayload(form: FormData): EventPayload {
     throw new FormValidationError("invalidFields");
   const online = deliveryMode === "ONLINE";
   let googleFormUrl: string | null = null;
+  let onlinePassingScore: number | null = null;
   if (online) {
     const rawUrl = String(form.get("googleFormUrl") ?? "").trim();
     try {
@@ -81,6 +98,11 @@ export function eventPayload(form: FormData): EventPayload {
       googleFormUrl = url.toString();
     } catch {
       throw new FormValidationError("invalidGoogleFormUrl");
+    }
+    const rawPassingScore = String(form.get("onlinePassingScore") ?? "").trim();
+    onlinePassingScore = Number(rawPassingScore);
+    if (!rawPassingScore || !Number.isFinite(onlinePassingScore) || onlinePassingScore < 0) {
+      throw new FormValidationError("invalidOnlinePassingScore");
     }
   }
   const registrationStart = online ? null : new Date(String(form.get("registrationStart") ?? ""));
@@ -115,6 +137,7 @@ export function eventPayload(form: FormData): EventPayload {
       .filter((url) => Boolean(url && url.trim())),
     location: online ? "" : requiredText(form, "location"),
     googleFormUrl,
+    onlinePassingScore,
     organizerId,
     criteriaId,
     semesterId,
@@ -127,6 +150,7 @@ export function eventPayload(form: FormData): EventPayload {
     points: pointsInput(form, "points"),
     checkInMode,
     deliveryMode,
+    confirmOnlineConversion: form.get("confirmOnlineConversion") === "true",
   };
 }
 

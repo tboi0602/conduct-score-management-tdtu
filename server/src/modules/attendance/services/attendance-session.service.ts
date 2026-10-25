@@ -36,6 +36,7 @@ export async function managedEvent(eventId: string, access: EventAccess) {
       name: true,
       checkInMode: true,
       deliveryMode: true,
+      onlinePassingScore: true,
       attendanceRadiusMeters: true,
       timeStart: true,
       timeEnd: true,

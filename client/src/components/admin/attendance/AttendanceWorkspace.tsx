@@ -11,7 +11,6 @@ import { attendanceMessages } from "@/i18n/attendance-messages";
 import { formatDate } from "@/lib/event-form";
 import type { AttendanceDirection } from "@/types/attendance";
 import { AttendanceImportAction } from "@/components/admin/attendance/AttendanceImportAction";
-import { AttendanceReconciliation } from "@/components/admin/attendance/AttendanceReconciliation";
 import { AttendanceCameraScanner } from "@/components/admin/attendance/AttendanceCameraScanner";
 
 export function AttendanceWorkspace({ eventId }: { eventId: string }) {
@@ -47,6 +46,20 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
     { value: "CHECK_IN", label: t.checkIn },
     ...(event.checkInMode === "TWO_WAY" ? [{ value: "CHECK_OUT", label: t.checkOut }] : []),
   ];
+  const realtimeStatus = {
+    CONNECTING: {
+      label: t.realtimeConnecting,
+      className: "bg-amber-50 text-amber-800",
+    },
+    OPEN: {
+      label: t.realtimeConnected,
+      className: "bg-emerald-50 text-emerald-700",
+    },
+    FALLBACK: {
+      label: t.realtimeFallback,
+      className: "bg-slate-100 text-slate-700",
+    },
+  }[state.realtimeState];
   return (
     <section>
       <button
@@ -89,8 +102,19 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <span
+              role="status"
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold ${realtimeStatus.className}`}
+            >
+              <Radio size={14} />
+              {realtimeStatus.label}
+            </span>
             {event.deliveryMode === "ONLINE" ? (
-              <AttendanceImportAction eventId={eventId} disabled={!ended} />
+              <AttendanceImportAction
+                eventId={eventId}
+                onlinePassingScore={event.onlinePassingScore}
+                disabled={!ended}
+              />
             ) : null}
             {event.deliveryMode === "OFFLINE" ? (
               <span className="rounded-xl bg-[#edf4fc] px-3 py-2 text-sm font-bold text-[#154a9b]">
@@ -207,18 +231,54 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
               </div>
               <AttendanceCameraScanner
                 disabled={state.scan.isPending}
-                onScan={(scannedCode) => {
-                  void state.scan.mutateAsync({
+                errorText={t.cameraError}
+                openLabel={t.openCamera}
+                stopLabel={t.stopCamera}
+                scanningLabel={t.cameraScanning}
+                onScan={(scannedCode) =>
+                  state.scan.mutateAsync({
                     source: "STAFF_BARCODE",
                     code: scannedCode,
-                  });
-                }}
+                  })
+                }
               />
+              <button
+                type="button"
+                onClick={() => void state.barcode.submitManual()}
+                disabled={state.scan.isPending || !state.barcode.value.trim()}
+                className="mt-3 min-h-11 w-full rounded-xl border border-[#b9cbe0] bg-white px-4 text-sm font-bold text-[#154a9b] transition hover:bg-[#f3f7fb] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t.submit}
+              </button>
               <p className="mt-3 text-xs text-[#718096]">{t.manualEnterHint}</p>
             </div>
           </div>
         ) : null}
         <div className="rounded-[22px] border border-[#d9e3ee] bg-white p-5 shadow-[0_18px_42px_-38px_rgba(16,42,80,.55)]">
+          {event.checkInMode === "TWO_WAY" ? (
+            <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-[#f1f5f9] p-1.5">
+              {[
+                { value: "ALL", label: t.all },
+                { value: "CHECK_IN", label: t.checkIn },
+                { value: "CHECK_OUT", label: t.checkOut },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    state.updateListDirection(option.value as "ALL" | "CHECK_IN" | "CHECK_OUT")
+                  }
+                  className={`min-h-10 rounded-xl px-3 text-sm font-bold transition ${
+                    state.listDirection === option.value
+                      ? "bg-white text-[#154a9b] shadow-sm"
+                      : "text-[#66758a] hover:bg-white/70 hover:text-[#263b58]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div>
             <input
               value={state.searchTerm}
@@ -296,7 +356,6 @@ export function AttendanceWorkspace({ eventId }: { eventId: string }) {
           ) : null}
         </div>
       </div>
-      {event.deliveryMode === "OFFLINE" ? <AttendanceReconciliation eventId={eventId} /> : null}
     </section>
   );
 }

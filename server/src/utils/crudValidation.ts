@@ -38,6 +38,13 @@ export function integerInput(value: unknown, field: string): number {
   return value;
 }
 
+export function nonNegativeNumberInput(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new ApiError(400, `${field} must be a finite non-negative number`);
+  }
+  return value;
+}
+
 export function dateInput(value: unknown, field: string): Date {
   if (
     typeof value !== "string" ||

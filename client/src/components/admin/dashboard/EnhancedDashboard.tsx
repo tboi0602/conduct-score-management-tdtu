@@ -186,9 +186,13 @@ export function EnhancedDashboard() {
               </span>
               <div>
                 <p className="font-semibold text-[#263b58]">{event.name}</p>
-                <p className="text-xs text-[#718096]">
-                  {event.registrations} {vi ? "đăng ký" : "registrations"}
-                </p>
+                {event.deliveryMode === "OFFLINE" ? (
+                  <p className="text-xs text-[#718096]">
+                    {event.registrations} {vi ? "đăng ký" : "registrations"}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#718096]">{vi ? "Trực tuyến" : "Online"}</p>
+                )}
               </div>
               <strong className="text-sm text-[#2f855a]">
                 {event.attendance} {vi ? "tham gia" : "attended"}

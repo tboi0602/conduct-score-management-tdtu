@@ -32,6 +32,7 @@ export const publicEventSelect = {
   location: true,
   deliveryMode: true,
   googleFormUrl: true,
+  onlinePassingScore: true,
   organizerId: true,
   criteriaId: true,
   semesterId: true,

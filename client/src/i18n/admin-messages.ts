@@ -69,6 +69,8 @@ const vi = {
   staffCreateSuccess: "Thêm nhân sự thành công.",
   staffUpdateSuccess: "Cập nhật nhân sự thành công.",
   staffSaveError: "Không thể lưu thông tin nhân sự.",
+  studentHasStaffRole:
+    "Tài khoản này đồng thời là nhân sự. Vui lòng gỡ vai trò nhân sự trước khi xóa sinh viên.",
   studentCode: "Mã sinh viên",
   role: "Vai trò",
   createdAt: "Ngày tạo",
@@ -204,6 +206,8 @@ const en = {
   staffCreateSuccess: "Staff member added successfully.",
   staffUpdateSuccess: "Staff member updated successfully.",
   staffSaveError: "Unable to save staff details.",
+  studentHasStaffRole:
+    "This account also has a staff role. Remove the staff role before deleting the student.",
   studentCode: "Student ID",
   role: "Role",
   createdAt: "Created",
