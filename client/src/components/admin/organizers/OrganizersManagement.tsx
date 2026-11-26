@@ -2,7 +2,9 @@
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { ManagementTable } from "@/components/admin/ManagementTable";
+import { SelectionCheckbox } from "@/components/admin/SelectionCheckbox";
 import { inputClass, primaryButton, secondaryButton } from "@/components/admin/management-styles";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/IconButton";
@@ -11,6 +13,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useOrganizerManagement } from "@/hooks/organizers/useOrganizerManagement";
+import { usePageSelection } from "@/hooks/shared/usePageSelection";
 import { useAcademicOptions } from "@/hooks/academic/useAcademicOptions";
 import { organizerLabel } from "@/lib/event-form";
 import type { OrganizingUnit } from "@/types/events";
@@ -143,8 +146,30 @@ function OrganizerForm({
 export function OrganizersManagement() {
   const state = useOrganizerManagement();
   const { can } = useAdminAccess();
-  const { locale } = useAdminTranslations();
+  const { locale, t } = useAdminTranslations();
   const copy = organizerCopy[locale];
+  const canDelete = can("organizer.delete");
+  const selection = usePageSelection(
+    canDelete ? state.items.filter((item) => item.type === "CLUB").map((item) => item.id) : [],
+  );
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const confirmBulkDelete = async () => {
+    try {
+      const itemCount = state.items.length;
+      const response = await state.bulkDelete.mutateAsync(selection.selectedIds);
+      if (
+        response.data.succeededIds.length >= itemCount &&
+        !state.pagination.hasNextPage &&
+        state.page > 1
+      ) {
+        state.setPage(state.page - 1);
+      }
+      selection.clear();
+      setBulkDeleteOpen(false);
+    } catch {
+      // The shared mutation reports a localized error and keeps the dialog open.
+    }
+  };
   return (
     <section>
       <AdminPageHeader
@@ -169,8 +194,45 @@ export function OrganizersManagement() {
           className={`${inputClass} mt-0 pl-10`}
         />
       </label>
+      <BulkActionBar count={selection.selectedIds.length} onClear={selection.clear}>
+        <button
+          type="button"
+          onClick={() => setBulkDeleteOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#bd3343] px-4 py-2 text-sm font-bold text-white hover:bg-[#a72a38]"
+        >
+          <Trash2 size={16} /> {t.deleteSelected}
+        </button>
+      </BulkActionBar>
       <ManagementTable
         headers={[copy.code, copy.name, copy.type, copy.faculty, copy.events, copy.actions]}
+        leadingHeader={
+          canDelete ? (
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label={t.selectAllPage}
+            />
+          ) : undefined
+        }
+        leadingCell={
+          canDelete
+            ? (index) => {
+                const unit = state.items[index];
+                return (
+                  <td key="selection" className="w-12 px-3 py-4 text-center">
+                    {unit.type === "CLUB" ? (
+                      <SelectionCheckbox
+                        checked={selection.selectedSet.has(unit.id)}
+                        onChange={() => selection.toggle(unit.id)}
+                        label={`${t.selectRow}: ${organizerLabel(unit)}`}
+                      />
+                    ) : null}
+                  </td>
+                );
+              }
+            : undefined
+        }
         loading={state.isLoading}
         fetching={state.isFetching}
         error={state.requestError}
@@ -239,6 +301,16 @@ export function OrganizersManagement() {
         subject={state.deleting?.name ?? ""}
         description={copy.deleteHint}
         pending={state.isDeleting}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={() => void confirmBulkDelete()}
+        title={t.confirmDeleteSelected}
+        subject={t.selectedCount.replace("{count}", String(selection.selectedIds.length))}
+        description={t.confirmDeleteSelectedDescription}
+        pending={state.bulkDelete.isPending}
+        confirmLabel={t.deleteSelected}
       />
     </section>
   );

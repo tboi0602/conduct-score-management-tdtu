@@ -24,9 +24,23 @@ export function uuidInput(value: unknown, field = "id"): string {
   return value;
 }
 
+export function uuidArrayInput(value: unknown, field = "ids", max = 100): string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > max) {
+    throw new ApiError(400, `${field} must contain between 1 and ${max} UUIDs`);
+  }
+  return [...new Set(value.map((item) => uuidInput(item, field)))];
+}
+
 export function integerInput(value: unknown, field: string): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2147483647) {
     throw new ApiError(400, `${field} must be a non-negative 32-bit integer`);
+  }
+  return value;
+}
+
+export function nonNegativeNumberInput(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new ApiError(400, `${field} must be a finite non-negative number`);
   }
   return value;
 }

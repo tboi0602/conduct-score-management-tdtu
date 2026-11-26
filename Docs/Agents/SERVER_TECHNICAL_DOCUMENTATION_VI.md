@@ -328,11 +328,11 @@ Message chứa `messageId`, `correlationId`, `schemaVersion`, `eventId`, `sessio
 
 `ONE_WAY` chỉ cần `CHECK_IN`. `TWO_WAY` cần cả `CHECK_IN` và `CHECK_OUT`. Sinh viên tự quét bắt buộc đã đăng ký và có GPS. Barcode vẫn kiểm tra đăng ký. Chỉ `MANUAL_ENTRY` hoặc `BULK_IMPORT` theo quyền quản lý mới có quy tắc bỏ qua đăng ký.
 
-# 12. Điểm danh bằng barcode, nhập tay và Excel
+# 12. Điểm danh bằng barcode, nhập tay và CSV
 
 Thiết bị barcode hoạt động như bàn phím: nhập chuỗi MSSV liên tục và kết thúc bằng ký tự Enter. Client tự gửi ngay với nguồn `STAFF_BARCODE`. Nhập tay gửi nguồn `MANUAL_ENTRY`; đây là trường hợp quản lý được phép hỗ trợ sinh viên chưa đăng ký.
 
-Import Excel chỉ dành cho sự kiện `ONLINE`. Client đọc cột MSSV đầu tiên, nhưng server vẫn trim, uppercase, bỏ dòng trống, loại trùng, giới hạn 5.000 mã và truy vấn sinh viên theo batch `IN`. Mỗi sinh viên hợp lệ tạo scan request và outbox với nguồn `BULK_IMPORT`. File không được tin trực tiếp và không được upload nguyên file vào API.
+Sự kiện `ONLINE` dùng Google Form được cấu hình hoàn toàn bên ngoài hệ thống, không đăng ký và không mở QR/barcode. Sau khi sự kiện kết thúc, quản trị viên tải tệp CSV phản hồi trực tiếp từ Google Forms. Client cố định dòng đầu tiên làm tiêu đề, chỉ tạo lựa chọn cột từ dòng này, sau đó quản trị viên chọn cột định danh, cột điểm và ngưỡng đạt. Client chỉ gửi các định danh đủ điểm; cột định danh có thể chứa email `@student.tdtu.edu.vn` hoặc MSSV. Server vẫn chuẩn hóa, kiểm tra tài khoản đang hoạt động, loại trùng, giới hạn 5.000 dòng và truy vấn sinh viên theo batch. Mỗi sinh viên hợp lệ tạo scan request `CHECK_IN`/`ATTENDED` và outbox với nguồn `BULK_IMPORT`. File không được tin trực tiếp và không được upload nguyên file vào API.
 
 # 13. Realtime SSE
 

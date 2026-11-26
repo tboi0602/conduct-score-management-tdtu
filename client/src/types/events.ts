@@ -55,18 +55,21 @@ export type EventPayload = {
   description: string;
   images?: string[];
   location: string;
+  googleFormUrl: string | null;
+  onlinePassingScore: number | null;
   organizerId: string;
   criteriaId: string;
   semesterId: string;
   timeStart: string;
   timeEnd: string;
-  registrationStart: string;
-  registrationEnd: string;
+  registrationStart: string | null;
+  registrationEnd: string | null;
   capacity: number | null;
   attendanceRadiusMeters: number;
   points: number;
   checkInMode: CheckInMode;
   deliveryMode: EventDeliveryMode;
+  confirmOnlineConversion?: boolean;
 };
 export type ManagedEvent = Omit<EventPayload, "description"> & {
   description?: string;
@@ -80,6 +83,7 @@ export type ManagedEvent = Omit<EventPayload, "description"> & {
   type: EventType;
   organizer: OrganizingUnit | null;
   registeredCount: number;
+  _count?: { attendanceImportBatches: number };
 };
 
 export type RegistrationStatus = "REGISTERED" | "CANCELLED";
@@ -88,7 +92,9 @@ export type PublicEvent = ManagedEvent & {
   registeredCount: number;
   remainingSlots: number | null;
   registrationOpen: boolean;
+  requiresRegistration: boolean;
   registrationStatus: RegistrationStatus | null;
+  attendanceConfirmed: boolean;
 };
 export type EventRegistration = {
   id: string;
@@ -102,7 +108,11 @@ export type EventRegistration = {
     user: { name: string; email: string };
   };
 };
-export type MyEventRegistration = Omit<EventRegistration, "student"> & { event: PublicEvent };
+export type MyEventRegistration = Omit<EventRegistration, "student" | "status"> & {
+  source: "REGISTRATION" | "ATTENDANCE";
+  status: RegistrationStatus | null;
+  event: PublicEvent;
+};
 export type StudentOption = {
   id: string;
   studentCode: string;
@@ -113,7 +123,8 @@ export type EventFilters = {
   criteriaId?: string;
   semesterId?: string;
   type?: string;
-  checkInMode?: string;
+  deliveryMode?: EventDeliveryMode;
+  checkInMode?: CheckInMode;
   startsFrom?: string;
   startsTo?: string;
   organizerId?: string;
@@ -123,6 +134,8 @@ export type EventFilters = {
 export type StudentEventFilters = {
   search?: string;
   type?: EventType;
+  deliveryMode?: EventDeliveryMode;
+  checkInMode?: CheckInMode;
   organizerId?: string;
   criteriaId?: string;
   startsFrom?: string;

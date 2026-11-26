@@ -37,7 +37,7 @@ Additional grants can be assigned through the existing RBAC feature.
 
 Event filters combine with AND: `criteriaId`, `semesterId`, `type`
 (`UNIVERSITY`, `FACULTY`, `CLASS`, `CLUB`), `checkInMode` (`ONE_WAY`, `TWO_WAY`),
-`startsFrom`, `startsTo`. Date bounds are inclusive and filter **timeStart**;
+`deliveryMode` (`OFFLINE`, `ONLINE`), `startsFrom`, `startsTo`. Date bounds are inclusive and filter **timeStart**;
 they do not mean event overlap or an event status. Dates require ISO datetimes
 with timezone, for example `2026-09-10T00:00:00Z`. URL-encode a `+07:00` offset.
 
@@ -62,15 +62,26 @@ POST/PUT event:
 ```json
 {
   "name": "Faculty seminar",
+  "description": "Event information",
+  "location": "Hall A",
+  "organizerId": "<existing-organizer-uuid>",
   "criteriaId": "<existing-criterion-uuid>",
   "semesterId": "<existing-semester-uuid>",
   "timeStart": "2026-09-10T08:00:00+07:00",
   "timeEnd": "2026-09-10T10:00:00+07:00",
+  "registrationStart": "2026-09-01T08:00:00+07:00",
+  "registrationEnd": "2026-09-09T17:00:00+07:00",
+  "capacity": 200,
+  "attendanceRadiusMeters": 100,
   "points": 5,
-  "type": "FACULTY",
+  "deliveryMode": "OFFLINE",
   "checkInMode": "TWO_WAY"
 }
 ```
+
+For `ONLINE`, set `deliveryMode` to `ONLINE` and provide `googleFormUrl` as an HTTPS URL on
+`forms.gle` or `docs.google.com/forms`. Registration dates, capacity and location are not used;
+the server normalizes them to `null`/empty values and forces `checkInMode` to `ONE_WAY`.
 
 POST/PUT criterion:
 

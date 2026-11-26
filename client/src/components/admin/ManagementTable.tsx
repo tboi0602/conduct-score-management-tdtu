@@ -16,9 +16,11 @@ export function ManagementTable({
   pagination,
   onPageChange,
   retry,
+  leadingHeader,
+  leadingCell,
   children,
 }: {
-  headers: string[];
+  headers: ReactNode[];
   loading: boolean;
   fetching: boolean;
   error: unknown;
@@ -26,9 +28,12 @@ export function ManagementTable({
   pagination: PaginationMeta;
   onPageChange: (page: number) => void;
   retry: () => void;
+  leadingHeader?: ReactNode;
+  leadingCell?: (index: number) => ReactNode;
   children: ReactNode;
 }) {
   const { t } = useAdminTranslations();
+  const hasLeadingColumn = leadingHeader !== undefined;
   return (
     <div
       aria-busy={fetching}
@@ -38,12 +43,17 @@ export function ManagementTable({
         <table className="w-full min-w-[720px] text-left text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-[#f8faff]">
           <thead className="border-b border-[#dde6f0] bg-[#f5f8fc] text-[11px] uppercase tracking-[.1em] text-[#60728a]">
             <tr>
+              {hasLeadingColumn ? (
+                <th scope="col" className="w-12 px-3 py-4 text-center">
+                  {leadingHeader}
+                </th>
+              ) : null}
               <th scope="col" className="w-20 px-5 py-4 text-center">
                 {t.ordinal}
               </th>
               {headers.map((header, index) => (
                 <th
-                  key={header}
+                  key={index}
                   scope="col"
                   className={`px-5 py-4 ${index === headers.length - 1 ? "text-right" : ""}`}
                 >
@@ -53,7 +63,7 @@ export function ManagementTable({
             </tr>
           </thead>
           {loading || fetching ? (
-            <TableSkeleton columns={headers.length + 1} />
+            <TableSkeleton columns={headers.length + 1 + (hasLeadingColumn ? 1 : 0)} />
           ) : (
             <tbody className="divide-y divide-[#e8edf3] text-[#314966]">
               {Children.map(children, (child, index) => {
@@ -62,6 +72,7 @@ export function ManagementTable({
                 return cloneElement(
                   row,
                   undefined,
+                  hasLeadingColumn ? leadingCell?.(index) : null,
                   <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
                     {(pagination.page - 1) * pagination.limit + index + 1}
                   </td>,

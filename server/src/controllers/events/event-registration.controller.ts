@@ -1,5 +1,10 @@
 import type { Request, Response } from "express";
-import { EventRegistrationStatus, OrganizingUnitType } from "@prisma/client";
+import {
+  CheckInMode,
+  EventDeliveryMode,
+  EventRegistrationStatus,
+  OrganizingUnitType,
+} from "@prisma/client";
 
 import type { AuthContext } from "@middleware/auth.middleware";
 import { getEventAccess } from "@services/events/event-access.service";
@@ -31,6 +36,12 @@ export async function listPublic(req: Request, res: Response) {
       type: optionalQuery(req.query.type, (value) =>
         enumInput(value, Object.values(OrganizingUnitType), "type"),
       ),
+      deliveryMode: optionalQuery(req.query.deliveryMode, (value) =>
+        enumInput(value, Object.values(EventDeliveryMode), "deliveryMode"),
+      ),
+      checkInMode: optionalQuery(req.query.checkInMode, (value) =>
+        enumInput(value, Object.values(CheckInMode), "checkInMode"),
+      ),
       status: optionalQuery(req.query.status, (value) =>
         enumInput(value, ["UPCOMING", "ONGOING", "COMPLETED"] as const, "status"),
       ),
@@ -51,6 +62,15 @@ export async function listRecommended(req: Request, res: Response) {
       startsTo: optionalQuery(req.query.startsTo, (value) => dateInput(value, "startsTo")),
       type: optionalQuery(req.query.type, (value) =>
         enumInput(value, Object.values(OrganizingUnitType), "type"),
+      ),
+      deliveryMode: optionalQuery(req.query.deliveryMode, (value) =>
+        enumInput(value, Object.values(EventDeliveryMode), "deliveryMode"),
+      ),
+      checkInMode: optionalQuery(req.query.checkInMode, (value) =>
+        enumInput(value, Object.values(CheckInMode), "checkInMode"),
+      ),
+      status: optionalQuery(req.query.status, (value) =>
+        enumInput(value, ["UPCOMING", "ONGOING", "COMPLETED"] as const, "status"),
       ),
     },
   );

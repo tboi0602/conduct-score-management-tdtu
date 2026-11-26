@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePaginatedData } from "@/hooks/shared/usePaginatedData";
 import { useDebounce } from "@/hooks/shared/useDebounce";
+import { useBulkAction } from "@/hooks/shared/useBulkAction";
 import {
   prependCachedEntity,
   removeCachedEntity,
@@ -11,15 +12,16 @@ import {
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
 import { adminService } from "@/services/admin";
+import { HttpError } from "@/services/http";
 import type { AdminUser, Faculty, Role, UserFilters, UserPayload } from "@/types/admin";
-import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
 export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const access = useAdminAccess();
   const scoped = !access.can("user.read") && access.can("student.read");
-  const { locale } = useLanguage();
+  const { locale, t } = useAdminTranslations();
   const { showToast } = useToast();
   const [filters, setFilters] = useState<UserFilters>(() => (mode ? { userType: mode } : {}));
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,6 +46,26 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     queryFn: () => adminService.getAcademicOptions(),
     staleTime: 60 * 60 * 1000,
   });
+  const bulkDeleteStudents = useBulkAction({
+    mutationFn: scoped ? adminService.deleteFacultyStudents : adminService.deleteStudents,
+    queryKeys: [queryKeys.users.all],
+  });
+  const bulkActivateStaff = useBulkAction({
+    mutationFn: (ids) =>
+      (scoped ? adminService.setFacultyStaffStatuses : adminService.setStaffStatuses)(
+        ids,
+        "ACTIVE",
+      ),
+    queryKeys: [queryKeys.users.all, queryKeys.auth.me],
+  });
+  const bulkDisableStaff = useBulkAction({
+    mutationFn: (ids) =>
+      (scoped ? adminService.setFacultyStaffStatuses : adminService.setStaffStatuses)(
+        ids,
+        "DISABLED",
+      ),
+    queryKeys: [queryKeys.users.all, queryKeys.auth.me],
+  });
   const roles: Role[] = scoped
     ? ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].map((name) => ({
         id: name,
@@ -57,6 +79,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleting, setDeleting] = useState<AdminUser | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionFieldErrors, setActionFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
     const search = debouncedSearchTerm.trim() || undefined;
@@ -68,11 +91,13 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const openCreate = () => {
     setEditing(null);
     setActionError(null);
+    setActionFieldErrors({});
     setModalOpen(true);
   };
   const openEdit = (user: AdminUser) => {
     setEditing(user);
     setActionError(null);
+    setActionFieldErrors({});
     setModalOpen(true);
   };
   const closeModal = () => {
@@ -80,18 +105,26 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       setModalOpen(false);
       setEditing(null);
       setActionError(null);
+      setActionFieldErrors({});
     }
   };
   const submit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setActionError(null);
+      setActionFieldErrors({});
+      setIsSaving(true);
       const form = new FormData(event.currentTarget);
       const password = String(form.get("password") ?? "");
       const formRoleIds = form.getAll("roleIds").map(String);
       const payload: UserPayload = {
-        email: String(form.get("email") ?? ""),
-        name: String(form.get("name") ?? ""),
+        email:
+          mode === "STAFF"
+            ? String(form.get("email") ?? "")
+                .trim()
+                .toLowerCase()
+            : String(form.get("email") ?? "").trim(),
+        name: String(form.get("name") ?? "").trim(),
         roleIds:
           formRoleIds.length > 0
             ? formRoleIds
@@ -122,22 +155,53 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
         setModalOpen(false);
         setEditing(null);
         showToast(
-          locale === "vi"
+          mode === "STAFF"
             ? editing
-              ? "Cập nhật người dùng thành công."
-              : "Thêm người dùng thành công."
-            : editing
-              ? "User updated successfully."
-              : "User added successfully.",
+              ? t.staffUpdateSuccess
+              : t.staffCreateSuccess
+            : locale === "vi"
+              ? editing
+                ? "Cập nhật người dùng thành công."
+                : "Thêm người dùng thành công."
+              : editing
+                ? "User updated successfully."
+                : "User added successfully.",
         );
       } catch (error) {
-        setActionError(error instanceof Error ? error.message : "Unable to save user");
-        showToast(locale === "vi" ? "Không thể lưu người dùng." : "Unable to save user.", "error");
+        if (mode === "STAFF" && error instanceof HttpError) {
+          const fieldByCode: Record<string, { field: string; message: string }> = {
+            STAFF_EMAIL_INVALID: { field: "email", message: t.staffEmailInvalid },
+            STAFF_PASSWORD_REQUIRED: { field: "password", message: t.passwordRequired },
+            STAFF_ROLE_INVALID: { field: "roleIds", message: t.staffRoleRequired },
+            STAFF_FACULTY_REQUIRED: {
+              field: "primaryFacultyId",
+              message: t.staffFacultyRequired,
+            },
+            STAFF_FACULTY_NOT_FOUND: {
+              field: "primaryFacultyId",
+              message: t.staffFacultyRequired,
+            },
+            USER_ALREADY_EXISTS: { field: "email", message: t.emailAlreadyExists },
+          };
+          const fieldError = fieldByCode[error.code];
+          if (fieldError) setActionFieldErrors({ [fieldError.field]: fieldError.message });
+          else setActionError(t.staffSaveError);
+        } else {
+          setActionError(error instanceof Error ? error.message : "Unable to save user");
+        }
+        showToast(
+          mode === "STAFF"
+            ? t.staffSaveError
+            : locale === "vi"
+              ? "Không thể lưu người dùng."
+              : "Unable to save user.",
+          "error",
+        );
       } finally {
         setIsSaving(false);
       }
     },
-    [editing, locale, mode, queryClient, scoped, showToast],
+    [editing, locale, mode, queryClient, scoped, showToast, t],
   );
   const confirmDelete = useCallback(async () => {
     if (!deleting) return;
@@ -163,10 +227,16 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       setDeleting(null);
       showToast(locale === "vi" ? "Xóa người dùng thành công." : "User deleted successfully.");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to delete user");
-      showToast(locale === "vi" ? "Không thể xóa người dùng." : "Unable to delete user.", "error");
+      const message =
+        error instanceof HttpError && error.code === "STUDENT_HAS_STAFF_ROLE"
+          ? t.studentHasStaffRole
+          : locale === "vi"
+            ? "Không thể xóa người dùng."
+            : "Unable to delete user.";
+      setActionError(message);
+      showToast(message, "error");
     }
-  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast]);
+  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast, t]);
   const applyFilters = (next: UserFilters) => {
     list.setPage(1);
     setFilters(next);
@@ -174,6 +244,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   return {
     ...list,
     actionError,
+    actionFieldErrors,
     applyFilters,
     closeModal,
     confirmDelete,
@@ -184,6 +255,17 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     isModalOpen,
     isSaving,
     currentUserId: access.profile?.id,
+    canBulkDeleteStudents:
+      mode === "STUDENT" && (scoped ? access.can("student.delete") : access.can("user.delete")),
+    canBulkManageStaff:
+      mode === "STAFF" &&
+      (scoped ? access.can("faculty-staff.disable") : access.can("user.update")),
+    bulkDeleteStudents,
+    bulkActivateStaff,
+    bulkDisableStaff,
+    canCreateStaff:
+      Boolean(access.profile?.roles.some((role) => role.name === "ADMIN")) &&
+      access.can("user.create"),
     openCreate,
     openEdit,
     roles,

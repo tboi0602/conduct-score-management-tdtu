@@ -74,6 +74,7 @@ router.get("/options/criteria", requirePermission("event.read"), asyncHandler(ge
 router.get("/options/organizers", requirePermission("event.read"), asyncHandler(listOrganizers));
 
 router.get("/", requirePermission("event.read"), asyncHandler(controller.listEvents));
+router.delete("/bulk", requirePermission("event.delete"), asyncHandler(controller.deleteEvents));
 router.get("/:id", requirePermission("event.read"), asyncHandler(controller.getEvent));
 router.post("/", requirePermission("event.create"), asyncHandler(controller.createEvent));
 router.put("/:id", requirePermission("event.update"), asyncHandler(controller.updateEvent));

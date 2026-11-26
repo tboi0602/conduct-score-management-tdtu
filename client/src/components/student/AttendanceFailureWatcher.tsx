@@ -8,8 +8,6 @@ import { studentEventMessages } from "@/i18n/student-event-messages";
 import {
   attendanceFailureStore,
   failureCategoryForRejection,
-  incidentPayload,
-  sha256,
 } from "@/lib/attendance-failure-store";
 import { getAuthSession } from "@/lib/auth-storage";
 import { attendanceService } from "@/services/attendance";
@@ -33,10 +31,9 @@ export function AttendanceFailureWatcher() {
         continue;
       }
       try {
-        if (draft.syncedAt) continue;
-        if (draft.status === "UNSENT" && draft.retryPayload) {
+        if (now <= eventEnd && draft.status === "UNSENT" && draft.retryPayload) {
           const retryExpiry = draft.retryExpiresAt ? new Date(draft.retryExpiresAt).getTime() : 0;
-          if (navigator.onLine && now <= retryExpiry && now <= eventEnd) {
+          if (navigator.onLine && now <= retryExpiry) {
             const response = await attendanceService.studentQr({
               ...draft.retryPayload,
               clientAttemptId: draft.clientAttemptId,
@@ -50,43 +47,43 @@ export function AttendanceFailureWatcher() {
             continue;
           }
         }
+        if (now <= eventEnd || (draft.status === "FAILED" && draft.notifiedAt)) continue;
 
-        if (draft.status === "UNSENT" || draft.status === "FAILED") {
-          const payload = incidentPayload(draft);
-          const digest = await sha256(payload);
-          if (navigator.onLine) {
-            await attendanceService.submitIncident(payload, digest);
-            const archived = {
-              ...draft,
-              retryPayload: undefined,
-              digest,
-              syncedAt: new Date().toISOString(),
-              status: "FAILED" as const,
-            };
-            await attendanceFailureStore.putIncident(archived);
-            await attendanceFailureStore.put(archived);
-            if (!draft.notifiedAt) {
-              showToast(t.attendanceNotRecorded.replace("{event}", draft.eventName), "error");
-            }
-          }
+        const reconciledDraft =
+          draft.retryPayload || draft.retryExpiresAt
+            ? { ...draft, retryExpiresAt: undefined, retryPayload: undefined }
+            : draft;
+        if (reconciledDraft !== draft) await attendanceFailureStore.put(reconciledDraft);
+
+        const response = await attendanceService.myAttempt(reconciledDraft.clientAttemptId);
+        const request =
+          response.data.request ??
+          (reconciledDraft.requestId
+            ? await attendanceService
+                .myRequest(reconciledDraft.requestId)
+                .then((result) => result.data)
+                .catch(() => null)
+            : null);
+        if (request?.status === "ACCEPTED") {
+          await attendanceFailureStore.remove(reconciledDraft.clientAttemptId);
           continue;
         }
-
-        const response = await attendanceService.myAttempt(draft.clientAttemptId);
-        if (response.data.request?.status === "ACCEPTED") {
-          await attendanceFailureStore.remove(draft.clientAttemptId);
-          continue;
-        }
-        if (response.data.request?.status === "PENDING") continue;
+        if (request?.status === "PENDING") continue;
+        const notifiedAt = reconciledDraft.notifiedAt ?? new Date().toISOString();
         await attendanceFailureStore.put({
-          ...draft,
-          requestId: response.data.request?.id ?? draft.requestId,
-          failureCategory: response.data.request
-            ? failureCategoryForRejection(response.data.request.rejectionReason)
-            : draft.failureCategory,
+          ...reconciledDraft,
+          requestId: request?.id ?? reconciledDraft.requestId,
+          failureCategory: request
+            ? failureCategoryForRejection(request.rejectionReason)
+            : reconciledDraft.failureCategory,
           status: "FAILED",
-          notifiedAt: draft.notifiedAt,
+          notifiedAt,
+          retryExpiresAt: undefined,
+          retryPayload: undefined,
         });
+        if (!reconciledDraft.notifiedAt) {
+          showToast(t.attendanceNotRecorded.replace("{event}", reconciledDraft.eventName), "error");
+        }
       } catch {
         // Keep the local draft and retry when connectivity returns.
       }

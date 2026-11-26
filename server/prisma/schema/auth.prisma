@@ -64,20 +64,20 @@ model User {
   primaryFacultyId String?    @db.Uuid
   primaryFaculty   Faculty?   @relation(fields: [primaryFacultyId], references: [id], onDelete: SetNull)
 
-  student                    Student?
-  registrationsCreated       EventRegistration[]         @relation("RegistrationCreatedBy")
-  registrationsCancelled     EventRegistration[]         @relation("RegistrationCancelledBy")
-  attendanceSessionsOpened   AttendanceSession[]         @relation("AttendanceSessionOpenedBy")
-  attendanceSessionsClosed   AttendanceSession[]         @relation("AttendanceSessionClosedBy")
-  attendanceScansSubmitted   AttendanceScanRequest[]     @relation("AttendanceScanSubmittedBy")
-  conductScoresFinalized     ConductScore[]              @relation("ConductScoreFinalizedBy")
-  conductScoreEntriesCreated ConductScoreEntry[]         @relation("ConductScoreEntryCreatedBy")
-  conductScoreStatusActions  ConductScoreStatusHistory[] @relation("ConductScoreStatusActor")
-  attendanceAppealsReviewed  AttendanceAppeal[]           @relation("AttendanceAppealReviewedBy")
-  notifications              UserNotification[]
-  attendanceIncidentsResolved AttendanceClientIncident[] @relation("AttendanceIncidentResolvedBy")
-  createdAt                  DateTime                    @default(now())
-  updatedAt                  DateTime                    @updatedAt
+  student                        Student?
+  registrationsCreated           EventRegistration[]         @relation("RegistrationCreatedBy")
+  registrationsCancelled         EventRegistration[]         @relation("RegistrationCancelledBy")
+  attendanceSessionsOpened       AttendanceSession[]         @relation("AttendanceSessionOpenedBy")
+  attendanceSessionsClosed       AttendanceSession[]         @relation("AttendanceSessionClosedBy")
+  attendanceScansSubmitted       AttendanceScanRequest[]     @relation("AttendanceScanSubmittedBy")
+  attendanceImportBatchesCreated AttendanceImportBatch[]     @relation("AttendanceImportBatchCreatedBy")
+  conductScoresFinalized         ConductScore[]              @relation("ConductScoreFinalizedBy")
+  conductScoreEntriesCreated     ConductScoreEntry[]         @relation("ConductScoreEntryCreatedBy")
+  conductScoreStatusActions      ConductScoreStatusHistory[] @relation("ConductScoreStatusActor")
+  attendanceAppealsReviewed      AttendanceAppeal[]          @relation("AttendanceAppealReviewedBy")
+  notifications                  UserNotification[]
+  createdAt                      DateTime                    @default(now())
+  updatedAt                      DateTime                    @updatedAt
 
   @@index([primaryFacultyId])
   @@map("users")

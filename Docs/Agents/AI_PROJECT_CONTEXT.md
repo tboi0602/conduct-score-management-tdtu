@@ -96,6 +96,13 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Events explicitly use `OFFLINE` or `ONLINE` delivery mode. Offline events must start and end on the
   same Vietnam calendar day. Student recommendations include only open, upcoming offline events that
   do not overlap the effective schedule after applying that date's exceptions.
+- Online events use an externally configured Google Form. The system stores only an approved
+  `forms.gle` or `docs.google.com/forms` HTTPS link, does not register students, and does not use QR,
+  location, capacity, Google APIs, Apps Script, or webhooks. The link is available only while the
+  application event window is open. After the event ends, authorized managers import the `.csv`
+  response file downloaded from Google Forms. The first row is the fixed header; managers select its
+  identifier and score columns and set the passing threshold. Qualifying rows become one-way
+  bulk-import attendance.
 
 ## Important implementation caveats
 
@@ -104,9 +111,11 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
   bounded offsets and indexed substring search; details are in `Docs/EVENT_CRITERIA_API.md`.
 - Event deletion follows the existing cascade to attendance records and notifications.
   Criteria in use cannot be deleted. CRUD does not recalculate earned attendance points.
-- Student event registration is stored separately from attendance. Capacity may be unlimited;
+- Offline student event registration is stored separately from attendance. Capacity may be unlimited;
   student registration obeys each event's opening/closing window, while authorized managers may
-  override the window and capacity. Attendance/absence is derived from check-in records.
+  override the window and capacity. Online events reject registration and appear in “My events” only
+  after a qualifying attendance row has been imported. Attendance/absence is derived from check-in
+  records.
 - Event capacity uses an atomically maintained `registeredCount`; registration and cancellation
   update the registration row and counter in one PostgreSQL transaction. API instances remain
   stateless behind Nginx `least_conn`, and registration throttling is keyed by user in shared Redis.
@@ -127,6 +136,9 @@ data, Redis refresh sessions, RabbitMQ infrastructure, and the Admin client are 
 - Normal user/RBAC CRUD should remain synchronous; a worker adds complexity without benefit there.
 - Scheduled worker maintenance uses Redis distributed locks so horizontally scaled workers do not run
   warning, appeal-cleanup, or ended-event score synchronization jobs concurrently.
+- Students whose conduct score is below 80 receive an in-app warning at the calendar midpoint of the
+  semester and another warning during the final 14-day window. Each milestone is sent at most once
+  per student and semester.
 - API errors use a stable code/message/fields envelope and include `requestId`; the client temporarily
   accepts both this envelope and the earlier string error shape during migration.
 

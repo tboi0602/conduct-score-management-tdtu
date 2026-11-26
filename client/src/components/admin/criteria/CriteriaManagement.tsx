@@ -13,6 +13,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useCriteriaManagement } from "@/hooks/criteria/useCriteriaManagement";
+import { criteriaTitleMessages } from "@/i18n";
 import { formatDate, managementError } from "@/lib/event-form";
 
 export function CriteriaManagement() {
@@ -70,7 +71,9 @@ export function CriteriaManagement() {
         {state.items.map((criterion) => (
           <tr key={criterion.id} className="transition-colors hover:bg-[#f9fbfd]">
             <td className="max-w-[320px] break-words px-5 py-4 font-semibold text-[#102a50]">
-              {criterion.title}
+              {criteriaTitleMessages[criterion.id as keyof typeof criteriaTitleMessages]?.[
+                locale
+              ] ?? criterion.title}
             </td>
             <td className="px-5 py-4 font-semibold tabular-nums text-[#154a9b]">
               {criterion.maxPoints}
@@ -125,7 +128,13 @@ export function CriteriaManagement() {
         onClose={state.closeDelete}
         onConfirm={state.confirmDelete}
         title={t.confirmDeleteCriteria}
-        subject={state.deleting?.title ?? ""}
+        subject={
+          state.deleting
+            ? (criteriaTitleMessages[state.deleting.id as keyof typeof criteriaTitleMessages]?.[
+                locale
+              ] ?? state.deleting.title)
+            : ""
+        }
         description={t.criteriaDeleteWarning}
         pending={state.isDeleting}
         error={state.actionError ? managementError(state.actionError, t, t.deleteError) : null}

@@ -3,7 +3,7 @@ import type { PaginationMeta } from "@/types/admin";
 
 export type UserNotification = {
   id: string;
-  type: "APPEAL_APPROVED" | "APPEAL_REJECTED" | "CONDUCT_SCORE_WARNING";
+  type: "APPEAL_APPROVED" | "APPEAL_REJECTED" | "CONDUCT_SCORE_WARNING" | "EVENT_MOVED_ONLINE";
   title: string;
   message: string;
   entityId: string | null;

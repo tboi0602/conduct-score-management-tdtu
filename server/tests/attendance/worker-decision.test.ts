@@ -53,6 +53,48 @@ describe("attendance worker decision", () => {
     expect(attendanceRejectionReason(request(), true)).toBeNull();
   });
 
+  it("rejects a repeated QR scan after attendance was recorded", () => {
+    expect(attendanceRejectionReason(request(), true, true)).toBe("ATTENDANCE_ALREADY_RECORDED");
+  });
+
+  it("rejects a repeated barcode scan after attendance was recorded", () => {
+    expect(
+      attendanceRejectionReason(
+        request({
+          source: "STAFF_BARCODE",
+          session: null,
+        }),
+        true,
+        true,
+      ),
+    ).toBe("ATTENDANCE_ALREADY_RECORDED");
+  });
+
+  it("allows the other direction when it has not been recorded", () => {
+    expect(
+      attendanceRejectionReason(
+        request({
+          direction: "CHECK_OUT",
+          event: {
+            checkInMode: "TWO_WAY",
+            points: 5,
+            organizer: { facultyId: "00000000-0000-4000-8000-000000000008" },
+          },
+          session: {
+            status: "OPEN",
+            direction: "CHECK_OUT",
+            centerLatitude: 10.7326,
+            centerLongitude: 106.6998,
+            centerAccuracyMeters: 10,
+            radiusMeters: 100,
+          },
+        }),
+        true,
+        false,
+      ),
+    ).toBeNull();
+  });
+
   it("requires registration for QR and barcode", () => {
     expect(attendanceRejectionReason(request(), false)).toBe("NOT_REGISTERED");
     expect(

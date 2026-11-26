@@ -9,10 +9,7 @@ import { attendanceMessages } from "@/i18n/attendance-messages";
 import {
   attendanceFailureStore,
   failureCategoryForRejection,
-  incidentPayload,
   qrRetryExpiry,
-  sha256,
-  tokenFingerprint,
 } from "@/lib/attendance-failure-store";
 import { getAuthSession } from "@/lib/auth-storage";
 import { env } from "@/lib/env";
@@ -20,6 +17,12 @@ import { queryKeys } from "@/lib/query-keys";
 import { attendanceService } from "@/services/attendance";
 import { HttpError } from "@/services/http";
 import type { AttendanceFailureCategory, AttendanceFailureDraft } from "@/types/attendance-failure";
+
+const ATTENDANCE_ALREADY_RECORDED = "ATTENDANCE_ALREADY_RECORDED";
+
+function isAlreadyRecorded(error: unknown): boolean {
+  return error instanceof HttpError && error.code === ATTENDANCE_ALREADY_RECORDED;
+}
 
 function locate() {
   return new Promise<GeolocationPosition>((resolve, reject) => {
@@ -105,6 +108,10 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
         }
         return response;
       } catch (error) {
+        if (isAlreadyRecorded(error)) {
+          await attendanceFailureStore.remove(attemptId.current);
+          throw error;
+        }
         if (session && context.eventId && context.eventEnd) {
           const draft: AttendanceFailureDraft = {
             clientAttemptId: attemptId.current,
@@ -126,9 +133,7 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
                   accuracyMeters: position.coords.accuracy,
                 }
               : undefined,
-            tokenFingerprint: token ? await tokenFingerprint(token) : null,
           };
-          draft.digest = await sha256(incidentPayload(draft));
           localDraft.current = draft;
           await attendanceFailureStore.put(draft);
         }
@@ -136,12 +141,18 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
       }
     },
     onError: (error) => {
-      const isLocationError = typeof error === "object" && error !== null && "code" in error;
+      const isLocationError =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "number";
       showToast(
-        isLocationError
-          ? attendanceMessages[locale].locationError
-          : attendanceMessages[locale].actionError,
-        "error",
+        isAlreadyRecorded(error)
+          ? attendanceMessages[locale].alreadyAttended
+          : isLocationError
+            ? attendanceMessages[locale].locationError
+            : attendanceMessages[locale].actionError,
+        isAlreadyRecorded(error) ? "success" : "error",
       );
     },
   });
@@ -176,6 +187,13 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
       void attendanceFailureStore.remove(attemptId.current);
       return;
     }
+    if (
+      request.data.status === "REJECTED" &&
+      request.data.rejectionReason === ATTENDANCE_ALREADY_RECORDED
+    ) {
+      void attendanceFailureStore.remove(attemptId.current);
+      return;
+    }
     if (request.data.status === "REJECTED" && context.eventId && context.eventEnd) {
       const existing = localDraft.current;
       const draft: AttendanceFailureDraft = {
@@ -192,7 +210,6 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
         status: "FAILED",
       };
       void (async () => {
-        draft.digest = await sha256(incidentPayload(draft));
         localDraft.current = draft;
         await attendanceFailureStore.put(draft);
       })();
@@ -207,5 +224,9 @@ export function useStudentCheckIn(token: string, context: StudentCheckInContext)
     session,
   ]);
 
-  return { mutation, request, status: request.data?.status };
+  const alreadyAttended =
+    isAlreadyRecorded(mutation.error) ||
+    request.data?.rejectionReason === ATTENDANCE_ALREADY_RECORDED;
+
+  return { mutation, request, status: request.data?.status, alreadyAttended };
 }

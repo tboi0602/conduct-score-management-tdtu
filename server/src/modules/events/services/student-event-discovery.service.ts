@@ -1,6 +1,7 @@
 import {
-  CheckInMode,
   EventRegistrationStatus,
+  type CheckInMode,
+  type EventDeliveryMode,
   type OrganizingUnitType,
   Prisma,
 } from "@prisma/client";
@@ -18,6 +19,8 @@ export type PublicEventFilters = {
   startsTo?: Date;
   registered?: boolean;
   type?: OrganizingUnitType;
+  deliveryMode?: EventDeliveryMode;
+  checkInMode?: CheckInMode;
   status?: "UPCOMING" | "ONGOING" | "COMPLETED";
 };
 
@@ -28,6 +31,8 @@ export const publicEventSelect = {
   images: true,
   location: true,
   deliveryMode: true,
+  googleFormUrl: true,
+  onlinePassingScore: true,
   organizerId: true,
   criteriaId: true,
   semesterId: true,
@@ -68,19 +73,30 @@ export async function studentForUser(userId: string) {
 
 export function decorateEvent<
   T extends {
+    deliveryMode: EventDeliveryMode;
     capacity: number | null;
     registeredCount: number;
-    registrationStart: Date;
-    registrationEnd: Date;
+    registrationStart: Date | null;
+    registrationEnd: Date | null;
   },
 >(event: T) {
-  const registeredCount = event.registeredCount;
+  const requiresRegistration = event.deliveryMode === "OFFLINE";
+  const registeredCount = requiresRegistration ? event.registeredCount : 0;
   const now = new Date();
   return {
     ...event,
     registeredCount,
-    remainingSlots: event.capacity === null ? null : Math.max(event.capacity - registeredCount, 0),
-    registrationOpen: now >= event.registrationStart && now <= event.registrationEnd,
+    remainingSlots:
+      !requiresRegistration || event.capacity === null
+        ? null
+        : Math.max(event.capacity - registeredCount, 0),
+    registrationOpen:
+      requiresRegistration &&
+      event.registrationStart !== null &&
+      event.registrationEnd !== null &&
+      now >= event.registrationStart &&
+      now <= event.registrationEnd,
+    requiresRegistration,
   };
 }
 
@@ -105,6 +121,8 @@ export async function listPublicEvents(
     criteriaId: filters.criteriaId,
     organizerId: filters.organizerId,
     type: filters.type,
+    deliveryMode: filters.deliveryMode,
+    checkInMode: filters.checkInMode,
     timeStart: { gte: filters.startsFrom, lte: filters.startsTo },
     registrations:
       filters.registered === undefined
@@ -124,6 +142,15 @@ export async function listPublicEvents(
           select: { status: true, registeredAt: true, cancelledAt: true },
           take: 1,
         },
+        attendanceRecords: {
+          where: {
+            studentId: student.id,
+            direction: "CHECK_IN",
+            status: { in: ["ATTENDED", "LATE"] },
+          },
+          select: { id: true },
+          take: 1,
+        },
       },
       orderBy: [{ timeStart: "asc" }, { id: "asc" }],
       skip: params.skip,
@@ -131,9 +158,10 @@ export async function listPublicEvents(
     }),
   ]);
   return {
-    items: items.map((event) => ({
+    items: items.map(({ registrations, attendanceRecords, ...event }) => ({
       ...decorateEvent(event),
-      registrationStatus: event.registrations[0]?.status ?? null,
+      registrationStatus: registrations[0]?.status ?? null,
+      attendanceConfirmed: attendanceRecords.length > 0,
     })),
     pagination: createPaginationMeta(total, params),
   };
@@ -190,19 +218,24 @@ export async function getPublicEvent(userId: string, eventId: string) {
         select: { status: true, registeredAt: true, cancelledAt: true },
         take: 1,
       },
+      attendanceRecords: {
+        where: {
+          studentId: student.id,
+          direction: "CHECK_IN",
+          status: { in: ["ATTENDED", "LATE"] },
+        },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
   if (!event) throw new ApiError(404, "Event not found");
+  const { registrations, attendanceRecords, ...details } = event;
   return {
-    ...decorateEvent(event),
-    registrationStatus: event.registrations[0]?.status ?? null,
+    ...decorateEvent(details),
+    registrationStatus: registrations[0]?.status ?? null,
+    attendanceConfirmed: attendanceRecords.length > 0,
   };
-}
-
-function hasDirection(
-  direction: "CHECK_IN" | "CHECK_OUT",
-): Prisma.AttendanceRecordListRelationFilter {
-  return { some: { direction, status: { in: ["ATTENDED", "LATE"] } } };
 }
 
 export function registrationParticipation(
@@ -224,91 +257,115 @@ export async function listMyRegistrations(
 ) {
   const student = await studentForUser(userId);
   const now = new Date();
-  const where: Prisma.EventRegistrationWhereInput = { studentId: student.id };
-  if (view === "CANCELLED") where.status = "CANCELLED";
-  else {
-    where.status = "REGISTERED";
-    if (view === "UPCOMING") where.event = { timeEnd: { gte: now } };
-    if (view === "ATTENDED") {
-      where.event = {
-        timeEnd: { lt: now },
-        OR: [
-          { checkInMode: "ONE_WAY", attendanceRecords: hasDirection("CHECK_IN") },
-          {
-            checkInMode: "TWO_WAY",
-            AND: [
-              { attendanceRecords: hasDirection("CHECK_IN") },
-              { attendanceRecords: hasDirection("CHECK_OUT") },
-            ],
-          },
-        ],
-      };
-    }
-    if (view === "ABSENT") {
-      where.event = {
-        timeEnd: { lt: now },
-        OR: [
-          {
-            checkInMode: "ONE_WAY",
-            attendanceRecords: {
-              none: { direction: "CHECK_IN", status: { in: ["ATTENDED", "LATE"] } },
+  const attendanceSome = (
+    direction: "CHECK_IN" | "CHECK_OUT",
+  ): Prisma.AttendanceRecordListRelationFilter => ({
+    some: { studentId: student.id, direction, status: { in: ["ATTENDED", "LATE"] } },
+  });
+  const attendanceNone = (
+    direction: "CHECK_IN" | "CHECK_OUT",
+  ): Prisma.AttendanceRecordListRelationFilter => ({
+    none: { studentId: student.id, direction, status: { in: ["ATTENDED", "LATE"] } },
+  });
+  const activeOffline: Prisma.EventWhereInput = {
+    deliveryMode: "OFFLINE",
+    registrations: { some: { studentId: student.id, status: "REGISTERED" } },
+  };
+  const onlineAttended: Prisma.EventWhereInput = {
+    deliveryMode: "ONLINE",
+    attendanceRecords: attendanceSome("CHECK_IN"),
+  };
+  let where: Prisma.EventWhereInput;
+  if (view === "CANCELLED") {
+    where = {
+      deliveryMode: "OFFLINE",
+      registrations: { some: { studentId: student.id, status: "CANCELLED" } },
+    };
+  } else if (view === "UPCOMING") {
+    where = { ...activeOffline, timeEnd: { gte: now } };
+  } else if (view === "ATTENDED") {
+    where = {
+      timeEnd: { lt: now },
+      OR: [
+        onlineAttended,
+        {
+          ...activeOffline,
+          OR: [
+            { checkInMode: "ONE_WAY", attendanceRecords: attendanceSome("CHECK_IN") },
+            {
+              checkInMode: "TWO_WAY",
+              AND: [
+                { attendanceRecords: attendanceSome("CHECK_IN") },
+                { attendanceRecords: attendanceSome("CHECK_OUT") },
+              ],
             },
-          },
-          {
-            checkInMode: "TWO_WAY",
-            OR: [
-              {
-                attendanceRecords: {
-                  none: { direction: "CHECK_IN", status: { in: ["ATTENDED", "LATE"] } },
-                },
-              },
-              {
-                attendanceRecords: {
-                  none: { direction: "CHECK_OUT", status: { in: ["ATTENDED", "LATE"] } },
-                },
-              },
-            ],
-          },
-        ],
-      };
-    }
+          ],
+        },
+      ],
+    };
+  } else if (view === "ABSENT") {
+    where = {
+      ...activeOffline,
+      timeEnd: { lt: now },
+      OR: [
+        { checkInMode: "ONE_WAY", attendanceRecords: attendanceNone("CHECK_IN") },
+        {
+          checkInMode: "TWO_WAY",
+          OR: [
+            { attendanceRecords: attendanceNone("CHECK_IN") },
+            { attendanceRecords: attendanceNone("CHECK_OUT") },
+          ],
+        },
+      ],
+    };
+  } else {
+    where = { OR: [activeOffline, onlineAttended] };
   }
   const [total, items] = await prisma.$transaction([
-    prisma.eventRegistration.count({ where }),
-    prisma.eventRegistration.findMany({
+    prisma.event.count({ where }),
+    prisma.event.findMany({
       where,
       select: {
-        id: true,
-        status: true,
-        registeredAt: true,
-        cancelledAt: true,
-        event: {
-          select: {
-            ...publicEventSelect,
-            attendanceRecords: {
-              where: { studentId: student.id },
-              select: { direction: true, status: true },
-            },
-          },
+        ...publicEventSelect,
+        registrations: {
+          where: { studentId: student.id },
+          select: { id: true, status: true, registeredAt: true, cancelledAt: true },
+          take: 1,
+        },
+        attendanceRecords: {
+          where: { studentId: student.id, status: { in: ["ATTENDED", "LATE"] } },
+          select: { id: true, direction: true, status: true, createdAt: true },
         },
       },
-      orderBy: [{ registeredAt: "desc" }, { id: "desc" }],
+      orderBy: [{ timeStart: "desc" }, { id: "desc" }],
       skip: params.skip,
       take: params.limit,
     }),
   ]);
   return {
-    items: items.map((item) => ({
-      ...item,
-      participationStatus:
-        item.status === "CANCELLED"
-          ? "CANCELLED"
-          : registrationParticipation(item.event, item.event.attendanceRecords),
-      event: {
-        ...decorateEvent(item.event),
-        registrationStatus: item.status,
-      },
-    })),
+    items: items.map(({ registrations, attendanceRecords, ...event }) => {
+      const registration = registrations[0] ?? null;
+      const onlineAttendance = attendanceRecords.find((item) => item.direction === "CHECK_IN");
+      const online = event.deliveryMode === "ONLINE";
+      const status = registration?.status ?? null;
+      return {
+        id: registration?.id ?? onlineAttendance?.id ?? event.id,
+        source: online ? ("ATTENDANCE" as const) : ("REGISTRATION" as const),
+        status,
+        registeredAt: registration?.registeredAt ?? onlineAttendance?.createdAt ?? event.timeEnd,
+        cancelledAt: registration?.cancelledAt ?? null,
+        participationStatus: online
+          ? ("ATTENDED" as const)
+          : status === "CANCELLED"
+            ? ("CANCELLED" as const)
+            : registrationParticipation(event, attendanceRecords),
+        event: {
+          ...decorateEvent(event),
+          registrationStatus: status,
+          attendanceConfirmed: onlineAttendance !== undefined,
+        },
+      };
+    }),
     pagination: createPaginationMeta(total, params),
   };
 }

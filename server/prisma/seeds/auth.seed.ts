@@ -99,7 +99,6 @@ const permissionsByRole = {
     "academic.read",
     "criteria.read",
     "semester.read",
-    "faculty-staff.assign-event-organizer",
   ],
   STUDENT_AFFAIRS: [
     "auth.login",

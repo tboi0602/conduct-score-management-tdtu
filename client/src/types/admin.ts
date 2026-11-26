@@ -15,6 +15,16 @@ export type PaginatedResponse<T> = {
   pagination: PaginationMeta;
 };
 
+export type BulkActionResult = {
+  succeededIds: string[];
+  failed: Array<{ id: string; code: string; message: string }>;
+};
+
+export type BulkActionResponse = {
+  ok: true;
+  data: BulkActionResult;
+};
+
 export type Permission = {
   id: string;
   permission: string;

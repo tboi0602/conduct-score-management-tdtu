@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { ChevronDown, FilterX, Search, SlidersHorizontal } from "lucide-react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { EventReferenceSelect } from "@/components/admin/events/EventReferenceSelect";
-import { EventOrganizerSelect } from "@/components/admin/events/EventOrganizerSelect";
+import { EventOrganizerFilter } from "@/components/admin/events/EventOrganizerFilter";
 import {
   filterPanel,
   inputClass,
@@ -13,8 +13,7 @@ import {
 } from "@/components/admin/management-styles";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import type { EventReference } from "@/hooks/events/useEventOptions";
-import type { EventFilters as Filters } from "@/types/events";
-import type { OrganizingUnit } from "@/types/events";
+import type { EventDeliveryMode, EventFilters as Filters, OrganizingUnit } from "@/types/events";
 
 export function EventFilters({
   searchTerm,
@@ -31,10 +30,12 @@ export function EventFilters({
   const [criterion, setCriterion] = useState<EventReference | null>(null);
   const [semester, setSemester] = useState<EventReference | null>(null);
   const [type, setType] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState<EventDeliveryMode | "">("");
   const [mode, setMode] = useState("");
   const [status, setStatus] = useState("");
   const [open, setOpen] = useState(false);
   const [organizer, setOrganizer] = useState<OrganizingUnit | null>(null);
+  const [organizerSearch, setOrganizerSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [invalidRange, setInvalidRange] = useState(false);
@@ -49,7 +50,8 @@ export function EventFilters({
       criteriaId: criterion?.id,
       semesterId: semester?.id,
       type,
-      checkInMode: mode,
+      deliveryMode: deliveryMode || undefined,
+      checkInMode: deliveryMode === "OFFLINE" ? (mode as Filters["checkInMode"]) : undefined,
       organizerId: organizer?.id,
       startsFrom: from ? new Date(from).toISOString() : undefined,
       startsTo: to ? new Date(to).toISOString() : undefined,
@@ -60,17 +62,27 @@ export function EventFilters({
     setCriterion(null);
     setSemester(null);
     setType("");
+    setDeliveryMode("");
     setMode("");
     setStatus("");
     setOrganizer(null);
+    setOrganizerSearch("");
     setFrom("");
     setTo("");
     setInvalidRange(false);
     onClear();
   }
-  const activeCount = [criterion, semester, type, mode, status, organizer, from, to].filter(
-    Boolean,
-  ).length;
+  const activeCount = [
+    criterion,
+    semester,
+    type,
+    deliveryMode,
+    deliveryMode === "OFFLINE" ? mode : "",
+    status,
+    organizer,
+    from,
+    to,
+  ].filter(Boolean).length;
   return (
     <div className="mt-5">
       <button
@@ -126,7 +138,12 @@ export function EventFilters({
             </div>
             <div className="space-y-2 text-xs font-semibold text-[#66758a]">
               <p>{t.organizer}</p>
-              <EventOrganizerSelect selected={organizer} onChange={setOrganizer} />
+              <EventOrganizerFilter
+                selected={organizer}
+                search={organizerSearch}
+                onSearchChange={setOrganizerSearch}
+                onChange={setOrganizer}
+              />
             </div>
             <div className="space-y-2 text-xs font-semibold text-[#66758a]">
               <p>{t.criterion}</p>
@@ -135,6 +152,7 @@ export function EventFilters({
                 selected={criterion}
                 onChange={setCriterion}
                 placeholder={t.allCriteria}
+                showSearch={false}
               />
             </div>
             <div className="space-y-2 text-xs font-semibold text-[#66758a]">
@@ -147,6 +165,38 @@ export function EventFilters({
               />
             </div>
             <div className="space-y-2 text-xs font-semibold text-[#66758a]">
+              <p>{t.deliveryMode}</p>
+              <CustomSelect
+                value={deliveryMode}
+                onChange={(value) => {
+                  const nextMode = value as EventDeliveryMode | "";
+                  setDeliveryMode(nextMode);
+                  if (nextMode !== "OFFLINE") setMode("");
+                }}
+                placeholder={t.allDeliveryModes}
+                ariaLabel={t.deliveryMode}
+                options={(["OFFLINE", "ONLINE"] as const).map((value) => ({
+                  value,
+                  label: t[value],
+                }))}
+              />
+            </div>
+            {deliveryMode === "OFFLINE" ? (
+              <div className="space-y-2 text-xs font-semibold text-[#66758a]">
+                <p>{t.checkInMode}</p>
+                <CustomSelect
+                  value={mode}
+                  onChange={setMode}
+                  placeholder={t.allCheckInModes}
+                  ariaLabel={t.checkInMode}
+                  options={(["ONE_WAY", "TWO_WAY"] as const).map((value) => ({
+                    value,
+                    label: t[value],
+                  }))}
+                />
+              </div>
+            ) : null}
+            <div className="space-y-2 text-xs font-semibold text-[#66758a]">
               <p>{t.eventType}</p>
               <CustomSelect
                 value={type}
@@ -154,19 +204,6 @@ export function EventFilters({
                 placeholder={t.allEventTypes}
                 ariaLabel={t.eventType}
                 options={(["UNIVERSITY", "FACULTY", "CLASS", "CLUB"] as const).map((value) => ({
-                  value,
-                  label: t[value],
-                }))}
-              />
-            </div>
-            <div className="space-y-2 text-xs font-semibold text-[#66758a]">
-              <p>{t.checkInMode}</p>
-              <CustomSelect
-                value={mode}
-                onChange={setMode}
-                placeholder={t.allCheckInModes}
-                ariaLabel={t.checkInMode}
-                options={(["ONE_WAY", "TWO_WAY"] as const).map((value) => ({
                   value,
                   label: t[value],
                 }))}

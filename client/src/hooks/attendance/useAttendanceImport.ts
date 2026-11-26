@@ -1,27 +1,175 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ChangeEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { attendanceMessages } from "@/i18n/attendance-messages";
+import { parseCsv } from "@/lib/csv";
 import { queryKeys } from "@/lib/query-keys";
 import { attendanceService } from "@/services/attendance";
-import type { AttendanceDirection, AttendanceImportResult } from "@/types/attendance";
+import { HttpError } from "@/services/http";
+import type { AttendanceImportResult } from "@/types/attendance";
 
-const header = /^(mssv|student\s*(id|code)|mã\s*số\s*sinh\s*viên)$/i;
+const studentEmailSuffix = "@student.tdtu.edu.vn";
+const identifierHeaders = ["email", "email address", "dia chi email", "mssv", "ma so sinh vien"];
+const scoreHeaders = ["score", "points", "point", "diem", "diem so"];
 
-export function useAttendanceImport(eventId: string) {
+type PreviewStatus = "QUALIFIED" | "BELOW_THRESHOLD" | "INVALID_SCORE" | "INVALID_IDENTIFIER";
+
+type PreviewRow = {
+  identifier: string;
+  normalized: string | null;
+  score: number | null;
+  scoreText: string;
+  status: PreviewStatus;
+};
+
+function cellText(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function normalizeIdentifier(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes("@")) {
+    const email = trimmed.toLowerCase();
+    const localPart = email.slice(0, -studentEmailSuffix.length);
+    return email.endsWith(studentEmailSuffix) && localPart && !localPart.includes("@")
+      ? email
+      : null;
+  }
+  const studentCode = trimmed.toUpperCase();
+  return /^[A-Z0-9]{1,20}$/.test(studentCode) ? studentCode : null;
+}
+
+function normalizeHeader(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function findColumn(row: string[], candidates: string[]): number {
+  const normalized = row.map(normalizeHeader);
+  const exactIndex = normalized.findIndex((header) => candidates.includes(header));
+  if (exactIndex >= 0) return exactIndex;
+  return normalized.findIndex((header) =>
+    candidates.some((candidate) => header.includes(candidate)),
+  );
+}
+
+function parseScore(value: string): number | null {
+  const match = value
+    .trim()
+    .replace(",", ".")
+    .match(/^(-?\d+(?:\.\d+)?)\s*(?:\/\s*\d+(?:\.\d+)?)?$/);
+  if (!match) return null;
+  const score = Number(match[1]);
+  return Number.isFinite(score) ? score : null;
+}
+
+export function useAttendanceImport(eventId: string, onlinePassingScore: number | null) {
   const { locale } = useAdminTranslations();
   const t = attendanceMessages[locale];
   const { showToast } = useToast();
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState("");
-  const [codes, setCodes] = useState<string[]>([]);
-  const [duplicateCodes, setDuplicateCodes] = useState<string[]>([]);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [identifierColumnIndex, setIdentifierColumnIndex] = useState(0);
+  const [scoreColumnIndex, setScoreColumnIndex] = useState<number | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [fileError, setFileError] = useState("");
   const [result, setResult] = useState<AttendanceImportResult | null>(null);
+  const notifiedBatchId = useRef<string | null>(null);
+  const isProcessing = result?.status === "PROCESSING" || result?.status === "PARTIALLY_QUEUED";
+  const minimumScore = onlinePassingScore ?? Number.POSITIVE_INFINITY;
+
+  const batchQuery = useQuery({
+    queryKey: queryKeys.attendance.importBatch(eventId, result?.id),
+    queryFn: () => attendanceService.importBatch(eventId, result!.id),
+    enabled: Boolean(result?.id && isProcessing),
+    refetchInterval: isProcessing ? 2_000 : false,
+    refetchOnWindowFocus: true,
+  });
+
+  useEffect(() => {
+    const batch = batchQuery.data?.data;
+    if (!batch) return;
+    setResult((current) => (current?.id === batch.id ? { ...current, ...batch } : current));
+    if (notifiedBatchId.current === batch.id) return;
+    if (batch.status === "FAILED") {
+      notifiedBatchId.current = batch.id;
+      showToast(t.importFailed, "error");
+      return;
+    }
+    if (batch.status !== "COMPLETED") return;
+    notifiedBatchId.current = batch.id;
+    void client.invalidateQueries({ queryKey: queryKeys.attendance.requestsAll(eventId) });
+    showToast(
+      t.importCompleted
+        .replace("{accepted}", String(batch.accepted))
+        .replace("{rejected}", String(batch.rejected)),
+    );
+  }, [batchQuery.data, client, eventId, showToast, t.importCompleted, t.importFailed]);
+
+  const headerRow = rows[0] ?? [];
+  const dataRows = useMemo(
+    () => rows.slice(1).filter((row) => row.some((cell) => cellText(cell))),
+    [rows],
+  );
+  const evaluatedRows = useMemo<PreviewRow[]>(
+    () =>
+      dataRows.map((row) => {
+        const identifier = cellText(row[identifierColumnIndex]);
+        const normalized = normalizeIdentifier(identifier);
+        const scoreText = scoreColumnIndex === null ? "" : cellText(row[scoreColumnIndex]);
+        const score = parseScore(scoreText);
+        const status: PreviewStatus =
+          score === null
+            ? "INVALID_SCORE"
+            : score < minimumScore
+              ? "BELOW_THRESHOLD"
+              : normalized
+                ? "QUALIFIED"
+                : "INVALID_IDENTIFIER";
+        return { identifier, normalized, score, scoreText, status };
+      }),
+    [dataRows, identifierColumnIndex, minimumScore, scoreColumnIndex],
+  );
+  const qualifiedRows = evaluatedRows.filter(
+    (row) => row.score !== null && row.score >= minimumScore,
+  );
+  const identifiers = qualifiedRows.map((row) => row.identifier);
+  const validIdentifiers = qualifiedRows.flatMap((row) => (row.normalized ? [row.normalized] : []));
+  const invalidIdentifiers = qualifiedRows
+    .filter((row) => row.normalized === null)
+    .map((row) => row.identifier);
+  const invalidScoreCount = evaluatedRows.filter((row) => row.score === null).length;
+  const belowThresholdCount = evaluatedRows.filter(
+    (row) => row.score !== null && row.score < minimumScore,
+  ).length;
+  const counts = new Map<string, number>();
+  validIdentifiers.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  const duplicateIdentifiers = [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([value]) => value);
+  const uniqueValidIdentifiers = [...counts.keys()];
+
+  const columnOptions = headerRow.map((header, index) => ({
+    value: String(index),
+    label: cellText(header) || `${t.importColumn} ${index + 1}`,
+  }));
+
+  const selectDetectedColumns = (csvRows: string[][]) => {
+    const selectedHeader = csvRows[0] ?? [];
+    const detectedIdentifier = findColumn(selectedHeader, identifierHeaders);
+    const detectedScore = findColumn(selectedHeader, scoreHeaders);
+    setIdentifierColumnIndex(detectedIdentifier >= 0 ? detectedIdentifier : 0);
+    setScoreColumnIndex(detectedScore >= 0 ? detectedScore : null);
+  };
 
   const readFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -30,60 +178,93 @@ export function useAttendanceImport(eventId: string) {
     setFileName(file.name);
     setFileError("");
     setResult(null);
+    setConfirmed(false);
     try {
-      const { default: readXlsxFile } = await import("read-excel-file/browser");
-      const sheets = await readXlsxFile(file);
-      const values = (sheets[0]?.data ?? [])
-        .map((row) =>
-          String(row[0] ?? "")
-            .trim()
-            .toUpperCase(),
-        )
-        .filter(Boolean);
-      if (values[0] && header.test(values[0])) values.shift();
-      const counts = new Map<string, number>();
-      values.forEach((code) => counts.set(code, (counts.get(code) ?? 0) + 1));
-      const unique = [...counts.keys()];
-      if (!unique.length) throw new Error("EMPTY");
-      if (values.length > 5_000 || unique.some((code) => code.length > 20))
-        throw new Error("INVALID");
-      setCodes(unique);
-      setDuplicateCodes(unique.filter((code) => (counts.get(code) ?? 0) > 1));
+      if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("INVALID_TYPE");
+      const csvRows = parseCsv(await file.text());
+      if (!csvRows.length) throw new Error("EMPTY");
+      setRows(csvRows);
+      selectDetectedColumns(csvRows);
     } catch {
-      setCodes([]);
-      setDuplicateCodes([]);
+      setRows([]);
+      setScoreColumnIndex(null);
       setFileError(t.importInvalidFile);
     }
   };
+
   const mutation = useMutation({
-    mutationFn: (input: { direction: AttendanceDirection; status: "ATTENDED" | "LATE" }) =>
-      attendanceService.importAttendance(eventId, { studentCodes: codes, ...input }),
+    mutationFn: () => attendanceService.importAttendance(eventId, { identifiers }),
     onSuccess: ({ data }) => {
       setResult(data);
-      void client.invalidateQueries({ queryKey: ["admin", "attendance", eventId, "requests"] });
-      showToast(t.importQueued.replace("{count}", String(data.queued)));
+      void client.invalidateQueries({ queryKey: queryKeys.events.all });
+      if (data.status === "COMPLETED") {
+        notifiedBatchId.current = data.id;
+        showToast(
+          t.importCompleted
+            .replace("{accepted}", String(data.accepted))
+            .replace("{rejected}", String(data.rejected)),
+        );
+      } else {
+        showToast(t.importAccepted.replace("{count}", String(data.queued)));
+      }
     },
-    onError: () => showToast(t.importError, "error"),
+    onError: (error) =>
+      showToast(
+        error instanceof HttpError && error.code === "ONLINE_PASSING_SCORE_REQUIRED"
+          ? t.importPassingScoreMissing
+          : t.importError,
+        "error",
+      ),
   });
+
   const close = () => {
-    if (mutation.isPending) return;
+    if (mutation.isPending || isProcessing) return;
     setOpen(false);
     setFileName("");
-    setCodes([]);
-    setDuplicateCodes([]);
+    setRows([]);
+    setIdentifierColumnIndex(0);
+    setScoreColumnIndex(null);
+    setConfirmed(false);
     setFileError("");
     setResult(null);
+    notifiedBatchId.current = null;
     mutation.reset();
   };
+
   return {
     open,
     setOpen,
     close,
     fileName,
-    codes,
-    duplicateCodes,
+    hasRows: rows.length > 0,
+    totalRows: dataRows.length,
+    identifierColumnIndex,
+    setIdentifierColumnIndex: (value: number) => {
+      setIdentifierColumnIndex(value);
+      setConfirmed(false);
+      setResult(null);
+    },
+    scoreColumnIndex,
+    setScoreColumnIndex: (value: number | null) => {
+      setScoreColumnIndex(value);
+      setConfirmed(false);
+      setResult(null);
+    },
+    minimumScore,
+    hasPassingScore: onlinePassingScore !== null,
+    columnOptions,
+    identifiers,
+    uniqueValidIdentifiers,
+    invalidIdentifiers,
+    duplicateIdentifiers,
+    invalidScoreCount,
+    belowThresholdCount,
+    preview: evaluatedRows.slice(0, 5),
+    confirmed,
+    setConfirmed,
     fileError,
     result,
+    isProcessing,
     readFile,
     mutation,
   };

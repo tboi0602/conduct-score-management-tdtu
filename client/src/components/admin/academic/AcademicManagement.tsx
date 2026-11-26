@@ -100,7 +100,7 @@ export function AcademicManagement({ kind }: { kind: AcademicKind }) {
         headers={[
           text.code,
           `${text.name} ${label.one.toLowerCase()}`,
-          text.parent,
+          ...(kind === "faculties" ? [] : [text.parent]),
           text.dependencies,
           text.actions,
         ]}
@@ -116,7 +116,9 @@ export function AcademicManagement({ kind }: { kind: AcademicKind }) {
           <tr key={item.id} className="hover:bg-[#f9fbfd]">
             <td className="px-5 py-4 font-mono font-bold">{item.code}</td>
             <td className="px-5 py-4 font-semibold">{item.name}</td>
-            <td className="px-5 py-4">{item.faculty?.name ?? item.major?.name ?? "—"}</td>
+            {kind === "faculties" ? null : (
+              <td className="px-5 py-4">{item.faculty?.name ?? item.major?.name ?? "—"}</td>
+            )}
             <td className="px-5 py-4">
               {item._count?.majors ?? item._count?.classes ?? item._count?.students ?? 0}
             </td>

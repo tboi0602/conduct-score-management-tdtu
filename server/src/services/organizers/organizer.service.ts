@@ -1,6 +1,7 @@
 import type { OrganizingUnitType, Prisma } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
+import { runBulkAction } from "@utils/bulkAction";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
 import { mapCrudError } from "@utils/crudError";
 import type { EventAccess } from "@services/events/event-access.service";
@@ -126,4 +127,8 @@ export async function deleteClub(id: string) {
   if (current.type !== "CLUB") throw new ApiError(400, "System organizing units cannot be deleted");
   if (current._count.events > 0) throw new ApiError(409, "Organizing unit is used by events");
   await prisma.organizingUnit.delete({ where: { id } }).catch(mapCrudError);
+}
+
+export async function deleteClubs(ids: string[]) {
+  return runBulkAction(ids, deleteClub);
 }

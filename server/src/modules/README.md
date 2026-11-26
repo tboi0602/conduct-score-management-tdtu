@@ -16,7 +16,7 @@ Routes remain responsible for composing middleware. Controllers remain thin HTTP
 ## Current modules
 
 - `appeals`: attendance appeal lifecycle and evidence access.
-- `attendance`: sessions, scan submission, bulk import, reconciliation, geofence, and request queries.
+- `attendance`: sessions, scan submission, bulk import, access auditing, geofence, and request queries.
 - `conduct-score`: calculation, adjustments, projections, finalization, and event score synchronization.
 - `criteria`: conduct score criterion catalog.
 - `dashboard`: scoped dashboard aggregation and caching.

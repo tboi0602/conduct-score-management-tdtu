@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
@@ -71,6 +72,22 @@ describe.runIf(enabled)("attendance flow with live infrastructure", () => {
     });
     expect(response.status).toBe(202);
     expect(await waitUntilProcessed(student.studentId, "STUDENT_QR")).toBe("ACCEPTED");
+  });
+
+  test("student QR rejects a new scan after attendance was recorded", async () => {
+    const student = fixture.students[0];
+    const response = await post("/api/v1/attendance/scan/qr", student.token, {
+      token: fixture.qrToken,
+      ...fixture.coordinates,
+      clientAttemptId: randomUUID(),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "ATTENDANCE_ALREADY_RECORDED",
+      },
+    });
   });
 
   test("two organizers scanning the same barcode create one record", async () => {

@@ -62,18 +62,52 @@ export async function listRecommendedEvents(
   });
   if (!student) throw new ApiError(409, "Student profile is required");
   const now = new Date();
+  const statusCondition: Prisma.EventWhereInput =
+    filters.status === "UPCOMING"
+      ? { timeStart: { gt: now } }
+      : filters.status === "ONGOING"
+        ? { timeStart: { lte: now }, timeEnd: { gte: now } }
+        : filters.status === "COMPLETED"
+          ? { timeEnd: { lt: now } }
+          : {};
   const where: Prisma.EventWhereInput = {
-    deliveryMode: "OFFLINE",
-    timeStart: { gt: now, gte: filters.startsFrom, lte: filters.startsTo },
-    registrationEnd: { gte: now },
+    AND: [
+      {
+        OR: [
+          { deliveryMode: "OFFLINE", timeStart: { gt: now }, registrationEnd: { gte: now } },
+          { deliveryMode: "ONLINE", timeEnd: { gt: now } },
+        ],
+      },
+      statusCondition,
+      {
+        OR: [
+          {
+            deliveryMode: "OFFLINE",
+            registrations: { none: { studentId: student.id, status: "REGISTERED" } },
+          },
+          {
+            deliveryMode: "ONLINE",
+            attendanceRecords: {
+              none: {
+                studentId: student.id,
+                direction: "CHECK_IN",
+                status: { in: ["ATTENDED", "LATE"] },
+              },
+            },
+          },
+        ],
+      },
+    ],
     name: filters.search ? { contains: filters.search, mode: "insensitive" } : undefined,
     criteriaId: filters.criteriaId,
     organizerId: filters.organizerId,
     type: filters.type,
-    registrations: { none: { studentId: student.id, status: "REGISTERED" } },
+    deliveryMode: filters.deliveryMode,
+    checkInMode: filters.checkInMode,
+    timeStart: { gte: filters.startsFrom, lte: filters.startsTo },
   };
-  // Prisma cannot compare two columns in a portable filter. Fetch open candidates, then apply
-  // capacity and recurring/exception schedule rules before slicing the requested page.
+  // Prisma cannot compare two columns in a portable filter. Fetch eligible candidates, then apply
+  // capacity and offline recurring/exception schedule rules before slicing the requested page.
   const candidates = await prisma.event.findMany({
     where,
     select: {
@@ -83,10 +117,20 @@ export async function listRecommendedEvents(
         select: { status: true, registeredAt: true, cancelledAt: true },
         take: 1,
       },
+      attendanceRecords: {
+        where: {
+          studentId: student.id,
+          direction: "CHECK_IN",
+          status: { in: ["ATTENDED", "LATE"] },
+        },
+        select: { id: true },
+        take: 1,
+      },
     },
     orderBy: [{ timeStart: "asc" }, { id: "asc" }],
   });
   const available = candidates.filter((event) => {
+    if (event.deliveryMode === "ONLINE") return true;
     if (event.capacity !== null && event.registeredCount >= event.capacity) return false;
     const start = vietnamParts(event.timeStart);
     const end = vietnamParts(event.timeEnd);
@@ -107,9 +151,12 @@ export async function listRecommendedEvents(
         end.minute > sessionMinute(session.startTime),
     );
   });
-  const items = available.slice(params.skip, params.skip + params.limit).map((event) => ({
-    ...decorateEvent(event),
-    registrationStatus: event.registrations[0]?.status ?? null,
-  }));
+  const items = available
+    .slice(params.skip, params.skip + params.limit)
+    .map(({ registrations, attendanceRecords, ...event }) => ({
+      ...decorateEvent(event),
+      registrationStatus: registrations[0]?.status ?? null,
+      attendanceConfirmed: attendanceRecords.length > 0,
+    }));
   return { items, pagination: createPaginationMeta(available.length, params) };
 }

@@ -1,4 +1,4 @@
-import type { AttendanceScanRequest, AttendanceScanSource } from "@prisma/client";
+import { Prisma, type AttendanceScanRequest, type AttendanceScanSource } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { logger } from "@config/logger";
 import {
@@ -11,7 +11,7 @@ import { attendanceRoutingKeys } from "@producers/attendance.producer";
 import { redisClient } from "@redis";
 import { sseHub } from "@realtime/sse";
 import { invalidateDashboardCache } from "@modules/dashboard";
-import { syncEventConductScore } from "@modules/conduct-score";
+import { syncEventConductScore, syncEventConductScoreInTransaction } from "@modules/conduct-score";
 import { recordAccessAudit } from "@modules/attendance";
 import {
   distanceMeters,
@@ -38,7 +38,9 @@ export type LoadedAttendanceRequest = AttendanceScanRequest & {
 export function attendanceRejectionReason(
   request: LoadedAttendanceRequest,
   registered: boolean,
+  alreadyRecorded = false,
 ): string | null {
+  if (alreadyRecorded) return "ATTENDANCE_ALREADY_RECORDED";
   if (!registered && request.source !== "BULK_IMPORT" && request.source !== "MANUAL_ENTRY")
     return "NOT_REGISTERED";
   if (request.event.checkInMode === "ONE_WAY" && request.direction === "CHECK_OUT")
@@ -96,34 +98,77 @@ async function processLocked(requestId: string): Promise<void> {
     where: { eventId_studentId: { eventId: request.eventId, studentId: request.studentId } },
     select: { status: true },
   });
-  const reason = attendanceRejectionReason(request, registration?.status === "REGISTERED");
+  const existingRecord = await prisma.attendanceRecord.findUnique({
+    where: {
+      studentId_eventId_direction: {
+        studentId: request.studentId,
+        eventId: request.eventId,
+        direction: request.direction,
+      },
+    },
+    select: { id: true, status: true },
+  });
+  const reason = attendanceRejectionReason(
+    request,
+    registration?.status === "REGISTERED",
+    existingRecord?.status === "ATTENDED" || existingRecord?.status === "LATE",
+  );
   if (reason?.startsWith("LOCATION") || reason === "OUTSIDE_GEOFENCE")
     attendanceGeofenceRejections.inc({ reason });
   const processedAt = new Date();
   const finalStatus = reason ? "REJECTED" : "ACCEPTED";
-  await prisma.$transaction(async (tx) => {
-    if (!reason) {
-      await tx.attendanceRecord.createMany({
-        data: {
-          studentId: request.studentId,
-          eventId: request.eventId,
-          direction: request.direction,
-          timeChecking: processedAt,
-          status: request.requestedStatus,
-          pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
-          scanRequestId: request.id,
-        },
-        skipDuplicates: true,
-      });
-    }
-    await tx.attendanceScanRequest.update({
-      where: { id: request.id },
+  const transactionResult = await prisma.$transaction(async (tx) => {
+    const finalized = await tx.attendanceScanRequest.updateMany({
+      where: { id: request.id, status: "PENDING" },
       data: {
         status: finalStatus,
         rejectionReason: reason,
         processedAt,
       },
     });
+    if (finalized.count === 0) return { processed: false, completedBatch: null };
+
+    if (!reason) {
+      const attendanceData = {
+        timeChecking: processedAt,
+        status: request.requestedStatus,
+        pointsEarned: request.event.checkInMode === "ONE_WAY" ? request.event.points : 0,
+        scanRequestId: request.id,
+      };
+      if (request.source === "BULK_IMPORT") {
+        await tx.attendanceRecord.upsert({
+          where: {
+            studentId_eventId_direction: {
+              studentId: request.studentId,
+              eventId: request.eventId,
+              direction: request.direction,
+            },
+          },
+          update: attendanceData,
+          create: {
+            studentId: request.studentId,
+            eventId: request.eventId,
+            direction: request.direction,
+            ...attendanceData,
+          },
+        });
+      } else {
+        await tx.attendanceRecord.createMany({
+          data: {
+            studentId: request.studentId,
+            eventId: request.eventId,
+            direction: request.direction,
+            ...attendanceData,
+          },
+          skipDuplicates: true,
+        });
+      }
+    }
+    if (!reason && request.source === "BULK_IMPORT") {
+      await syncEventConductScoreInTransaction(tx, request.studentId, request.eventId, {
+        invalidateDashboard: false,
+      });
+    }
     await tx.outboxEvent.create({
       data: {
         aggregateType: "attendance",
@@ -144,8 +189,64 @@ async function processLocked(requestId: string): Promise<void> {
         },
       },
     });
+    if (!request.importBatchId) return { processed: true, completedBatch: null };
+    const batches = await tx.$queryRaw<
+      Array<{
+        id: string;
+        requestedCount: number;
+        queuedCount: number;
+        processedCount: number;
+        acceptedCount: number;
+        rejectedCount: number;
+      }>
+    >(Prisma.sql`
+      UPDATE "attendance_import_batches"
+      SET
+        "processedCount" = "processedCount" + 1,
+        "acceptedCount" = "acceptedCount" + ${finalStatus === "ACCEPTED" ? 1 : 0},
+        "rejectedCount" = "rejectedCount" + ${finalStatus === "REJECTED" ? 1 : 0},
+        "status" = CASE
+          WHEN "processedCount" + 1 >= "queuedCount"
+            THEN 'COMPLETED'::"AttendanceImportBatchStatus"
+          ELSE "status"
+        END,
+        "completedAt" = CASE
+          WHEN "processedCount" + 1 >= "queuedCount" THEN ${processedAt}
+          ELSE "completedAt"
+        END,
+        "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${request.importBatchId}::uuid
+        AND "status" IN (
+          'PROCESSING'::"AttendanceImportBatchStatus",
+          'PARTIALLY_QUEUED'::"AttendanceImportBatchStatus"
+        )
+      RETURNING
+        "id", "requestedCount", "queuedCount", "processedCount",
+        "acceptedCount", "rejectedCount"
+    `);
+    const batch = batches[0];
+    return {
+      processed: true,
+      completedBatch:
+        batch && batch.processedCount >= batch.queuedCount
+          ? {
+              id: batch.id,
+              requested: batch.requestedCount,
+              queued: batch.queuedCount,
+              processed: batch.processedCount,
+              accepted: batch.acceptedCount,
+              rejected: batch.rejectedCount,
+            }
+          : null,
+    };
   });
-  if (!reason) await syncEventConductScore(request.studentId, request.eventId);
+  if (!transactionResult.processed) {
+    attendanceIdempotencyHits.inc();
+    return;
+  }
+  if (!reason && request.source !== "BULK_IMPORT") {
+    await syncEventConductScore(request.studentId, request.eventId);
+  }
   const payload = {
     type: "attendance.scan.processed",
     requestId: request.id,
@@ -156,19 +257,44 @@ async function processLocked(requestId: string): Promise<void> {
     rejectionReason: reason,
     processedAt: processedAt.toISOString(),
   };
-  await Promise.all([
-    sseHub.publish(`sse:student:${request.student.userId}`, payload),
-    sseHub.publish(`sse:event:${request.eventId}`, payload),
-    sseHub.publish("sse:dashboard:global", { type: "dashboard.invalidated" }),
-    ...(request.event.organizer?.facultyId
-      ? [
-          sseHub.publish(`sse:dashboard:faculty:${request.event.organizer.facultyId}`, {
-            type: "dashboard.invalidated",
-          }),
-        ]
-      : []),
-    invalidateDashboardCache(request.event.organizer?.facultyId),
-  ]);
+  if (request.source === "BULK_IMPORT" && request.importBatchId) {
+    if (transactionResult.completedBatch) {
+      const completedPayload = {
+        type: "attendance.import.completed",
+        eventId: request.eventId,
+        batchId: transactionResult.completedBatch.id,
+        accepted: transactionResult.completedBatch.accepted,
+        rejected: transactionResult.completedBatch.rejected,
+        processedAt: processedAt.toISOString(),
+      };
+      await Promise.all([
+        sseHub.publish(`sse:event:${request.eventId}`, completedPayload),
+        sseHub.publish("sse:dashboard:global", { type: "dashboard.invalidated" }),
+        ...(request.event.organizer?.facultyId
+          ? [
+              sseHub.publish(`sse:dashboard:faculty:${request.event.organizer.facultyId}`, {
+                type: "dashboard.invalidated",
+              }),
+            ]
+          : []),
+        invalidateDashboardCache(request.event.organizer?.facultyId),
+      ]);
+    }
+  } else {
+    await Promise.all([
+      sseHub.publish(`sse:student:${request.student.userId}`, payload),
+      sseHub.publish(`sse:event:${request.eventId}`, payload),
+      sseHub.publish("sse:dashboard:global", { type: "dashboard.invalidated" }),
+      ...(request.event.organizer?.facultyId
+        ? [
+            sseHub.publish(`sse:dashboard:faculty:${request.event.organizer.facultyId}`, {
+              type: "dashboard.invalidated",
+            }),
+          ]
+        : []),
+      invalidateDashboardCache(request.event.organizer?.facultyId),
+    ]);
+  }
   logger.info("attendance scan processed", {
     requestId: request.id,
     correlationId: request.correlationId,
@@ -225,9 +351,14 @@ export async function handleAttendanceMessage(payload: Record<string, unknown>):
     )
       source = payload.source;
     if (payload.direction === "CHECK_OUT") direction = "CHECK_OUT";
-    const processed = await redisClient.withLock(`attendance-request:${requestId}`, 30_000, () =>
-      processLocked(requestId),
-    );
+    const eventId = typeof payload.eventId === "string" ? payload.eventId : null;
+    const studentId = typeof payload.studentId === "string" ? payload.studentId : null;
+    const lockDirection = payload.direction === "CHECK_OUT" ? "CHECK_OUT" : "CHECK_IN";
+    const lockKey =
+      eventId && studentId
+        ? `attendance-slot:${eventId}:${studentId}:${lockDirection}`
+        : `attendance-request:${requestId}`;
+    const processed = await redisClient.withLock(lockKey, 30_000, () => processLocked(requestId));
     if (processed === null) throw new Error("Attendance request is already being processed");
     result = "processed";
   } finally {

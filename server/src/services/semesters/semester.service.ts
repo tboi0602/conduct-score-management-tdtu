@@ -1,6 +1,7 @@
 import { Prisma, type SemesterType } from "@prisma/client";
 import { prisma } from "@config/prisma";
 import { ApiError } from "@utils/ApiError";
+import { runBulkAction } from "@utils/bulkAction";
 import { mapCrudError } from "@utils/crudError";
 import { createPaginationMeta, type PaginationParams } from "@utils/pagination";
 
@@ -80,4 +81,8 @@ export async function deleteSemester(id: string): Promise<void> {
       await tx.semester.delete({ where: { id }, select: { id: true } });
     })
     .catch(mapCrudError);
+}
+
+export async function deleteSemesters(ids: string[]) {
+  return runBulkAction(ids, deleteSemester);
 }

@@ -28,21 +28,4 @@ export type AttendanceFailureDraft = {
     longitude: number;
     accuracyMeters: number;
   };
-  tokenFingerprint?: string | null;
-  digest?: string;
-  syncedAt?: string;
-};
-
-export type AttendanceIncidentPayload = {
-  clientAttemptId: string;
-  eventId: string;
-  direction: "CHECK_IN" | "CHECK_OUT" | null;
-  failureCategory: AttendanceFailureCategory;
-  failedAt: string;
-  latitude: number | null;
-  longitude: number | null;
-  accuracyMeters: number | null;
-  tokenFingerprint: string | null;
-  clientOnline: boolean;
-  userAgent: string | null;
 };

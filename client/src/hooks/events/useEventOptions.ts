@@ -46,7 +46,7 @@ export function useEventOrganizerOptions(
   const term = useDebounce(search.trim(), 500);
   const { profile } = useAdminAccess();
   const query = useQuery({
-    queryKey: queryKeys.eventOptions.organizerPage(1, term, facultyId),
+    queryKey: queryKeys.eventOptions.organizerPage(1, term, facultyId, true),
     queryFn: () => eventService.organizers(1, term || undefined, facultyId),
     staleTime: 5 * 60_000,
   });

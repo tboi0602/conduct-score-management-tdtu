@@ -23,11 +23,20 @@ export function useBarcodeScanner({
   const firstCharacterAt = useRef(0);
   const lastCharacterAt = useRef(0);
   const submitting = useRef(false);
+  const autoSubmitTimer = useRef<number | null>(null);
+
+  const clearAutoSubmitTimer = useCallback(() => {
+    if (autoSubmitTimer.current !== null) {
+      window.clearTimeout(autoSubmitTimer.current);
+      autoSubmitTimer.current = null;
+    }
+  }, []);
 
   const submit = useCallback(
     async (codeToSubmit: string, source: ScanSource) => {
       const code = codeToSubmit.trim();
       if (!code || disabled || submitting.current) return;
+      clearAutoSubmitTimer();
       submitting.current = true;
       try {
         await onSubmit(code, source);
@@ -41,14 +50,17 @@ export function useBarcodeScanner({
         inputRef.current?.focus();
       }
     },
-    [disabled, onSubmit],
+    [clearAutoSubmitTimer, disabled, onSubmit],
   );
+
+  useEffect(() => clearAutoSubmitTimer, [clearAutoSubmitTimer]);
 
   const onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
-      const next = event.target.value;
+      const next = event.target.value.toUpperCase();
       const now = performance.now();
       if (!next) {
+        clearAutoSubmitTimer();
         firstCharacterAt.current = 0;
         lastCharacterAt.current = 0;
         setValue("");
@@ -62,22 +74,23 @@ export function useBarcodeScanner({
       setValue(next);
 
       const trimmed = next.trim();
-      // Nếu quét bằng máy quét mã vạch (ví dụ 9 ký tự đổ vào cùng lúc hoặc thời gian nhập cực nhanh < 150ms)
-      if (trimmed.length >= 8 && trimmed.length <= 12) {
-        const duration = now - firstCharacterAt.current;
-        // Máy quét barcode bắn toàn bộ chuỗi gần như tức thì (< 150ms)
-        if (duration < 150) {
-          void submit(trimmed, "STAFF_BARCODE");
-        }
+      clearAutoSubmitTimer();
+      if (trimmed.length >= 4 && trimmed.length <= 20) {
+        autoSubmitTimer.current = window.setTimeout(() => {
+          autoSubmitTimer.current = null;
+          const duration = lastCharacterAt.current - firstCharacterAt.current;
+          if (duration <= 800) void submit(trimmed, "STAFF_BARCODE");
+        }, 100);
       }
     },
-    [submit],
+    [clearAutoSubmitTimer, submit],
   );
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key !== "Enter" || disabled) return;
       event.preventDefault();
+      clearAutoSubmitTimer();
       const code = value.trim();
       if (!code) return;
       const duration = lastCharacterAt.current - firstCharacterAt.current;
@@ -85,8 +98,10 @@ export function useBarcodeScanner({
         code.length >= 4 && duration <= 800 ? "STAFF_BARCODE" : "MANUAL_ENTRY";
       void submit(code, source);
     },
-    [disabled, submit, value],
+    [clearAutoSubmitTimer, disabled, submit, value],
   );
 
-  return { value, inputRef, onChange, onKeyDown };
+  const submitManual = useCallback(() => submit(value, "MANUAL_ENTRY"), [submit, value]);
+
+  return { value, inputRef, onChange, onKeyDown, submitManual };
 }

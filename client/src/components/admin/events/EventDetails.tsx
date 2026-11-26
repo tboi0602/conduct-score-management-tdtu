@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/ui/Modal";
-import { CalendarClock, MapPin, ShieldCheck, Users } from "lucide-react";
+import { CalendarClock, ExternalLink, MapPin, ShieldCheck, Users } from "lucide-react";
 import { FacebookImageGallery, extractImagesFromHtml } from "@/components/ui/FacebookImageGallery";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { formatDate, organizerLabel, semesterLabel } from "@/lib/event-form";
@@ -27,8 +27,12 @@ export function EventDetails({
     [t.criterion, event.criteria.title],
     [t.semester, semesterLabel(event.semester, t)],
     [t.timeEnd, formatDate(event.timeEnd, locale)],
-    [t.registrationStart, formatDate(event.registrationStart, locale)],
-    [t.registrationEnd, formatDate(event.registrationEnd, locale)],
+    ...(event.deliveryMode === "OFFLINE" && event.registrationStart && event.registrationEnd
+      ? [
+          [t.registrationStart, formatDate(event.registrationStart, locale)],
+          [t.registrationEnd, formatDate(event.registrationEnd, locale)],
+        ]
+      : []),
     [t.eventType, t[event.type]],
     [t.organizer, event.organizer ? organizerLabel(event.organizer) : t.unknownOrganizer],
     [t.maxPoints, String(event.criteria.maxPoints)],
@@ -52,10 +56,26 @@ export function EventDetails({
               {t[lifecycle]}
             </span>
             <h3 className="mt-3 break-words text-2xl font-bold text-[#102a50]">{event.name}</h3>
-            <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
-              <MapPin size={17} className="text-[#154a9b]" />
-              {event.location || t.locationPending}
-            </p>
+            {event.deliveryMode === "OFFLINE" ? (
+              <p className="mt-2 flex items-center gap-2 text-sm text-[#52647d]">
+                <MapPin size={17} className="text-[#154a9b]" />
+                {event.location || t.locationPending}
+              </p>
+            ) : event.googleFormUrl ? (
+              <a
+                href={event.googleFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-[#154a9b] hover:underline"
+              >
+                <ExternalLink size={17} />
+                {t.openGoogleForm}
+              </a>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-amber-700">
+                {t.googleFormNotConfigured}
+              </p>
+            )}
           </div>
           <div className="rounded-2xl bg-white px-4 py-3 text-right shadow-sm">
             <p className="text-2xl font-bold text-[#154a9b]">{event.points}</p>
@@ -75,13 +95,17 @@ export function EventDetails({
           <Users size={19} className="text-[#154a9b]" />
           <p className="mt-3 text-xs font-semibold text-[#66758a]">{t.registrations}</p>
           <p className="mt-1 text-sm font-bold text-[#263b58]">
-            {event.registeredCount}/{event.capacity ?? t.unlimited}
+            {event.deliveryMode === "ONLINE"
+              ? t.notApplicable
+              : `${event.registeredCount}/${event.capacity ?? t.unlimited}`}
           </p>
         </div>
         <div className="rounded-2xl border border-[#e1e8f0] p-4">
           <ShieldCheck size={19} className="text-[#154a9b]" />
           <p className="mt-3 text-xs font-semibold text-[#66758a]">{t.checkInMode}</p>
-          <p className="mt-1 text-sm font-bold text-[#263b58]">{t[event.checkInMode]}</p>
+          <p className="mt-1 text-sm font-bold text-[#263b58]">
+            {event.deliveryMode === "ONLINE" ? t.notApplicable : t[event.checkInMode]}
+          </p>
         </div>
         <div className="rounded-2xl border border-[#e1e8f0] p-4">
           <ShieldCheck size={19} className="text-[#154a9b]" />
