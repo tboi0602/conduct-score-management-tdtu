@@ -87,7 +87,9 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
-      {profile?.roles.some((role) => role.name === "ADMIN") ? (
+      {profile?.permissions?.some(
+        (p) => p.permission === "*" || p.permission === "user.read" || p.permission === "role.read",
+      ) ? (
         <div className="mt-9">
           <h2 className="text-lg font-bold tracking-tight text-[#102a50]">{t.quickAccess}</h2>
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.85fr]">

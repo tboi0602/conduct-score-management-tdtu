@@ -55,7 +55,7 @@ export function CustomSelect({
           }
         }}
         onClick={() => setOpen((current) => !current)}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 text-left text-sm outline-none transition ${
+        className={`flex h-9 w-full items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-left text-xs outline-none transition ${
           open
             ? "border-[#154a9b] ring-4 ring-[#154a9b]/10"
             : "border-[#cdd9e7] hover:border-[#9eb3cd]"
@@ -72,7 +72,7 @@ export function CustomSelect({
       {open ? (
         <div
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-[#d8e1ec] bg-white p-1.5 shadow-[0_18px_42px_-18px_rgba(16,42,80,.35)]"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-[#d8e1ec] bg-white p-1 shadow-[0_18px_42px_-18px_rgba(16,42,80,.35)]"
         >
           <button
             type="button"

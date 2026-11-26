@@ -5,15 +5,12 @@ import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { PageLoadingSkeleton } from "@/components/ui/PageLoadingSkeleton";
 import { ManagementError } from "@/components/admin/ManagementFeedback";
-import type { AppRole } from "@/types/auth";
 
 export function AdminResourceAccess({
   permission,
-  allowedRoles,
   children,
 }: {
   permission: string;
-  allowedRoles?: AppRole[];
   children: ReactNode;
 }) {
   const access = useAdminAccess();
@@ -27,12 +24,7 @@ export function AdminResourceAccess({
         retry={() => void access.retry()}
       />
     );
-  const hasAllowedRole =
-    !allowedRoles ||
-    access.profile?.roles.some((role) =>
-      allowedRoles.some((allowedRole) => allowedRole === role.name),
-    );
-  if (!access.can(permission) || !hasAllowedRole)
+  if (!access.can(permission))
     return (
       <p
         role="alert"

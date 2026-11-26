@@ -14,13 +14,17 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDebounce } from "@/hooks/shared/useDebounce";
 
-const fetchPermissions = (page: number, limit: number) => adminService.listPermissions(page, limit);
-
-export function usePermissionsManagement() {
+export function usePermissionsManagement(search = "") {
   const { locale } = useLanguage();
   const { showToast } = useToast();
-  const list = usePaginatedData(queryKeys.permissions.all, fetchPermissions);
+  const debouncedSearch = useDebounce(search, 350);
+  const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
+  const list = usePaginatedData(
+    [...queryKeys.permissions.all, effectiveSearch],
+    (page, limit) => adminService.listPermissions(page, limit, effectiveSearch),
+  );
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Permission | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);

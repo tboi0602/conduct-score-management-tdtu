@@ -67,9 +67,9 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     queryKeys: [queryKeys.users.all, queryKeys.auth.me],
   });
   const roles: Role[] = scoped
-    ? ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].map((name) => ({
-        id: name,
-        name,
+    ? ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].map((code) => ({
+        id: code,
+        code,
         rolePermissions: [],
         _count: { userRoles: 0 },
       }))
@@ -264,7 +264,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     bulkActivateStaff,
     bulkDisableStaff,
     canCreateStaff:
-      Boolean(access.profile?.roles.some((role) => role.name === "ADMIN")) &&
+      Boolean(access.profile?.roles.some((role) => role.code === "ADMIN")) &&
       access.can("user.create"),
     openCreate,
     openEdit,

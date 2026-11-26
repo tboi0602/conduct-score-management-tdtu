@@ -33,7 +33,7 @@ export const messages = {
       "Theo dõi hoạt động, điểm danh và tiến trình rèn luyện trong một không gian thống nhất.",
     terms: "Bằng việc đăng nhập, bạn đồng ý tuân thủ quy định sử dụng hệ thống của nhà trường.",
     login: {
-      eyebrow: "Cổng dành cho sinh viên và giảng viên",
+      eyebrow: "Cổng dành cho sinh viên và Công chức",
       title: "Chào mừng bạn trở lại",
       description: "Sử dụng tài khoản email TDTU để tiếp tục vào hệ thống.",
       google: "Đăng nhập bằng Google",

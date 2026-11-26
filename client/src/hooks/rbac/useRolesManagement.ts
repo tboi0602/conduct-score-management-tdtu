@@ -14,13 +14,17 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDebounce } from "@/hooks/shared/useDebounce";
 
-const fetchRoles = (page: number, limit: number) => adminService.listRoles(page, limit);
-
-export function useRolesManagement() {
+export function useRolesManagement(search = "") {
   const { locale } = useLanguage();
   const { showToast } = useToast();
-  const list = usePaginatedData(queryKeys.roles.all, fetchRoles);
+  const debouncedSearch = useDebounce(search, 350);
+  const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
+  const list = usePaginatedData(
+    [...queryKeys.roles.all, effectiveSearch],
+    (page, limit) => adminService.listRoles(page, limit, effectiveSearch),
+  );
   const queryClient = useQueryClient();
   const permissionsQuery = useQuery({
     queryKey: [...queryKeys.permissions.all, "options"],
@@ -43,6 +47,7 @@ export function useRolesManagement() {
       const form = new FormData(event.currentTarget);
       const payload = {
         name: String(form.get("name") ?? ""),
+        displayName: String(form.get("displayName") ?? "").trim() || null,
         permissionIds: form.getAll("permissionIds").map(String),
       };
       try {

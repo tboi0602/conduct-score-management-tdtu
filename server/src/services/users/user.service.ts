@@ -40,7 +40,7 @@ const publicUserSelect = {
   updatedAt: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, name: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true } } } },
   student: {
     select: {
       id: true,
@@ -85,12 +85,12 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
     ...(filters.userType === "STUDENT"
       ? {
           student: { isNot: null },
-          userRoles: { some: { role: { name: "STUDENT" } } },
+          userRoles: { some: { role: { code: "STUDENT" } } },
         }
       : filters.userType === "STAFF"
         ? {
-            userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-            NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
+            userRoles: { some: { role: { code: { in: [...STAFF_ROLE_NAME_LIST] } } } },
+            NOT: { userRoles: { some: { role: { code: "ADMIN" } } } },
           }
         : {}),
     ...(filters.classId
@@ -157,11 +157,11 @@ function normalizeInput(input: UserInput) {
 function validateStaffInput(
   input: UserInput,
   email: string,
-  roles: Array<{ name: string }>,
+  roles: Array<{ code: string }>,
   requirePassword: boolean,
 ) {
-  const isStudent = roles.some((role) => role.name === "STUDENT");
-  const staffRoles = roles.filter((role) => STAFF_ROLE_NAMES.has(role.name));
+  const isStudent = roles.some((role) => role.code === "STUDENT");
+  const staffRoles = roles.filter((role) => STAFF_ROLE_NAMES.has(role.code));
   if (isStudent || staffRoles.length === 0) return;
 
   if (roles.length !== 1 || staffRoles.length !== 1) {
@@ -195,7 +195,7 @@ function validateStaffInput(
 export async function createUser(input: UserInput) {
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
-  const isStudent = roles.some((role) => role.name === "STUDENT");
+  const isStudent = roles.some((role) => role.code === "STUDENT");
   validateStaffInput(input, email, roles, true);
   const studentCode = input.studentCode?.trim();
   if (isStudent && !studentCode)
@@ -254,18 +254,18 @@ export async function updateUser(id: string, input: UserInput) {
   const { email, name } = normalizeInput(input);
   let roles = await getRoles(input.roleIds);
   const keepsStudentOrganizerRole =
-    Boolean(current.student) && roles.some((role) => role.name === "EVENT_ORGANIZER");
-  if (keepsStudentOrganizerRole && !roles.some((role) => role.name === "STUDENT")) {
-    const studentRole = await prisma.role.findUnique({ where: { name: "STUDENT" } });
+    Boolean(current.student) && roles.some((role) => role.code === "EVENT_ORGANIZER");
+  if (keepsStudentOrganizerRole && !roles.some((role) => role.code === "STUDENT")) {
+    const studentRole = await prisma.role.findUnique({ where: { code: "STUDENT" } });
     if (!studentRole) throw new ApiError(500, "STUDENT role does not exist");
     roles = [...roles, studentRole];
   }
-  if (current.student && roles.some((role) => role.name === "STUDENT_AFFAIRS")) {
+  if (current.student && roles.some((role) => role.code === "STUDENT_AFFAIRS")) {
     throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
   }
-  const isStudent = roles.some((role) => role.name === "STUDENT");
+  const isStudent = roles.some((role) => role.code === "STUDENT");
   validateStaffInput(input, email, roles, false);
-  const isAdmin = roles.some((role) => role.name === "ADMIN");
+  const isAdmin = roles.some((role) => role.code === "ADMIN");
   if (current.email === "admin" && (email !== "admin" || !isAdmin)) {
     throw new ApiError(400, "The default admin account must keep its email and ADMIN role");
   }
@@ -359,8 +359,8 @@ export async function setStaffStatus(
   const staff = await prisma.user.findFirst({
     where: {
       id,
-      userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-      NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
+      userRoles: { some: { role: { code: { in: [...STAFF_ROLE_NAME_LIST] } } } },
+      NOT: { userRoles: { some: { role: { code: "ADMIN" } } } },
     },
     select: { id: true },
   });

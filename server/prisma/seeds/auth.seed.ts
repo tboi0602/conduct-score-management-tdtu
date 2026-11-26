@@ -79,6 +79,13 @@ const allPermissionDescriptions = {
   ...conductScorePermissionDescriptions,
 } as const;
 
+const roleDisplayNames: Record<string, string> = {
+  ADMIN: "Quản trị viên",
+  EVENT_ORGANIZER: "Tổ chức sự kiện",
+  STUDENT_AFFAIRS: "Công chức sinh viên",
+  STUDENT: "Sinh viên",
+};
+
 const permissionsByRole = {
   ADMIN: ["*"],
   EVENT_ORGANIZER: [
@@ -163,10 +170,8 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
     });
   }
   for (const [roleName, permissionNames] of Object.entries(permissionsByRole)) {
-    const role = await prisma.role.upsert({
-      where: { name: roleName },
-      update: {},
-      create: { name: roleName },
+    const displayName = roleDisplayNames[roleName] ?? roleName;
+    const role = await prisma.role.upsert({ where: { code: roleName }, update: { displayName }, create: { code: roleName, displayName },
     });
 
     for (const permissionName of permissionNames) {
@@ -193,19 +198,19 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
 
   const supportedRoles = Object.keys(permissionsByRole);
   const obsoleteRoles = await prisma.role.findMany({
-    where: { name: { notIn: supportedRoles } },
-    select: { id: true, name: true, _count: { select: { userRoles: true } } },
+    where: { code: { notIn: supportedRoles } },
+    select: { id: true, code: true, _count: { select: { userRoles: true } } },
   });
   const assignedObsolete = obsoleteRoles.filter(({ _count }) => _count.userRoles > 0);
   if (assignedObsolete.length) {
     throw new Error(
-      `Unsupported assigned roles: ${assignedObsolete.map(({ name }) => name).join(", ")}`,
+      `Unsupported assigned roles: ${assignedObsolete.map(({ code }) => code).join(", ")}`,
     );
   }
   await prisma.role.deleteMany({ where: { id: { in: obsoleteRoles.map(({ id }) => id) } } });
   await prisma.permission.deleteMany({ where: { permission: "training-point.read" } });
 
-  const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "ADMIN" } });
+  const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
   const password = await bcrypt.hash("admin", 12);
   const admin = await prisma.user.upsert({
     where: { email: "admin@tdtu.edu.vn" },

@@ -1,204 +1,377 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { PaginationControls } from "@/components/admin/PaginationControls";
-import { EmptyTable, TableSkeleton } from "@/components/admin/TableState";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { IconButton } from "@/components/ui/IconButton";
-import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import { OpsDetailDrawer } from "@/components/ui/OpsDetailDrawer";
+import { SheetTable } from "@/components/ui/SheetTable";
+import { SheetToolbar } from "@/components/ui/SheetToolbar";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useRolesManagement } from "@/hooks/rbac/useRolesManagement";
+import { useUrlQueryState } from "@/hooks/shared/useUrlQueryState";
+import { useColumns, type ColumnDef } from "@/hooks/ui/useColumns";
+import { permissionGroupLabels } from "@/i18n/admin-messages";
+import type { Role } from "@/types/admin";
 
 export function RolesManagement() {
-  const state = useRolesManagement();
-  const { t } = useAdminTranslations();
+  const [search, setSearch] = useUrlQueryState("search");
+  const state = useRolesManagement(search);
+  const { t, locale } = useAdminTranslations();
+
   const selected = new Set(
     state.editing?.rolePermissions.map(({ permission }) => permission.id) ?? [],
   );
-  const protectedRole = state.editing?.name === "ADMIN";
-  return (
-    <section>
-      <AdminPageHeader
-        eyebrow={t.roleEyebrow}
-        title={t.roleTitle}
-        description={t.roleDescription}
-        action={
+  const [selectedCount, setSelectedCount] = useState(selected.size);
+  useEffect(() => {
+    setSelectedCount(state.editing?.rolePermissions.length ?? 0);
+  }, [state.editing, state.isModalOpen]);
+
+  const protectedRole = state.editing?.code === "ADMIN";
+
+  const openView = (role: Role) => {
+    state.closeModal();
+    state.setViewing(role);
+  };
+  const openEditDrawer = (role: Role) => {
+    state.setViewing(null);
+    state.openEdit(role);
+  };
+  const openCreateDrawer = () => {
+    state.setViewing(null);
+    state.openCreate();
+  };
+
+  const columnDefs = useMemo<ColumnDef<Role>[]>(
+    () => [
+      {
+        key: "ordinal",
+        title: t.ordinal,
+        width: 64,
+        align: "center",
+        sticky: "left",
+        render: (_row, index) => (
+          <span className="tabular-nums text-[#66758a]">
+            {(state.pagination.page - 1) * state.pagination.limit + index + 1}
+          </span>
+        ),
+      },
+      {
+        key: "code",
+        title: t.roleName,
+        width: 200,
+        render: (role) => (
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[#102a50]">
+            <ShieldCheck size={14} className="text-[#154a9b]" />
+            {role.code}
+          </span>
+        ),
+      },
+      {
+        key: "displayName",
+        title: t.roleDisplayName,
+        render: (role) => <span className="text-[#263b58]">{role.displayName || "—"}</span>,
+      },
+      {
+        key: "permissions",
+        title: t.permissionCount,
+        width: 160,
+        render: (role) => (
           <button
             type="button"
-            onClick={state.openCreate}
-            className="flex items-center gap-2 rounded-xl bg-[#154a9b] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_24px_-14px_rgba(21,74,155,.8)] transition hover:bg-[#103f85] active:scale-[.98]"
+            onClick={(e) => {
+              e.stopPropagation();
+              openView(role);
+            }}
+            className="rounded bg-[#edf4fc] px-2 py-0.5 text-xs font-bold text-[#154a9b] transition hover:bg-[#dceafb]"
           >
-            + {t.addRole}
+            {role.rolePermissions.length} {t.permissionGranted}
           </button>
-        }
-      />
-      {state.actionError && !state.isModalOpen ? (
-        <p role="alert" className="mt-5 rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
-          {state.actionError}
-        </p>
-      ) : null}
-      <div className="mt-7 overflow-hidden rounded-[22px] border border-[#dce4ef] bg-white shadow-[0_18px_45px_-30px_rgba(31,67,111,.4)]">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-[#f7f9fc] text-[11px] uppercase tracking-[.1em] text-[#68788d]">
-              <tr>
-                <th className="w-20 px-5 py-4 text-center">{t.ordinal}</th>
-                <th className="px-5 py-4">{t.roleName}</th>
-                <th className="px-5 py-4">{t.permissionCount}</th>
-                <th className="px-5 py-4">{t.assignedUsers}</th>
-                <th className="px-5 py-4 text-right">{t.actions}</th>
-              </tr>
-            </thead>
-            {state.isLoading ? (
-              <TableSkeleton columns={5} />
-            ) : (
-              <tbody className="divide-y divide-[#e7ecf3]">
-                {state.items.map((role, index) => (
-                  <tr key={role.id} className="transition-colors hover:bg-[#f9fbfd]">
-                    <td className="w-20 px-5 py-4 text-center tabular-nums text-[#66758a]">
-                      {(state.pagination.page - 1) * state.pagination.limit + index + 1}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eaf2fb] text-[#154a9b]">
-                          <ShieldCheck size={18} />
-                        </span>
-                        <strong className="text-[#102a50]">{role.name}</strong>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => state.setViewing(role)}
-                        className="rounded-xl bg-[#edf4fc] px-3 py-1.5 text-xs font-bold text-[#154a9b] transition hover:bg-[#dceafb]"
-                      >
-                        {role.rolePermissions.length} {t.permissionGranted}
-                      </button>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-2 text-[#52647d]">
-                        <Users size={16} />
-                        {role._count.userRoles}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <IconButton label={t.view} onClick={() => state.setViewing(role)}>
-                          <Eye size={16} />
-                        </IconButton>
-                        <IconButton label={t.edit} onClick={() => state.openEdit(role)}>
-                          <Pencil size={16} />
-                        </IconButton>
-                        {role.name !== "ADMIN" ? (
-                          <IconButton
-                            label={t.delete}
-                            tone="danger"
-                            onClick={() => state.setDeleting(role)}
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            )}
-          </table>
-        </div>
-        {!state.isLoading && !state.error && state.items.length === 0 ? (
-          <EmptyTable title={t.noData} description={t.tryFilter} />
-        ) : null}
-        {state.error ? <p className="p-6 text-sm text-[#b72e3f]">{state.error}</p> : null}
-        <PaginationControls pagination={state.pagination} onPageChange={state.setPage} />
+        ),
+      },
+      {
+        key: "users",
+        title: t.assignedUsers,
+        width: 130,
+        align: "center",
+        render: (role) => (
+          <span className="inline-flex items-center gap-1.5 text-[#52647d]">
+            <Users size={14} />
+            {role._count.userRoles}
+          </span>
+        ),
+      },
+      {
+        key: "actions",
+        title: t.actions,
+        width: 108,
+        align: "center",
+        sticky: "right",
+        render: (role) => (
+          <div className="flex justify-center gap-1">
+            <button
+              type="button"
+              aria-label={t.view}
+              onClick={(e) => {
+                e.stopPropagation();
+                openView(role);
+              }}
+              className="grid h-6 w-6 place-items-center rounded text-[#52647d] transition hover:bg-[#eef3f9]"
+            >
+              <Eye size={13} />
+            </button>
+            <button
+              type="button"
+              aria-label={t.edit}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditDrawer(role);
+              }}
+              className="grid h-6 w-6 place-items-center rounded text-[#154a9b] transition hover:bg-[#edf4fc]"
+            >
+              <Pencil size={13} />
+            </button>
+            {role.code !== "ADMIN" ? (
+              <button
+                type="button"
+                aria-label={t.delete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  state.setDeleting(role);
+                }}
+                className="grid h-6 w-6 place-items-center rounded text-[#b72e3f] transition hover:bg-[#fff1f2]"
+              >
+                <Trash2 size={13} />
+              </button>
+            ) : null}
+          </div>
+        ),
+      },
+    ],
+    [state, t],
+  );
+
+  const { allColumns, visibleColumns, hiddenKeys, toggleColumn } = useColumns(
+    columnDefs,
+    "sheet.columns.roles",
+  );
+
+  return (
+    <section className="flex h-dvh w-full overflow-hidden">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <SheetTable
+          columns={visibleColumns}
+          data={state.items}
+          rowKey={(role) => role.id}
+          isLoading={state.isLoading}
+          error={state.error}
+          pagination={state.pagination}
+          onPageChange={state.setPage}
+          onRowClick={(role) => openView(role)}
+          toolbar={
+            <SheetToolbar
+              search={search}
+              onSearchChange={setSearch}
+              searchPlaceholder={t.roleDisplayName}
+              columns={allColumns}
+              hiddenColumnKeys={hiddenKeys}
+              onToggleColumn={toggleColumn}
+              actions={
+                <Button size="sm" onClick={openCreateDrawer}>
+                  <Plus size={14} />
+                  {t.addRole}
+                </Button>
+              }
+            />
+          }
+        />
       </div>
-      <Modal
+
+      <OpsDetailDrawer
         open={state.isModalOpen}
         onClose={state.closeModal}
         title={state.editing ? t.editRole : t.addRole}
-        description={t.roleDescription}
-        size="xl"
+        subtitle={state.editing?.displayName || state.editing?.code}
+        storageKey="ops.drawer.width.roles"
+        defaultWidth={560}
+        footer={
+          !protectedRole ? (
+            <>
+              <Button variant="secondary" onClick={state.closeModal}>
+                {t.cancel}
+              </Button>
+              <Button type="submit" form="role-form" loading={state.isSaving}>
+                {t.save}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={state.closeModal}>
+              {t.cancel}
+            </Button>
+          )
+        }
       >
-        <form key={state.editing?.id ?? "new"} onSubmit={state.submit} className="space-y-6">
-          <label className="block max-w-md text-sm font-semibold text-[#263b58]">
-            {t.roleName}
-            <input
-              name="name"
+        <form
+          id="role-form"
+          key={state.editing?.id ?? "new"}
+          onSubmit={state.submit}
+          className="space-y-5"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label={t.roleName}
+              name="code"
               required
-              defaultValue={state.editing?.name ?? ""}
+              defaultValue={state.editing?.code ?? ""}
               disabled={protectedRole}
               placeholder="ORGANIZER"
-              className="mt-2 min-h-11 w-full rounded-xl border border-[#cdd9e7] px-3.5 uppercase outline-none transition focus:border-[#154a9b] focus:ring-4 focus:ring-[#154a9b]/10 disabled:bg-[#f0f3f7]"
+              className="uppercase"
             />
-          </label>
-          <fieldset disabled={protectedRole}>
-            <legend className="text-sm font-semibold text-[#263b58]">{t.permissionList}</legend>
-            <div className="mt-3 grid max-h-[48dvh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-              {state.permissions.map((permission) => (
-                <label
-                  key={permission.id}
-                  className="flex cursor-pointer gap-3 rounded-2xl border border-[#e0e7f0] p-3.5 transition hover:border-[#9cb5d5] has-[:checked]:border-[#7da1cf] has-[:checked]:bg-[#f0f6fd]"
-                >
-                  <input
-                    type="checkbox"
-                    name="permissionIds"
-                    value={permission.id}
-                    defaultChecked={selected.has(permission.id)}
-                    className="mt-1 accent-[#154a9b]"
-                  />
-                  <span>
-                    <strong className="block font-mono text-xs text-[#154a9b]">
-                      {permission.permission}
-                    </strong>
-                    <span className="mt-1 block text-xs leading-5 text-[#66758a]">
-                      {permission.description ?? t.noDescription}
+            <Input
+              label={t.roleDisplayName}
+              name="displayName"
+              defaultValue={state.editing?.displayName ?? ""}
+              disabled={protectedRole}
+              placeholder={t.roleDisplayPlaceholder}
+            />
+          </div>
+          <fieldset
+            disabled={protectedRole}
+            onChange={(e) => {
+              const boxes = e.currentTarget.querySelectorAll<HTMLInputElement>(
+                'input[name="permissionIds"]:checked',
+              );
+              setSelectedCount(boxes.length);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <legend className="text-sm font-semibold text-[#263b58]">{t.permissionList}</legend>
+              <span className="rounded bg-[#edf4fc] px-2 py-0.5 text-xs font-bold text-[#154a9b]">
+                {t.selectedLabel}: {selectedCount} / {state.permissions.length}
+              </span>
+            </div>
+            <div className="mt-3 space-y-3">
+              {Object.entries(
+                state.permissions.reduce<Record<string, typeof state.permissions>>((groups, p) => {
+                  const key = p.permission === "*" ? "system" : p.permission.split(".")[0];
+                  (groups[key] ??= []).push(p);
+                  return groups;
+                }, {}),
+              ).map(([group, perms]) => (
+                <div key={group} className="role-perm-group pt-1">
+                  <div className="mb-2.5 flex items-center justify-between border-b border-[#eef2f7] pb-1.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#154a9b]">
+                      {permissionGroupLabels[locale][group] ?? group} ({perms.length})
                     </span>
-                  </span>
-                </label>
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[#154a9b]">
+                      <input
+                        type="checkbox"
+                        disabled={protectedRole}
+                        defaultChecked={perms.length > 0 && perms.every((p) => selected.has(p.id))}
+                        onChange={(e) => {
+                          const container = e.currentTarget.closest("div.role-perm-group");
+                          const boxes = Array.from(
+                            container?.querySelectorAll<HTMLInputElement>(
+                              'input[name="permissionIds"]',
+                            ) ?? [],
+                          );
+                          boxes.forEach((b) => {
+                            b.checked = e.currentTarget.checked;
+                          });
+                        }}
+                        className="accent-[#154a9b] disabled:opacity-50"
+                      />
+                      {t.selectAll}
+                    </label>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {perms.map((permission) => (
+                      <label
+                        key={permission.id}
+                        className="flex cursor-pointer gap-2.5 rounded-lg border border-[#e0e7f0] p-2.5 transition hover:border-[#9cb5d5] has-[:checked]:border-[#7da1cf] has-[:checked]:bg-[#f0f6fd]"
+                      >
+                        <input
+                          type="checkbox"
+                          name="permissionIds"
+                          value={permission.id}
+                          defaultChecked={selected.has(permission.id)}
+                          className="mt-0.5 accent-[#154a9b]"
+                        />
+                        <span>
+                          <strong className="block font-mono text-xs text-[#154a9b]">
+                            {permission.permission}
+                          </strong>
+                          <span className="mt-0.5 block text-xs leading-4 text-[#66758a]">
+                            {permission.description ?? t.noDescription}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </fieldset>
           {state.actionError ? (
-            <p className="rounded-xl bg-[#fff1f2] px-4 py-3 text-sm text-[#b72e3f]">
+            <p className="rounded-lg bg-[#fff1f2] px-3 py-2 text-xs text-[#b72e3f]">
               {state.actionError}
             </p>
           ) : null}
-          {!protectedRole ? (
-            <div className="flex justify-end">
-              <button
-                disabled={state.isSaving}
-                className="rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#103f86] active:scale-[.98] disabled:opacity-50"
-              >
-                {state.isSaving ? `${t.saving}...` : t.save}
-              </button>
-            </div>
-          ) : null}
         </form>
-      </Modal>
-      <Modal
+      </OpsDetailDrawer>
+
+      <OpsDetailDrawer
         open={Boolean(state.viewing)}
         onClose={() => state.setViewing(null)}
-        title={`${t.permissionDetails}: ${state.viewing?.name ?? ""}`}
-        size="lg"
+        title={`${t.permissionDetails}: ${state.viewing?.displayName || state.viewing?.code || ""}`}
+        subtitle={state.viewing?.code}
+        storageKey="ops.drawer.width.roles.view"
+        defaultWidth={520}
       >
-        <div className="space-y-2">
-          {state.viewing?.rolePermissions.map(({ permission }) => (
-            <div key={permission.id} className="rounded-2xl border border-[#e0e7f0] px-4 py-3">
-              <code className="text-xs font-bold text-[#154a9b]">{permission.permission}</code>
-              <p className="mt-1 text-sm text-[#66758a]">
-                {permission.description ?? t.noDescription}
-              </p>
+        <div className="space-y-3">
+          {Object.entries(
+            (state.viewing?.rolePermissions ?? []).reduce<
+              Record<string, NonNullable<typeof state.viewing>["rolePermissions"]>
+            >((groups, item) => {
+              const code = item.permission.permission;
+              const key = code === "*" ? "system" : code.split(".")[0];
+              (groups[key] ??= []).push(item);
+              return groups;
+            }, {}),
+          ).map(([group, items]) => (
+            <div key={group} className="pt-1">
+              <div className="mb-2 border-b border-[#eef2f7] pb-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#154a9b]">
+                  {permissionGroupLabels[locale][group] ?? group} ({items.length})
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {items.map(({ permission }) => (
+                  <div
+                    key={permission.id}
+                    className="rounded-lg border border-[#e0e7f0] px-3 py-2"
+                  >
+                    <code className="text-xs font-bold text-[#154a9b]">
+                      {permission.permission}
+                    </code>
+                    <p className="mt-0.5 text-xs leading-4 text-[#66758a]">
+                      {permission.description ?? t.noDescription}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
-      </Modal>
+      </OpsDetailDrawer>
+
       <ConfirmDialog
         open={Boolean(state.deleting)}
         onClose={() => state.setDeleting(null)}
         onConfirm={state.confirmDelete}
         title={t.confirmDeleteRole}
-        subject={state.deleting?.name ?? ""}
+        subject={state.deleting?.displayName || state.deleting?.code || ""}
       />
     </section>
   );

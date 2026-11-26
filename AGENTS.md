@@ -31,6 +31,7 @@ Read it before making changes. When working under `client/` or `server/`, also r
 - TypeScript strict mode is required. Avoid `any`; use explicit domain types.
 - Use English for identifiers, filenames, API fields, permission codes, and database names.
 - User-facing text must come from the i18n layer when the screen supports language switching.
+- Never hardcode user-facing UI text (Vietnamese or English) directly in components or hooks; always define keys in the i18n layer (`client/src/i18n/`).
 - Permission names use lowercase `resource.action`, for example `user.create` and `event.update`.
 - Roles use uppercase names such as `ADMIN`, `LECTURER`, and `STUDENT`.
 - Prefer small focused files over controllers, services, hooks, or components with mixed concerns.

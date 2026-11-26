@@ -24,7 +24,7 @@ export function UsersManagement({ mode }: { mode?: UserManagementMode }) {
           (user) =>
             Boolean(user.student) &&
             user.id !== state.currentUserId &&
-            !user.userRoles.some(({ role }) => role.name === "ADMIN"),
+            !user.userRoles.some(({ role }) => role.code === "ADMIN"),
         )
         .map((user) => user.id);
     }
@@ -33,7 +33,7 @@ export function UsersManagement({ mode }: { mode?: UserManagementMode }) {
         .filter(
           (user) =>
             user.id !== state.currentUserId &&
-            !user.userRoles.some(({ role }) => role.name === "ADMIN"),
+            !user.userRoles.some(({ role }) => role.code === "ADMIN"),
         )
         .map((user) => user.id);
     }

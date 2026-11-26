@@ -90,7 +90,7 @@ export const attendanceService = {
         requestId: string;
         status: AttendanceScanStatus;
         direction: AttendanceDirection;
-        event: { id: string; name: string; timeEnd: string };
+        event: { id: string; code: string; timeEnd: string };
       };
     }>("/api/v1/attendance/scan/qr", {
       ...json("POST", payload),

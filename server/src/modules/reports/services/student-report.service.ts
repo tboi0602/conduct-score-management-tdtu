@@ -21,15 +21,15 @@ export async function getStudentReport(
 ) {
   const actor = await prisma.user.findUnique({
     where: { id: actorId },
-    select: { userRoles: { select: { role: { select: { name: true } } } } },
+    select: { userRoles: { select: { role: { select: { code: true } } } } },
   });
   if (!actor) throw new ApiError(401, "User not found");
-  const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
+  const isAdmin = actor.userRoles.some(({ role }) => role.code === "ADMIN");
   const access = await getEventAccess(actorId);
   const canReport =
     isAdmin ||
     access.manageAnyUnit ||
-    actor.userRoles.some(({ role }) => ["STUDENT_AFFAIRS", "EVENT_ORGANIZER"].includes(role.name));
+    actor.userRoles.some(({ role }) => ["STUDENT_AFFAIRS", "EVENT_ORGANIZER"].includes(role.code));
   if (!canReport) throw new ApiError(403, "Student report access denied");
 
   const canManageAllFaculties = isAdmin || access.manageAnyUnit;

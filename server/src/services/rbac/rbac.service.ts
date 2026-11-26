@@ -7,22 +7,6 @@ const roleInclude = {
   _count: { select: { userRoles: true } },
 } as const;
 
-const PERMISSION_NAME_PATTERN = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/;
-
-type PermissionInput = {
-  permission: string;
-  description?: string | null;
-};
-
-function normalizePermissionName(permission: string): string {
-  const value = permission.trim();
-  if (!value) throw new ApiError(400, "Permission name is required");
-  if (!PERMISSION_NAME_PATTERN.test(value)) {
-    throw new ApiError(400, "Permission must follow the resource.action format");
-  }
-  return value;
-}
-
 function normalizeDescription(description: string | null | undefined): string | null | undefined {
   if (description === undefined) return undefined;
   if (description === null) return null;
@@ -34,10 +18,20 @@ function normalizeDescription(description: string | null | undefined): string | 
   return value || null;
 }
 
-export async function listPermissions(params: PaginationParams) {
+export async function listPermissions(params: PaginationParams, search?: string) {
+  const keyword = search?.trim();
+  const where = keyword
+    ? {
+        OR: [
+          { permission: { contains: keyword, mode: "insensitive" as const } },
+          { description: { contains: keyword, mode: "insensitive" as const } },
+        ],
+      }
+    : undefined;
   const [total, items] = await prisma.$transaction([
-    prisma.permission.count(),
+    prisma.permission.count({ where }),
     prisma.permission.findMany({
+      where,
       orderBy: [{ permission: "asc" }, { id: "asc" }],
       skip: params.skip,
       take: params.limit,
@@ -47,50 +41,36 @@ export async function listPermissions(params: PaginationParams) {
   return { items, pagination: createPaginationMeta(total, params) };
 }
 
-export async function createPermission(input: PermissionInput) {
-  const value = normalizePermissionName(input.permission);
-  const description = normalizeDescription(input.description) ?? null;
-  return prisma.permission
-    .create({ data: { permission: value, description } })
-    .catch((error: { code?: string }) => {
-      if (error.code === "P2002") throw new ApiError(409, "Permission already exists");
-      throw error;
-    });
-}
-
-export async function updatePermission(id: string, input: PermissionInput) {
+export async function updatePermission(id: string, rawDescription?: string | null) {
   const current = await prisma.permission.findUnique({ where: { id } });
   if (!current) throw new ApiError(404, "Permission not found");
-  if (current.permission === "*") {
-    throw new ApiError(400, "System wildcard permission cannot be modified");
-  }
-  const value = normalizePermissionName(input.permission);
-  const description = normalizeDescription(input.description);
+  const description = normalizeDescription(rawDescription);
   return prisma.permission
     .update({
       where: { id },
       data: {
-        permission: value,
         ...(description !== undefined ? { description } : {}),
       },
     })
     .catch(mapNotFoundOrConflict);
 }
 
-export async function deletePermission(id: string) {
-  const permission = await prisma.permission.findUnique({ where: { id } });
-  if (!permission) throw new ApiError(404, "Permission not found");
-  if (permission.permission === "*")
-    throw new ApiError(400, "System wildcard permission cannot be deleted");
-  await prisma.permission.delete({ where: { id } });
-}
-
-export async function listRoles(params: PaginationParams) {
+export async function listRoles(params: PaginationParams, search?: string) {
+  const keyword = search?.trim();
+  const where = keyword
+    ? {
+        OR: [
+          { code: { contains: keyword, mode: "insensitive" as const } },
+          { displayName: { contains: keyword, mode: "insensitive" as const } },
+        ],
+      }
+    : undefined;
   const [total, items] = await prisma.$transaction([
-    prisma.role.count(),
+    prisma.role.count({ where }),
     prisma.role.findMany({
+      where,
       include: roleInclude,
-      orderBy: [{ name: "asc" }, { id: "asc" }],
+      orderBy: [{ code: "asc" }, { id: "asc" }],
       skip: params.skip,
       take: params.limit,
     }),
@@ -105,22 +85,53 @@ async function assertPermissionIds(permissionIds: string[]): Promise<void> {
     throw new ApiError(400, "One or more permissions do not exist");
 }
 
-export async function createRole(name: string, permissionIds: string[]) {
-  void name;
-  void permissionIds;
-  throw new ApiError(409, "System roles are fixed; only four seeded roles are supported");
+export async function createRole(code: string, permissionIds: string[], displayName?: string | null) {
+  const normalizedCode = code.trim().toUpperCase();
+  if (!normalizedCode) throw new ApiError(400, "Role code is required");
+  if (permissionIds.length) await assertPermissionIds(permissionIds);
+  return prisma.role
+    .create({
+      data: {
+        code: normalizedCode,
+        displayName: displayName?.trim() || null,
+        rolePermissions: {
+          create: [...new Set(permissionIds)].map((permissionId) => ({ permissionId })),
+        },
+      },
+      include: roleInclude,
+    })
+    .catch(mapNotFoundOrConflict);
 }
 
-export async function updateRole(id: string, name: string, permissionIds: string[]) {
-  void id;
-  void name;
-  void permissionIds;
-  throw new ApiError(409, "System role definitions are managed by the authorization seed");
+export async function updateRole(
+  id: string,
+  code: string,
+  permissionIds: string[],
+  displayName?: string | null,
+) {
+  const normalizedCode = code.trim().toUpperCase();
+  if (!normalizedCode) throw new ApiError(400, "Role code is required");
+  if (permissionIds.length) await assertPermissionIds(permissionIds);
+  return prisma.$transaction(async (tx) => {
+    await tx.rolePermission.deleteMany({ where: { roleId: id } });
+    return tx.role
+      .update({
+        where: { id },
+        data: {
+          code: normalizedCode,
+          ...(displayName !== undefined ? { displayName: displayName?.trim() || null } : {}),
+          rolePermissions: {
+            create: [...new Set(permissionIds)].map((permissionId) => ({ permissionId })),
+          },
+        },
+        include: roleInclude,
+      })
+      .catch(mapNotFoundOrConflict);
+  });
 }
 
 export async function deleteRole(id: string) {
-  void id;
-  throw new ApiError(409, "System roles cannot be deleted");
+  await prisma.role.delete({ where: { id } }).catch(mapNotFoundOrConflict);
 }
 
 function mapNotFoundOrConflict(error: { code?: string }): never {

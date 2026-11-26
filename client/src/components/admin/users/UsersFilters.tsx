@@ -109,7 +109,10 @@ export function UsersFilters({
                 setRoleId(value);
                 apply({ facultyId, majorId, classId, roleId: value });
               }}
-              options={roles.map((item) => ({ value: item.id, label: item.name }))}
+              options={roles.map((item) => ({
+                value: item.id,
+                label: item.displayName || item.code,
+              }))}
               placeholder={t.allRoles}
             />
             <IconButton label={t.clearFilter} onClick={clear}>

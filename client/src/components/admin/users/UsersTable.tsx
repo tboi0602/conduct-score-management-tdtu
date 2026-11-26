@@ -92,7 +92,7 @@ export function UsersTable({ mode, state, selectableIds, selection }: UsersTable
                             key={role.id}
                             className="rounded-lg bg-[#eef3f8] px-2 py-1 text-[11px] font-bold text-[#52647d]"
                           >
-                            {role.name}
+                            {role.code}
                           </span>
                         ))}
                       </div>
@@ -142,7 +142,7 @@ export function UsersTable({ mode, state, selectableIds, selection }: UsersTable
                             tone="danger"
                             onClick={() => state.setDeleting(user)}
                             disabled={
-                              user.userRoles.some(({ role }) => role.name === "ADMIN") ||
+                              user.userRoles.some(({ role }) => role.code === "ADMIN") ||
                               user.id === state.currentUserId
                             }
                           >

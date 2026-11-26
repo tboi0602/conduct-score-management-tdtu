@@ -61,9 +61,9 @@ export async function deleteStudentAccount({
       const staffRole = await tx.userRole.findFirst({
         where: {
           userId: targetUserId,
-          role: { name: { in: [...STAFF_ROLE_NAMES] } },
+          role: { code: { in: [...STAFF_ROLE_NAMES] } },
         },
-        select: { role: { select: { name: true } } },
+        select: { role: { select: { code: true } } },
       });
       if (staffRole) {
         throw new ApiError(

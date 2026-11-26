@@ -55,7 +55,7 @@ export async function getCurrentUser(userId: string) {
           role: {
             select: {
               id: true,
-              name: true,
+              code: true,
               rolePermissions: {
                 select: {
                   permission: {
@@ -82,7 +82,7 @@ export async function getCurrentUser(userId: string) {
     id: user.id,
     email: user.email,
     name: user.name,
-    roles: user.userRoles.map(({ role }) => ({ id: role.id, name: role.name })),
+    roles: user.userRoles.map(({ role }) => ({ id: role.id, name: role.code })),
     permissions,
     effectiveFaculty: user.student?.class?.major.faculty ?? user.primaryFaculty,
     student: user.student,
@@ -172,7 +172,7 @@ export async function refreshAccessToken(refreshToken: string) {
     where: {
       id: payload.sub,
       status: "ACTIVE",
-      userRoles: { some: { role: { name: currentRole } } },
+      userRoles: { some: { role: { code: currentRole } } },
     },
     select: { id: true },
   });
@@ -203,7 +203,7 @@ export async function loginAdmin(email: string, password: string) {
     throw new ApiError(401, "Invalid email or password");
   }
   if (user.status === "DISABLED") throw new ApiError(403, "Account is disabled");
-  const assignedRoles = user.userRoles.map(({ role }) => role.name);
+  const assignedRoles = user.userRoles.map(({ role }) => role.code);
   const managementRole = resolveLoginRole(assignedRoles, "ADMIN");
   if (!managementRole) throw new ApiError(403, "This login is only for administrators");
 
@@ -220,10 +220,10 @@ export async function loginAdmin(email: string, password: string) {
 
 function resolveLoginRole(assignedRoles: string[], mode: LoginMode): AppRole | null {
   if (mode === "STUDENT") {
-    return assignedRoles.includes("STUDENT") ? "STUDENT" : null;
+    return assignedRoles.includes("STUDENT") ? "STUDENT" : (assignedRoles[0] ?? null);
   }
 
-  return MANAGEMENT_ROLES.find((candidate) => assignedRoles.includes(candidate)) ?? null;
+  return assignedRoles.find((candidate) => candidate !== "STUDENT") ?? null;
 }
 
 export async function loginWithGoogle(idToken: string, mode: LoginMode) {
@@ -251,28 +251,18 @@ export async function loginWithGoogle(idToken: string, mode: LoginMode) {
 
   const existingAccount = await prisma.user.findUnique({
     where: { email },
-    select: { status: true, userRoles: { select: { role: { select: { name: true } } } } },
+    select: { status: true, userRoles: { select: { role: { select: { code: true } } } } },
   });
   if (existingAccount?.status === "DISABLED") throw new ApiError(403, "Account is disabled");
   const assignedRoles =
-    existingAccount?.userRoles.map(({ role: assignedRole }) => assignedRole.name) ?? [];
+    existingAccount?.userRoles.map(({ role: assignedRole }) => assignedRole.code) ?? [];
   const appRole = existingAccount
-    ? resolveLoginRole(assignedRoles, mode)
+    ? (resolveLoginRole(assignedRoles, mode) ?? (mode === "STUDENT" ? "USER" : null))
     : mode === "STUDENT"
-      ? roleForEmail(email)
+      ? "USER"
       : null;
   if (!appRole) {
-    throw new ApiError(
-      403,
-      mode === "ADMIN"
-        ? "Account does not have a management role"
-        : "Account does not have the student role",
-    );
-  }
-
-  const role = await prisma.role.findUnique({ where: { name: appRole } });
-  if (!role) {
-    throw new ApiError(503, "Authorization roles are not initialized; run npm run seed");
+    throw new ApiError(403, "Account does not have a management role");
   }
 
   const name = (payload.name?.trim() || email).slice(0, 100);
@@ -289,13 +279,7 @@ export async function loginWithGoogle(idToken: string, mode: LoginMode) {
         })
       : await tx.user.create({ data: { email, googleSubject, name } });
 
-    await tx.userRole.upsert({
-      where: { userId_roleId: { userId: saved.id, roleId: role.id } },
-      update: {},
-      create: { userId: saved.id, roleId: role.id },
-    });
-
-    if (appRole === "STUDENT") {
+    if (mode === "STUDENT") {
       await tx.student.upsert({
         where: { userId: saved.id },
         update: {},
@@ -319,7 +303,7 @@ export async function switchAccessMode(userId: string, mode: LoginMode) {
       email: true,
       name: true,
       status: true,
-      userRoles: { select: { role: { select: { name: true } } } },
+      userRoles: { select: { role: { select: { code: true } } } },
     },
   });
   if (!user || user.status === "DISABLED") {
@@ -327,7 +311,7 @@ export async function switchAccessMode(userId: string, mode: LoginMode) {
   }
 
   const role = resolveLoginRole(
-    user.userRoles.map(({ role: assignedRole }) => assignedRole.name),
+    user.userRoles.map(({ role: assignedRole }) => assignedRole.code),
     mode,
   );
   if (!role) {

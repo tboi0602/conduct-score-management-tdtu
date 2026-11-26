@@ -22,7 +22,7 @@ const REFRESH_EXPIRES = env.jwtRefreshExpiresIn as NonNullable<
   import("jsonwebtoken").SignOptions["expiresIn"]
 >;
 
-export type AppRole = "ADMIN" | "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
+export type AppRole = string;
 
 export interface JwtPayload {
   sub: string;

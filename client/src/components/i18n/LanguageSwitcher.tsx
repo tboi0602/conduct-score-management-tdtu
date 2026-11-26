@@ -53,17 +53,15 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="flex rounded-lg border border-[#cad5e5] bg-white p-1" aria-label="Language">
+    <div className="flex rounded-lg bg-white/10 p-0.5" aria-label="Language">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => setLocale(option.value)}
           aria-pressed={locale === option.value}
-          className={`flex min-h-6 items-center gap-1.5 rounded-md px-2 text-xs font-semibold transition-all active:scale-[.97] ${
-            locale === option.value
-              ? "bg-[#154a9b] text-white"
-              : "text-[#66758a] hover:bg-[#eef4fc] hover:text-[#154a9b]"
+          className={`flex h-6 items-center justify-center rounded-md px-1.5 text-xs font-semibold transition-all active:scale-[.97] ${
+            locale === option.value ? "bg-white text-[#154273]" : "hover:bg-white/15"
           }`}
         >
           <span className="overflow-hidden rounded-[3px] border border-black/10 shadow-sm">
