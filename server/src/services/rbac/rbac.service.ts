@@ -85,7 +85,11 @@ async function assertPermissionIds(permissionIds: string[]): Promise<void> {
     throw new ApiError(400, "One or more permissions do not exist");
 }
 
-export async function createRole(code: string, permissionIds: string[], displayName?: string | null) {
+export async function createRole(
+  code: string,
+  permissionIds: string[],
+  displayName?: string | null,
+) {
   const normalizedCode = code.trim().toUpperCase();
   if (!normalizedCode) throw new ApiError(400, "Role code is required");
   if (permissionIds.length) await assertPermissionIds(permissionIds);

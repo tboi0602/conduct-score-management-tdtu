@@ -171,7 +171,10 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
   }
   for (const [roleName, permissionNames] of Object.entries(permissionsByRole)) {
     const displayName = roleDisplayNames[roleName] ?? roleName;
-    const role = await prisma.role.upsert({ where: { code: roleName }, update: { displayName }, create: { code: roleName, displayName },
+    const role = await prisma.role.upsert({
+      where: { code: roleName },
+      update: { displayName },
+      create: { code: roleName, displayName },
     });
 
     for (const permissionName of permissionNames) {

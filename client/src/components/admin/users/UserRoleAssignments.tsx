@@ -181,7 +181,9 @@ export function UserRoleAssignments() {
                 setSearch(val);
                 setPage(1);
               }}
-              searchPlaceholder={vi ? "Tìm MSSV, họ tên hoặc email..." : "Search student code, name..."}
+              searchPlaceholder={
+                vi ? "Tìm MSSV, họ tên hoặc email..." : "Search student code, name..."
+              }
               columns={allColumns}
               hiddenColumnKeys={hiddenKeys}
               onToggleColumn={toggleColumn}

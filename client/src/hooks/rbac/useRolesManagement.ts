@@ -21,9 +21,8 @@ export function useRolesManagement(search = "") {
   const { showToast } = useToast();
   const debouncedSearch = useDebounce(search, 350);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
-  const list = usePaginatedData(
-    [...queryKeys.roles.all, effectiveSearch],
-    (page, limit) => adminService.listRoles(page, limit, effectiveSearch),
+  const list = usePaginatedData([...queryKeys.roles.all, effectiveSearch], (page, limit) =>
+    adminService.listRoles(page, limit, effectiveSearch),
   );
   const queryClient = useQueryClient();
   const permissionsQuery = useQuery({

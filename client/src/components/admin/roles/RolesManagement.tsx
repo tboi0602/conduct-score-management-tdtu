@@ -348,10 +348,7 @@ export function RolesManagement() {
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {items.map(({ permission }) => (
-                  <div
-                    key={permission.id}
-                    className="rounded-lg border border-[#e0e7f0] px-3 py-2"
-                  >
+                  <div key={permission.id} className="rounded-lg border border-[#e0e7f0] px-3 py-2">
                     <code className="text-xs font-bold text-[#154a9b]">
                       {permission.permission}
                     </code>

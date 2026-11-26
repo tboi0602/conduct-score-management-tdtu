@@ -21,9 +21,8 @@ export function usePermissionsManagement(search = "") {
   const { showToast } = useToast();
   const debouncedSearch = useDebounce(search, 350);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
-  const list = usePaginatedData(
-    [...queryKeys.permissions.all, effectiveSearch],
-    (page, limit) => adminService.listPermissions(page, limit, effectiveSearch),
+  const list = usePaginatedData([...queryKeys.permissions.all, effectiveSearch], (page, limit) =>
+    adminService.listPermissions(page, limit, effectiveSearch),
   );
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Permission | null>(null);

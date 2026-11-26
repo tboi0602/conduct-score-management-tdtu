@@ -137,7 +137,9 @@ export const adminService = {
 
   listRoles: (page: number, limit = 50, search = "") => {
     const query = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
-    return authHttp<PaginatedResponse<Role>>(`/api/v1/rbac/roles?page=${page}&limit=${limit}${query}`);
+    return authHttp<PaginatedResponse<Role>>(
+      `/api/v1/rbac/roles?page=${page}&limit=${limit}${query}`,
+    );
   },
   createRole: (payload: { name: string; permissionIds: string[] }) =>
     authHttp<{ data: Role }>("/api/v1/rbac/roles", {

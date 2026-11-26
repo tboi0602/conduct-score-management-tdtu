@@ -85,25 +85,25 @@ export function PermissionsManagement() {
     <section className="flex h-dvh w-full overflow-hidden">
       <div className="min-w-0 flex-1 overflow-hidden">
         <SheetTable
-        columns={visibleColumns}
-        data={state.items}
-        rowKey={(item) => item.id}
-        isLoading={state.isLoading}
-        error={state.error}
-        pagination={state.pagination}
-        onPageChange={state.setPage}
-        onRowClick={(item) => state.openEdit(item)}
-        toolbar={
-          <SheetToolbar
-            search={search}
-            onSearchChange={setSearch}
-            searchPlaceholder={t.permissionCode}
-            columns={allColumns}
-            hiddenColumnKeys={hiddenKeys}
-            onToggleColumn={toggleColumn}
-          />
-        }
-      />
+          columns={visibleColumns}
+          data={state.items}
+          rowKey={(item) => item.id}
+          isLoading={state.isLoading}
+          error={state.error}
+          pagination={state.pagination}
+          onPageChange={state.setPage}
+          onRowClick={(item) => state.openEdit(item)}
+          toolbar={
+            <SheetToolbar
+              search={search}
+              onSearchChange={setSearch}
+              searchPlaceholder={t.permissionCode}
+              columns={allColumns}
+              hiddenColumnKeys={hiddenKeys}
+              onToggleColumn={toggleColumn}
+            />
+          }
+        />
       </div>
 
       <OpsDetailDrawer

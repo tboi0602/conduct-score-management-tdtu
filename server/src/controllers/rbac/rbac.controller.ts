@@ -48,7 +48,10 @@ export async function createRole(req: Request, res: Response) {
   const input = roleInput(req);
   res
     .status(201)
-    .json({ ok: true, data: await rbac.createRole(input.name, input.permissionIds, input.displayName) });
+    .json({
+      ok: true,
+      data: await rbac.createRole(input.name, input.permissionIds, input.displayName),
+    });
 }
 export async function updateRole(req: Request, res: Response) {
   const input = roleInput(req);

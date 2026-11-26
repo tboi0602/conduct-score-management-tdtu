@@ -66,7 +66,12 @@ export function SheetTable<T>({
       draggingRef.current = false;
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && selection && tableRef.current) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "c" &&
+        selection &&
+        tableRef.current
+      ) {
         const minR = Math.min(selection.start.r, selection.end.r);
         const maxR = Math.max(selection.start.r, selection.end.r);
         const minC = Math.min(selection.start.c, selection.end.c);
@@ -205,14 +210,18 @@ export function SheetTable<T>({
           )}
         </table>
         {!isLoading && !error && data.length === 0 ? (
-          <EmptyTable title={emptyTitle ?? t.noData} description={emptyDescription ?? t.tryFilter} />
+          <EmptyTable
+            title={emptyTitle ?? t.noData}
+            description={emptyDescription ?? t.tryFilter}
+          />
         ) : null}
         {error ? <p className="p-4 text-sm text-[#b72e3f]">{error}</p> : null}
       </div>
       {pagination && onPageChange ? (
         <div className="flex h-8 shrink-0 items-center justify-between border-t border-[#e2e8f0] bg-[#f7f9fc] px-3 text-[11px] text-[#66758a]">
           <span>
-            {pagination.total} {t.records} · {t.page} {pagination.page}/{Math.max(1, pagination.totalPages)}
+            {pagination.total} {t.records} · {t.page} {pagination.page}/
+            {Math.max(1, pagination.totalPages)}
           </span>
           <div className="flex items-center gap-1">
             <button

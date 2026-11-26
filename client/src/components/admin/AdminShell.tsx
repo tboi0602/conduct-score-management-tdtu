@@ -108,7 +108,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
     can("organizer.create") || can("organizer.update") || can("organizer.delete");
   const showAcademicGroup = canManageAcademicCatalog || canManageClasses || canManageOrganizers;
   const conductScoreLabel = locale === "vi" ? "Điểm rèn luyện" : "Conduct Scores";
-  const groupParentClass = (active: boolean) => `group relative flex min-h-11 w-full items-center rounded-lg text-sm font-semibold transition-all duration-200 active:scale-[.98] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-white/15 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`; const linkClass = (active: boolean) =>
+  const groupParentClass = (active: boolean) =>
+    `group relative flex min-h-11 w-full items-center rounded-lg text-sm font-semibold transition-all duration-200 active:scale-[.98] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-white/15 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
+  const linkClass = (active: boolean) =>
     `group relative flex min-h-11 w-full items-center rounded-lg text-sm font-semibold transition-all duration-200 active:scale-[.98] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-white text-[#154273]" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
   const navItem = (href: string, label: string, icon: ReactNode, badge?: number) => {
     const link = (
@@ -213,7 +215,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   setCollapsed(false);
                   setEventOpen(true);
                 }}
-                className={groupParentClass(pathname.startsWith("/admin/events") ||
+                className={groupParentClass(
+                  pathname.startsWith("/admin/events") ||
                     pathname === "/admin/criteria" ||
                     pathname === "/admin/semesters",
                 )}
@@ -283,7 +286,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   setCollapsed(false);
                   setAcademicOpen(true);
                 }}
-                className={groupParentClass(pathname.startsWith("/admin/academic") || pathname === "/admin/organizers",
+                className={groupParentClass(
+                  pathname.startsWith("/admin/academic") || pathname === "/admin/organizers",
                 )}
               >
                 <GraduationCap size={18} />
@@ -606,9 +610,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <main className="h-dvh min-w-0 overflow-hidden pt-16 lg:col-start-2 lg:pt-0">
-        <div className="h-full w-full overflow-hidden">
-          {children}
-        </div>
+        <div className="h-full w-full overflow-hidden">{children}</div>
       </main>
     </div>
   );

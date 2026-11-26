@@ -36,7 +36,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <label className="block text-sm font-semibold text-[#263b58]">
       {label ? <span className="mb-1.5 block">{label}</span> : null}
       {inputNode}
-      {error ? <span className="mt-1 block text-xs font-normal text-[#b72e3f]">{error}</span> : null}
+      {error ? (
+        <span className="mt-1 block text-xs font-normal text-[#b72e3f]">{error}</span>
+      ) : null}
     </label>
   );
 });
