@@ -150,23 +150,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
         event.preventDefault();
         event.stopPropagation();
       }}
-      className={`relative flex h-full min-h-0 flex-col overscroll-contain border-r border-[#0f3157] bg-[#154273] px-3 py-4 text-white transition-all duration-300 ${collapsed ? "w-[82px]" : "w-[244px]"}`}
+      className={` relative flex h-full min-h-0 flex-col overscroll-contain border-r border-[#0f3157] bg-[#154273] px-3 py-4 text-white transition-all duration-300 ${collapsed ? "w-[82px]" : "w-[244px]"}`}
     >
       <div
-        className={`mb-1.5 flex shrink-0 items-center gap-2 ${collapsed ? "justify-center" : "justify-between px-1"}`}
+        className={`flex shrink-0 items-center ${collapsed ? "justify-center" : "justify-between"}`}
       >
-        <Link
-          href="/admin/dashboard"
-          className="inline-flex items-center overflow-hidden rounded-lg bg-white px-2 py-1"
-          aria-label="TDTU Admin"
-        >
+        <Link href="/admin/dashboard" aria-label="TDTU Admin">
           <Image
             src="/images/logo.png"
             alt="TDTU"
             width={612}
             height={338}
             priority
-            className={`h-auto object-contain transition-all ${collapsed ? "w-8" : "w-20"}`}
+            className={`h-auto object-contain transition-all ${collapsed ? "w-20" : "w-48"}`}
           />
         </Link>
         {!collapsed ? <LanguageSwitcher /> : null}
@@ -176,24 +172,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <LanguageSwitcher compact />
         </div>
       ) : null}
-      <Tooltip
-        label={collapsed ? t.expand : t.collapse}
-        side="right"
-        className="absolute left-[100%] top-1/3 z-50 hidden lg:block w-fit"
-      >
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? t.expand : t.collapse}
-          className="grid h-9 w-9 place-items-center rounded-full border border-[#d5dfeb] bg-white text-[#60728a] shadow-[0_8px_20px_-10px_rgba(16,42,80,.45)] transition hover:border-[#9fb7d5] hover:text-[#154a9b] active:scale-[.95]"
-        >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-        </button>
-      </Tooltip>
       <GlobalSearch collapsed={collapsed} />
       <nav
         data-sidebar-scroll
-        className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1"
+        className="my-2 min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1"
         aria-label={t.adminNavigation}
       >
         {can("dashboard.read")
@@ -499,8 +481,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )
         ) : null}
       </nav>
-      <div className="shrink-0 space-y-2 border-t border-white/15 bg-transparent pt-3">
-        <div className={`rounded-2xl bg-transparent ${collapsed ? "p-2" : "p-3"}`}>
+      <div className="shrink-0 space-y-2 border-t pt-4 border-white/30 bg-transparent ">
+        <div className={`rounded-2xl bg-transparent`}>
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-sm font-bold text-[#154273]">
               {user.name.slice(0, 1).toUpperCase()}
@@ -539,6 +521,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   <LogOut size={17} />
                 </button>
               </Tooltip>
+              <Tooltip label={t.expand} side="right" className="hidden w-full lg:block">
+                <button
+                  type="button"
+                  onClick={toggleCollapsed}
+                  aria-label={t.expand}
+                  className="mt-2 grid h-9 w-full place-items-center rounded-lg text-[#fcfcfd] transition hover:bg-[#edf4fc] hover:text-[#154a9b]"
+                >
+                  <PanelLeftOpen size={17} />
+                </button>
+              </Tooltip>
             </>
           ) : (
             <>
@@ -561,6 +553,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <LogOut size={15} />
                 {t.logout}
               </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label={t.collapse}
+                className="mt-2 hidden w-full items-center justify-center gap-2 rounded-lg border border-[#d9e2ed]/30 bg-white/10 px-3 py-2 text-xs font-bold text-white/60 transition hover:border-[#d9e2ed]/40 hover:text-white active:scale-[.98] lg:flex"
+              >
+                <PanelLeftClose size={15} />
+                {t.collapse}
+              </button>
             </>
           )}
         </div>
@@ -577,9 +578,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Image
             src="/images/logo.png"
             alt="TDTU"
-            width={40}
-            height={40}
-            className="w-24 object-contain "
+            width={160}
+            height={64}
+            className=" w-24 object-contain"
           />
         </div>
         <button
@@ -593,20 +594,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </div>
       {mobileOpen ? (
         <div
-          className="fixed inset-0 z-30 bg-[#0b1f3a]/35 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-50 bg-[#0b1f3a]/35 backdrop-blur-[2px] lg:hidden"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setMobileOpen(false);
           }}
         >
           <div className="h-full w-[276px]">{sidebar}</div>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-            className="absolute left-[288px] top-4 grid h-10 w-10 place-items-center rounded-lg bg-white text-white shadow-[0_10px_28px_-16px_rgba(11,31,58,.6)]"
-          >
-            <X size={19} />
-          </button>
         </div>
       ) : null}
       <main className="h-dvh min-w-0 overflow-hidden pt-16 lg:col-start-2 lg:pt-0">
