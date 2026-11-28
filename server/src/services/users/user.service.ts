@@ -27,8 +27,6 @@ export type UserFilters = {
   userType?: "STUDENT" | "STAFF";
 };
 
-const STAFF_ROLE_NAME_LIST = ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] as const;
-const STAFF_ROLE_NAMES = new Set<string>(STAFF_ROLE_NAME_LIST);
 const STAFF_EMAIL_PATTERN = /^[^@\s]+@tdtu\.edu\.vn$/i;
 
 const publicUserSelect = {
@@ -330,8 +328,12 @@ export async function setStaffStatus(
   const staff = await prisma.user.findFirst({
     where: {
       id,
-      userRoles: { some: { role: { code: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-      NOT: { userRoles: { some: { role: { code: "ADMIN" } } } },
+      isStudent: false,
+      NOT: {
+        userRoles: {
+          some: { role: { rolePermissions: { some: { permission: { permission: "*" } } } } },
+        },
+      },
     },
     select: { id: true },
   });

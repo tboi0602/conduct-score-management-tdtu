@@ -141,10 +141,7 @@ export function UsersTable({ mode, state, selectableIds, selection }: UsersTable
                             label={t.delete}
                             tone="danger"
                             onClick={() => state.setDeleting(user)}
-                            disabled={
-                              user.userRoles.some(({ role }) => role.code === "ADMIN") ||
-                              user.id === state.currentUserId
-                            }
+                            disabled={user.email === "admin" || user.id === state.currentUserId}
                           >
                             <Trash2 size={16} />
                           </IconButton>

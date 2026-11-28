@@ -22,19 +22,13 @@ export function UsersManagement({ mode }: { mode?: UserManagementMode }) {
       return state.items
         .filter(
           (user) =>
-            Boolean(user.student) &&
-            user.id !== state.currentUserId &&
-            !user.userRoles.some(({ role }) => role.code === "ADMIN"),
+            Boolean(user.student) && user.id !== state.currentUserId && user.email !== "admin",
         )
         .map((user) => user.id);
     }
     if (mode === "STAFF" && state.canBulkManageStaff) {
       return state.items
-        .filter(
-          (user) =>
-            user.id !== state.currentUserId &&
-            !user.userRoles.some(({ role }) => role.code === "ADMIN"),
-        )
+        .filter((user) => user.id !== state.currentUserId && user.email !== "admin")
         .map((user) => user.id);
     }
     return [];
