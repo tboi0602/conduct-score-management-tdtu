@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HttpError } from "@/services/http";
 import type { PaginatedResponse, PaginationMeta } from "@/types/admin";
 
@@ -36,6 +36,15 @@ export function usePaginatedData<T>(
       window.history.replaceState(null, "", url.pathname + url.search);
     }
   }, []);
+  const baseKeyString = JSON.stringify(baseQueryKey);
+  const prevBaseKeyRef = useRef(baseKeyString);
+  useEffect(() => {
+    if (prevBaseKeyRef.current !== baseKeyString) {
+      prevBaseKeyRef.current = baseKeyString;
+      if (page !== 1) setPage(1);
+    }
+  }, [baseKeyString, page, setPage]);
+
   const query = useQuery({
     queryKey: [...baseQueryKey, page, limit],
     queryFn: () => fetcher(page, limit),

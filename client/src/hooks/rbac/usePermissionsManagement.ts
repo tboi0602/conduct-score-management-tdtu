@@ -37,16 +37,14 @@ export function usePermissionsManagement(search = "") {
       setActionError(null);
       setIsSaving(true);
       const form = new FormData(event.currentTarget);
+      if (!editing) return;
       const payload = {
         permission: String(form.get("permission") ?? ""),
         description: String(form.get("description") ?? "") || null,
       };
       try {
-        const response = editing
-          ? await adminService.updatePermission(editing.id, payload)
-          : await adminService.createPermission(payload);
-        if (editing) updateCachedEntity(queryClient, queryKeys.permissions.all, response.data);
-        else prependCachedEntity(queryClient, queryKeys.permissions.all, response.data);
+        const response = await adminService.updatePermission(editing.id, payload);
+        updateCachedEntity(queryClient, queryKeys.permissions.all, response.data);
         setModalOpen(false);
         setEditing(null);
         showToast(locale === "vi" ? "Lưu quyền thành công." : "Permission saved successfully.");
@@ -61,19 +59,8 @@ export function usePermissionsManagement(search = "") {
   );
 
   const confirmDelete = useCallback(async () => {
-    if (!deleting) return;
-    try {
-      await adminService.deletePermission(deleting.id);
-      removeCachedEntity(queryClient, queryKeys.permissions.all, deleting.id);
-      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
-        list.setPage(list.page - 1);
-      setDeleting(null);
-      showToast(locale === "vi" ? "Xóa quyền thành công." : "Permission deleted successfully.");
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Không thể xóa quyền");
-      showToast(locale === "vi" ? "Không thể xóa quyền." : "Unable to delete permission.", "error");
-    }
-  }, [deleting, list, locale, queryClient, showToast]);
+    setDeleting(null);
+  }, []);
 
   const openCreate = () => {
     setEditing(null);

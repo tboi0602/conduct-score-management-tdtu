@@ -85,6 +85,9 @@ async function assertPermissionIds(permissionIds: string[]): Promise<void> {
     throw new ApiError(400, "One or more permissions do not exist");
 }
 
+const PROTECTED_ROLE_CODES = new Set(["ADMIN", "STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"]);
+const ROLE_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
+
 export async function createRole(
   code: string,
   permissionIds: string[],
@@ -92,6 +95,12 @@ export async function createRole(
 ) {
   const normalizedCode = code.trim().toUpperCase();
   if (!normalizedCode) throw new ApiError(400, "Role code is required");
+  if (!ROLE_CODE_REGEX.test(normalizedCode)) {
+    throw new ApiError(
+      400,
+      "Role code must contain only uppercase letters, numbers, and underscores",
+    );
+  }
   if (permissionIds.length) await assertPermissionIds(permissionIds);
   return prisma.role
     .create({
@@ -115,7 +124,30 @@ export async function updateRole(
 ) {
   const normalizedCode = code.trim().toUpperCase();
   if (!normalizedCode) throw new ApiError(400, "Role code is required");
+  if (!ROLE_CODE_REGEX.test(normalizedCode)) {
+    throw new ApiError(
+      400,
+      "Role code must contain only uppercase letters, numbers, and underscores",
+    );
+  }
+  const existing = await prisma.role.findUnique({ where: { id }, select: { code: true } });
+  if (!existing) throw new ApiError(404, "Resource not found");
+  if (PROTECTED_ROLE_CODES.has(existing.code) && existing.code !== normalizedCode) {
+    throw new ApiError(403, "System role code cannot be renamed");
+  }
   if (permissionIds.length) await assertPermissionIds(permissionIds);
+  const wildcardPerm = await prisma.permission.findUnique({
+    where: { permission: "*" },
+    select: { id: true },
+  });
+  if (wildcardPerm && !permissionIds.includes(wildcardPerm.id)) {
+    const otherWildcardRoles = await prisma.rolePermission.count({
+      where: { permissionId: wildcardPerm.id, roleId: { not: id } },
+    });
+    if (otherWildcardRoles === 0) {
+      throw new ApiError(400, "Cannot remove wildcard permission from the last role holding it");
+    }
+  }
   return prisma.$transaction(async (tx) => {
     await tx.rolePermission.deleteMany({ where: { roleId: id } });
     return tx.role
@@ -135,6 +167,11 @@ export async function updateRole(
 }
 
 export async function deleteRole(id: string) {
+  const existing = await prisma.role.findUnique({ where: { id }, select: { code: true } });
+  if (!existing) throw new ApiError(404, "Resource not found");
+  if (PROTECTED_ROLE_CODES.has(existing.code)) {
+    throw new ApiError(403, "System roles cannot be deleted");
+  }
   await prisma.role.delete({ where: { id } }).catch(mapNotFoundOrConflict);
 }
 

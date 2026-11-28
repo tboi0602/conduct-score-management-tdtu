@@ -11,7 +11,6 @@ import { ApiError } from "@utils/ApiError";
 import { env } from "@config/env";
 
 const googleClient = new OAuth2Client();
-const MANAGEMENT_ROLES = ["ADMIN", "STUDENT_AFFAIRS", "EVENT_ORGANIZER"] as const;
 
 export type LoginMode = "STUDENT" | "ADMIN";
 
@@ -56,6 +55,7 @@ export async function getCurrentUser(userId: string) {
             select: {
               id: true,
               code: true,
+              displayName: true,
               rolePermissions: {
                 select: {
                   permission: {
@@ -82,7 +82,11 @@ export async function getCurrentUser(userId: string) {
     id: user.id,
     email: user.email,
     name: user.name,
-    roles: user.userRoles.map(({ role }) => ({ id: role.id, name: role.code })),
+    roles: user.userRoles.map(({ role }) => ({
+      id: role.id,
+      code: role.code,
+      displayName: role.displayName,
+    })),
     permissions,
     effectiveFaculty: user.student?.class?.major.faculty ?? user.primaryFaculty,
     student: user.student,
@@ -164,15 +168,10 @@ export async function refreshAccessToken(refreshToken: string) {
 
   if (session.userId !== payload.sub) throw new ApiError(401, "Invalid refresh session");
   const currentRole = session.role as AppRole;
-  if (!["ADMIN", "STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].includes(currentRole)) {
-    await redisClient.revokeRefreshSession(payload.jti);
-    throw new ApiError(401, "Invalid refresh session");
-  }
   const activeUser = await prisma.user.findFirst({
     where: {
       id: payload.sub,
       status: "ACTIVE",
-      userRoles: { some: { role: { code: currentRole } } },
     },
     select: { id: true },
   });
@@ -279,7 +278,10 @@ export async function loginWithGoogle(idToken: string, mode: LoginMode) {
         })
       : await tx.user.create({ data: { email, googleSubject, name } });
 
-    if (mode === "STUDENT") {
+    const shouldEnsureStudentProfile =
+      mode === "STUDENT" &&
+      (appRole === "STUDENT" || (appRole === "USER" && email.endsWith("@student.tdtu.edu.vn")));
+    if (shouldEnsureStudentProfile) {
       await tx.student.upsert({
         where: { userId: saved.id },
         update: {},

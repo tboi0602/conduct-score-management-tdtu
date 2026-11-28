@@ -133,7 +133,17 @@ export async function updateRoleAssignment(
   const [actor, target, roles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: actorId },
-      select: { userRoles: { select: { role: { select: { code: true, displayName: true } } } } },
+      select: {
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                rolePermissions: { select: { permission: { select: { permission: true } } } },
+              },
+            },
+          },
+        },
+      },
     }),
     prisma.user.findUnique({
       where: { id: targetId },
@@ -143,24 +153,56 @@ export async function updateRoleAssignment(
           select: { id: true, class: { select: { major: { select: { facultyId: true } } } } },
         },
         primaryFacultyId: true,
-        userRoles: { select: { role: { select: { code: true, displayName: true } } } },
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                code: true,
+                displayName: true,
+                rolePermissions: { select: { permission: { select: { permission: true } } } },
+              },
+            },
+          },
+        },
       },
     }),
-    prisma.role.findMany({ where: { id: { in: [...new Set(input.roleIds)] } } }),
+    prisma.role.findMany({
+      where: { id: { in: [...new Set(input.roleIds)] } },
+      include: {
+        rolePermissions: { select: { permission: { select: { permission: true } } } },
+      },
+    }),
   ]);
   if (!actor || !target) throw new ApiError(404, "User not found");
-  if (target.userRoles.some(({ role }) => role.code === "ADMIN"))
-    throw new ApiError(403, "Administrator accounts cannot be managed here");
-  const isAdmin = actor.userRoles.some(({ role }) => role.code === "ADMIN");
-  const isStudentAffairs = actor.userRoles.some(({ role }) => role.code === "STUDENT_AFFAIRS");
-  if (!isAdmin && !isStudentAffairs) {
-    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
+  const actorPermissions = new Set(
+    actor.userRoles.flatMap(({ role }) =>
+      role.rolePermissions.map(({ permission }) => permission.permission),
+    ),
+  );
+  const actorHasWildcard = actorPermissions.has("*");
+  const targetHasWildcard = target.userRoles.some(({ role }) =>
+    role.rolePermissions.some(({ permission }) => permission.permission === "*"),
+  );
+  if (targetHasWildcard && !actorHasWildcard) {
+    throw new ApiError(403, "Accounts with full system access cannot be managed here");
   }
   const targetFacultyId = target.student?.class?.major.facultyId ?? target.primaryFacultyId;
   if (!access.manageAnyUnit && (!access.facultyId || targetFacultyId !== access.facultyId))
     throw new ApiError(403, "User is outside your faculty scope");
-  if (roles.length !== new Set(input.roleIds).size || roles.some((role) => role.code === "ADMIN"))
-    throw new ApiError(403, "The selected role assignment is not allowed");
+  if (roles.length !== new Set(input.roleIds).size) {
+    throw new ApiError(400, "One or more selected roles do not exist");
+  }
+  if (!actorHasWildcard) {
+    const hasEscalatedRole = roles.some((role) =>
+      role.rolePermissions.some(
+        ({ permission }) =>
+          permission.permission === "*" || !actorPermissions.has(permission.permission),
+      ),
+    );
+    if (hasEscalatedRole) {
+      throw new ApiError(403, "You cannot assign roles with permissions you do not hold");
+    }
+  }
   if (input.primaryFacultyId !== undefined && !access.manageAnyUnit) {
     if (input.primaryFacultyId !== null && input.primaryFacultyId !== access.facultyId) {
       throw new ApiError(403, "You can only assign users to your own faculty");
