@@ -1,4 +1,4 @@
-export type AppRole = "ADMIN" | "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
+export type AppRole = string;
 
 export type AuthUser = {
   id: string;

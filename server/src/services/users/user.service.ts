@@ -35,6 +35,7 @@ const publicUserSelect = {
   id: true,
   email: true,
   name: true,
+  isStudent: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -83,15 +84,9 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
       : {}),
     ...(filters.roleId ? { userRoles: { some: { roleId: filters.roleId } } } : {}),
     ...(filters.userType === "STUDENT"
-      ? {
-          student: { isNot: null },
-          userRoles: { some: { role: { code: "STUDENT" } } },
-        }
+      ? { isStudent: true }
       : filters.userType === "STAFF"
-        ? {
-            userRoles: { some: { role: { code: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-            NOT: { userRoles: { some: { role: { code: "ADMIN" } } } },
-          }
+        ? { isStudent: false }
         : {}),
     ...(filters.classId
       ? { student: { is: { classId: filters.classId } } }

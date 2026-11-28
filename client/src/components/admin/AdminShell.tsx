@@ -99,7 +99,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { can, profile } = useAdminAccess();
   const canAssignUserRoles = can("faculty-staff.assign-event-organizer");
   const pendingAppealsCount = usePendingAppealsCount(can("appeal.read"));
-  const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.code) ?? []);
+  const workspace = useWorkspaceSwitch(profile?.isStudent);
   if (!user) return <PageLoadingSkeleton />;
   const canManageAcademicCatalog =
     can("academic.create") || can("academic.update") || can("academic.delete");

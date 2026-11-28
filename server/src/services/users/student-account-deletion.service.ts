@@ -5,9 +5,7 @@ import { invalidateDashboardCache } from "@modules/dashboard";
 import { redisClient } from "@redis";
 import { ApiError } from "@utils/ApiError";
 
-const STAFF_ROLE_NAMES = ["ADMIN", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"] as const;
-
-type LockedUser = { id: string; email: string };
+type LockedUser = { id: string; email: string; isStudent: boolean };
 type LockedStudent = { id: string; facultyId: string | null };
 type ActiveRegistration = { eventId: string; facultyId: string | null };
 
@@ -29,7 +27,7 @@ export async function deleteStudentAccount({
   const affectedFacultyIds = await prisma.$transaction(
     async (tx) => {
       const users = await tx.$queryRaw<LockedUser[]>(Prisma.sql`
-        SELECT "id", "email"
+        SELECT "id", "email", "isStudent"
         FROM "users"
         WHERE "id" = ${targetUserId}::uuid
         FOR UPDATE
@@ -58,17 +56,10 @@ export async function deleteStudentAccount({
         );
       }
 
-      const staffRole = await tx.userRole.findFirst({
-        where: {
-          userId: targetUserId,
-          role: { code: { in: [...STAFF_ROLE_NAMES] } },
-        },
-        select: { role: { select: { code: true } } },
-      });
-      if (staffRole) {
+      if (!user.isStudent) {
         throw new ApiError(
           409,
-          "Remove the staff role before deleting this student account",
+          "Only student accounts can be deleted here",
           "STUDENT_HAS_STAFF_ROLE",
         );
       }

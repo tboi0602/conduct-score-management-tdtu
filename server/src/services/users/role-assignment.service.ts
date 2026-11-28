@@ -53,17 +53,36 @@ export async function listRoleAssignmentUsers(
   const access = await getEventAccess(actorId);
   const actor = await prisma.user.findUnique({
     where: { id: actorId },
-    select: { userRoles: { select: { role: { select: { code: true, displayName: true } } } } },
+    select: {
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              rolePermissions: { select: { permission: { select: { permission: true } } } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!actor) throw new ApiError(401, "User not found");
-  const isAdmin = actor.userRoles.some(({ role }) => role.code === "ADMIN");
-  const isStudentAffairs = actor.userRoles.some(({ role }) => role.code === "STUDENT_AFFAIRS");
-  if (!isAdmin && !isStudentAffairs) {
-    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
-  }
+  const actorPermissions = new Set(
+    actor.userRoles.flatMap(({ role }) =>
+      role.rolePermissions.map(({ permission }) => permission.permission),
+    ),
+  );
+  const actorHasWildcard = actorPermissions.has("*");
   const where: Prisma.UserWhereInput = {
     id: { not: actorId },
-    NOT: { userRoles: { some: { role: { code: "ADMIN" } } } },
+    ...(actorHasWildcard
+      ? {}
+      : {
+          NOT: {
+            userRoles: {
+              some: { role: { rolePermissions: { some: { permission: { permission: "*" } } } } },
+            },
+          },
+        }),
     ...(access.manageAnyUnit
       ? {}
       : access.facultyId
@@ -94,14 +113,21 @@ export async function listRoleAssignmentUsers(
       take: pagination.limit,
     }),
     prisma.role.findMany({
-      where: isAdmin
-        ? { code: { not: "ADMIN" } }
-        : { code: { in: ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } },
+      where: actorHasWildcard
+        ? undefined
+        : {
+            rolePermissions: {
+              every: {
+                permission: {
+                  permission: { in: [...actorPermissions] },
+                },
+              },
+            },
+          },
       select: { id: true, code: true, displayName: true },
       orderBy: { code: "asc" },
     }),
     prisma.role.findMany({
-      where: { code: { not: "ADMIN" } },
       select: { id: true, code: true, displayName: true },
       orderBy: { code: "asc" },
     }),

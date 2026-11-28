@@ -8,9 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { clearAuthSession, saveAuthSession } from "@/lib/auth-storage";
 import { logoutSession, switchAccessMode, type LoginMode } from "@/services/auth";
 
-const MANAGEMENT_ROLES = new Set(["ADMIN", "STUDENT_AFFAIRS", "EVENT_ORGANIZER"]);
-
-export function useWorkspaceSwitch(roleNames: string[]) {
+export function useWorkspaceSwitch(isStudent?: boolean) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { locale } = useLanguage();
@@ -43,8 +41,8 @@ export function useWorkspaceSwitch(roleNames: string[]) {
   });
 
   return {
-    canUseStudentWorkspace: roleNames.includes("STUDENT"),
-    canUseManagementWorkspace: roleNames.some((role) => MANAGEMENT_ROLES.has(role)),
+    canUseStudentWorkspace: isStudent === true,
+    canUseManagementWorkspace: isStudent === false,
     isSwitching: mutation.isPending,
     switchWorkspace: mutation.mutate,
     logout: async () => {
