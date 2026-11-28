@@ -120,6 +120,7 @@ export type CurrentUserProfile = {
   id: string;
   email: string;
   name: string;
+  isStudent?: boolean;
   roles: Array<{ id: string; code: string; displayName?: string | null }>;
   permissions: Permission[];
   effectiveFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
