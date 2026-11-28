@@ -13,7 +13,7 @@ export type FacultyUserInput = {
   email: string;
   name: string;
   password?: string;
-  roleName: "STUDENT" | "EVENT_ORGANIZER" | "STUDENT_AFFAIRS";
+  roleIds: string[];
   studentCode?: string | null;
   classId?: string | null;
 };
@@ -27,7 +27,7 @@ const select = {
   updatedAt: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, code: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true, displayName: true } } } },
   student: {
     select: {
       id: true,
@@ -65,18 +65,47 @@ const scopedWhere = (facultyId: string, userType?: "STUDENT" | "STAFF"): Prisma.
   };
   const staffScope: Prisma.UserWhereInput = {
     AND: [
+      { email: { not: "admin" } },
       {
-        userRoles: {
-          some: { role: { code: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } },
+        NOT: {
+          userRoles: {
+            some: { role: { rolePermissions: { some: { permission: { permission: "*" } } } } },
+          },
         },
       },
-      { NOT: { userRoles: { some: { role: { code: "ADMIN" } } } } },
       {
         OR: [
-          studentScope,
+          { student: { is: null }, primaryFacultyId: facultyId },
           {
-            student: { is: null },
-            primaryFacultyId: facultyId,
+            userRoles: {
+              some: {
+                role: {
+                  rolePermissions: {
+                    some: {
+                      permission: {
+                        permission: {
+                          in: [
+                            "event.create",
+                            "event.update",
+                            "event.delete",
+                            "faculty-staff.read",
+                            "faculty-staff.create",
+                            "faculty-staff.update",
+                            "faculty-staff.disable",
+                            "faculty-staff.create-student",
+                            "user.assign-role",
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            OR: [
+              { primaryFacultyId: facultyId },
+              { student: { is: { class: { major: { facultyId } } } } },
+            ],
           },
         ],
       },
@@ -121,7 +150,7 @@ export async function listFacultyUsers(
     prisma.user.findMany({
       where,
       select,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }, { id: "desc" }],
       skip: params.skip,
       take: params.limit,
     }),
@@ -137,7 +166,8 @@ async function validateInput(actorId: string, input: FacultyUserInput) {
     throw new ApiError(400, "Email and name are required");
   if (input.password && input.password.length < 6)
     throw new ApiError(400, "Password must contain at least 6 characters");
-  if (input.roleName === "STUDENT") {
+  const isStudent = Boolean(input.studentCode?.trim());
+  if (isStudent) {
     if (!input.studentCode?.trim() || !input.classId)
       throw new ApiError(400, "Student code and class are required");
     const classInScope = await prisma.class.findFirst({
@@ -149,21 +179,51 @@ async function validateInput(actorId: string, input: FacultyUserInput) {
   return actor.facultyId!;
 }
 
+async function assertCanAssignWildcardRoles(actorId: string, roleIds: string[]): Promise<void> {
+  if (!roleIds.length) return;
+  const wildcardRole = await prisma.role.findFirst({
+    where: {
+      id: { in: roleIds },
+      rolePermissions: { some: { permission: { permission: "*" } } },
+    },
+    select: { id: true },
+  });
+  if (!wildcardRole) return;
+  const actorHasWildcard = await prisma.userRole.findFirst({
+    where: {
+      userId: actorId,
+      user: { status: "ACTIVE" },
+      role: { rolePermissions: { some: { permission: { permission: "*" } } } },
+    },
+    select: { userId: true },
+  });
+  if (!actorHasWildcard) {
+    throw new ApiError(403, "Cannot assign a role with wildcard (*) permission");
+  }
+}
+
 export async function createFacultyUser(actorId: string, input: FacultyUserInput) {
   const facultyId = await validateInput(actorId, input);
-  const role = await prisma.role.findUniqueOrThrow({ where: { code: input.roleName } });
-  const password = input.password ? await bcrypt.hash(input.password, 12) : null;
+  const isStudent = Boolean(input.studentCode?.trim());
+  const roleIds = [...new Set(input.roleIds)];
+  await assertCanAssignWildcardRoles(actorId, roleIds);
+  const password = await bcrypt.hash(input.password?.trim() || "123456", 12);
   const userId = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         email: input.email.trim().toLowerCase(),
         name: input.name.trim(),
         password,
-        primaryFacultyId: input.roleName !== "STUDENT" ? facultyId : null,
+        isStudent,
+        primaryFacultyId: isStudent ? null : facultyId,
       },
     });
-    await tx.userRole.create({ data: { userId: user.id, roleId: role.id } });
-    if (input.roleName === "STUDENT")
+    if (roleIds.length) {
+      await tx.userRole.createMany({
+        data: roleIds.map((roleId) => ({ userId: user.id, roleId })),
+      });
+    }
+    if (isStudent)
       await tx.student.create({
         data: { userId: user.id, studentCode: input.studentCode!.trim(), classId: input.classId },
       });
@@ -176,17 +236,29 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
   const facultyId = await validateInput(actorId, input);
   const current = await prisma.user.findFirst({
     where: { id, ...scopedWhere(facultyId) },
-    select: { id: true, student: { select: { id: true } } },
+    select: {
+      id: true,
+      status: true,
+      isStudent: true,
+      student: { select: { id: true } },
+      userRoles: { select: { roleId: true } },
+    },
   });
   if (!current) throw new ApiError(404, "User not found in your faculty scope");
-  if (current.student && input.roleName === "STUDENT_AFFAIRS") {
-    throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
+  if (current.status === "DISABLED") throw new ApiError(400, "Disabled accounts cannot be edited");
+  const isStudent = current.isStudent || Boolean(input.studentCode?.trim());
+  const roleIds = [...new Set(input.roleIds)];
+  if (actorId === id) {
+    const currentRoleIds = new Set(current.userRoles.map((ur) => ur.roleId));
+    const nextRoleIds = new Set(roleIds);
+    const sameRoles =
+      currentRoleIds.size === nextRoleIds.size &&
+      [...currentRoleIds].every((roleId) => nextRoleIds.has(roleId));
+    if (!sameRoles) {
+      throw new ApiError(403, "Cannot assign roles to yourself");
+    }
   }
-  const role = await prisma.role.findUniqueOrThrow({ where: { code: input.roleName } });
-  const isStudentOrganizer = Boolean(current.student && input.roleName === "EVENT_ORGANIZER");
-  const studentRole = isStudentOrganizer
-    ? await prisma.role.findUniqueOrThrow({ where: { code: "STUDENT" } })
-    : null;
+  await assertCanAssignWildcardRoles(actorId, roleIds);
   const password = input.password ? await bcrypt.hash(input.password, 12) : undefined;
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -195,24 +267,22 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
         email: input.email.trim().toLowerCase(),
         name: input.name.trim(),
         ...(password ? { password } : {}),
-        primaryFacultyId: input.roleName !== "STUDENT" || isStudentOrganizer ? facultyId : null,
+        primaryFacultyId: isStudent ? null : facultyId,
       },
     });
     await tx.userRole.deleteMany({ where: { userId: id } });
-    await tx.userRole.createMany({
-      data: [
-        { userId: id, roleId: role.id },
-        ...(studentRole ? [{ userId: id, roleId: studentRole.id }] : []),
-      ],
-    });
-    if (input.roleName === "STUDENT")
+    if (roleIds.length) {
+      await tx.userRole.createMany({
+        data: roleIds.map((roleId) => ({ userId: id, roleId })),
+      });
+    }
+    if (isStudent)
       await tx.student.upsert({
         where: { userId: id },
         update: { studentCode: input.studentCode!.trim(), classId: input.classId },
         create: { userId: id, studentCode: input.studentCode!.trim(), classId: input.classId },
       });
-    else if (current.student && !isStudentOrganizer)
-      await tx.student.delete({ where: { userId: id } });
+    else if (current.student) await tx.student.delete({ where: { userId: id } });
   });
   await redisClient.revokeUserRefreshSessions(id);
   return prisma.user.findUniqueOrThrow({ where: { id }, select });
@@ -223,6 +293,7 @@ export async function setFacultyStaffStatus(
   id: string,
   status: "ACTIVE" | "DISABLED",
 ) {
+  if (status === "ACTIVE") throw new ApiError(400, "Disabled accounts cannot be reactivated");
   if (actorId === id) throw new ApiError(409, "You cannot change your own status");
   const actor = await access(actorId);
   if (actor.manageAnyUnit)

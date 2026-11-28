@@ -181,16 +181,45 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
   }
 }
 
+const STUDENT_ONLY_PERMISSIONS = new Set([
+  "event.read-own",
+  "conduct-score.read-own",
+  "appeal.read-own",
+  "appeal.create",
+  "notification.read-own",
+  "attendance.scan",
+  "profile.update-own",
+]);
+
+function hasManagementAccess(permissions: string[]): boolean {
+  return permissions.some((p) => p === "*" || !STUDENT_ONLY_PERMISSIONS.has(p));
+}
+
 export async function loginAdmin(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
-    include: { userRoles: { include: { role: true } } },
+    include: {
+      userRoles: {
+        include: {
+          role: {
+            include: {
+              rolePermissions: { include: { permission: { select: { permission: true } } } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!user?.password || !(await bcrypt.compare(password, user.password))) {
     throw new ApiError(401, "Invalid email or password");
   }
   if (user.status === "DISABLED") throw new ApiError(403, "Account is disabled");
-  if (user.isStudent) throw new ApiError(403, "This login is only for staff");
+  const permissions = user.userRoles.flatMap(({ role }) =>
+    role.rolePermissions.map(({ permission }) => permission.permission),
+  );
+  if (user.isStudent && !hasManagementAccess(permissions)) {
+    throw new ApiError(403, "Account does not have management permissions");
+  }
   const sessionRole = user.userRoles[0]?.role.code ?? "STAFF";
 
   return {
@@ -244,15 +273,27 @@ export async function switchAccessMode(userId: string, mode: LoginMode) {
       name: true,
       isStudent: true,
       status: true,
-      userRoles: { select: { role: { select: { code: true } } } },
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              code: true,
+              rolePermissions: { select: { permission: { select: { permission: true } } } },
+            },
+          },
+        },
+      },
     },
   });
   if (!user || user.status === "DISABLED") {
     throw new ApiError(403, "Account is disabled or unavailable");
   }
 
-  if (mode === "ADMIN" && user.isStudent) {
-    throw new ApiError(403, "Account does not have staff access");
+  const permissions = user.userRoles.flatMap(({ role }) =>
+    role.rolePermissions.map(({ permission }) => permission.permission),
+  );
+  if (mode === "ADMIN" && user.isStudent && !hasManagementAccess(permissions)) {
+    throw new ApiError(403, "Account does not have management permissions");
   }
   if (mode === "STUDENT" && !user.isStudent) {
     throw new ApiError(403, "Account is not a student account");

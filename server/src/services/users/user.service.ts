@@ -39,7 +39,7 @@ const publicUserSelect = {
   updatedAt: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, code: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true, displayName: true } } } },
   student: {
     select: {
       id: true,
@@ -64,9 +64,14 @@ const publicUserSelect = {
   },
 } as const;
 
-export async function listUsers(params: PaginationParams, filters: UserFilters = {}) {
+export async function listUsers(
+  params: PaginationParams,
+  filters: UserFilters = {},
+  actorId?: string,
+) {
   const search = filters.search?.trim();
   const where: Prisma.UserWhereInput = {
+    ...(actorId ? { id: { not: actorId } } : {}),
     ...(search
       ? {
           OR: [
@@ -84,7 +89,16 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
     ...(filters.userType === "STUDENT"
       ? { isStudent: true }
       : filters.userType === "STAFF"
-        ? { isStudent: false }
+        ? {
+            isStudent: false,
+            NOT: {
+              userRoles: {
+                some: {
+                  role: { rolePermissions: { some: { permission: { permission: "*" } } } },
+                },
+              },
+            },
+          }
         : {}),
     ...(filters.classId
       ? { student: { is: { classId: filters.classId } } }
@@ -107,7 +121,7 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
     prisma.user.findMany({
       where,
       select: publicUserSelect,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }, { id: "desc" }],
       skip: params.skip,
       take: params.limit,
     }),
@@ -175,15 +189,42 @@ function validateStaffInput(
   }
 }
 
-export async function createUser(input: UserInput) {
+async function assertCanAssignWildcardRoles(actorId: string, roleIds: string[]): Promise<void> {
+  if (!roleIds.length) return;
+  const wildcardRole = await prisma.role.findFirst({
+    where: {
+      id: { in: roleIds },
+      rolePermissions: { some: { permission: { permission: "*" } } },
+    },
+    select: { id: true },
+  });
+  if (!wildcardRole) return;
+  const actorHasWildcard = await prisma.userRole.findFirst({
+    where: {
+      userId: actorId,
+      user: { status: "ACTIVE" },
+      role: { rolePermissions: { some: { permission: { permission: "*" } } } },
+    },
+    select: { userId: true },
+  });
+  if (!actorHasWildcard) {
+    throw new ApiError(403, "Cannot assign a role with wildcard (*) permission");
+  }
+}
+
+export async function createUser(actorId: string, input: UserInput) {
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
+  await assertCanAssignWildcardRoles(
+    actorId,
+    roles.map((r) => r.id),
+  );
   const isStudent = Boolean(input.studentCode?.trim());
   validateStaffInput(input, email, isStudent, true);
   const studentCode = input.studentCode?.trim();
   if (isStudent && !studentCode)
     throw new ApiError(400, "studentCode is required for STUDENT role");
-  const password = input.password ? await bcrypt.hash(input.password, 12) : null;
+  const password = await bcrypt.hash(input.password?.trim() || "123456", 12);
   if (!isStudent && input.primaryFacultyId) {
     const faculty = await prisma.faculty.findUnique({
       where: { id: input.primaryFacultyId },
@@ -202,6 +243,7 @@ export async function createUser(input: UserInput) {
           email,
           name,
           password,
+          isStudent,
           primaryFacultyId: isStudent ? null : (input.primaryFacultyId ?? null),
         },
       });
@@ -227,15 +269,30 @@ export async function createUser(input: UserInput) {
   }
 }
 
-export async function updateUser(id: string, input: UserInput) {
+export async function updateUser(actorId: string, id: string, input: UserInput) {
   const current = await prisma.user.findUnique({
     where: { id },
-    include: { student: true },
+    include: { student: true, userRoles: { select: { roleId: true } } },
   });
   if (!current) throw new ApiError(404, "User not found");
+  if (current.status === "DISABLED") throw new ApiError(400, "Disabled accounts cannot be edited");
 
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
+  if (actorId === id) {
+    const currentRoleIds = new Set(current.userRoles.map((ur) => ur.roleId));
+    const nextRoleIds = new Set(roles.map((r) => r.id));
+    const sameRoles =
+      currentRoleIds.size === nextRoleIds.size &&
+      [...currentRoleIds].every((roleId) => nextRoleIds.has(roleId));
+    if (!sameRoles) {
+      throw new ApiError(403, "Cannot assign roles to yourself");
+    }
+  }
+  await assertCanAssignWildcardRoles(
+    actorId,
+    roles.map((r) => r.id),
+  );
   const isStudent = current.isStudent;
   validateStaffInput(input, email, isStudent, false);
   if (current.email === "admin" && (email !== "admin" || roles.length === 0)) {
@@ -323,6 +380,7 @@ export async function setStaffStatus(
   id: string,
   status: "ACTIVE" | "DISABLED",
 ) {
+  if (status === "ACTIVE") throw new ApiError(400, "Disabled accounts cannot be reactivated");
   if (actorUserId === id) throw new ApiError(409, "You cannot change your own status");
   const staff = await prisma.user.findFirst({
     where: {

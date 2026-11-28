@@ -58,8 +58,8 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   for (const [index, [name, email, studentCode]] of demoStudents.entries()) {
     const user = await prisma.user.upsert({
       where: { email },
-      update: { name, password, status: "ACTIVE", primaryFacultyId: null },
-      create: { email, name, password, status: "ACTIVE" },
+      update: { name, password, isStudent: true, status: "ACTIVE", primaryFacultyId: null },
+      create: { email, name, password, isStudent: true, status: "ACTIVE" },
     });
     await prisma.userRole.upsert({
       where: { userId_roleId: { userId: user.id, roleId: studentRole.id } },

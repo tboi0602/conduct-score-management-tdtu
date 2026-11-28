@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePaginatedData } from "@/hooks/shared/usePaginatedData";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { useBulkAction } from "@/hooks/shared/useBulkAction";
+import { useUrlQueryState } from "@/hooks/shared/useUrlQueryState";
 import {
   prependCachedEntity,
   removeCachedEntity,
@@ -15,7 +16,7 @@ import { adminService } from "@/services/admin";
 import { HttpError } from "@/services/http";
 import type { AdminUser, Faculty, Role, UserFilters, UserPayload } from "@/types/admin";
 import { useToast } from "@/components/ui/ToastProvider";
-import { extractServerErrorMessage } from "@/hooks/api/useApi";
+import { extractServerErrorMessage, useApi } from "@/hooks/api/useApi";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
@@ -24,9 +25,22 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const scoped = !access.can("user.read") && access.can("student.read");
   const { locale, t } = useAdminTranslations();
   const { showToast } = useToast();
-  const [filters, setFilters] = useState<UserFilters>(() => (mode ? { userType: mode } : {}));
-  const [searchTerm, setSearchTerm] = useState("");
+  const { execute } = useApi();
+  const [searchTerm, setSearchTerm] = useUrlQueryState("search");
+  const [facultyId, setFacultyId] = useUrlQueryState("facultyId");
+  const [majorId, setMajorId] = useUrlQueryState("majorId");
+  const [classId, setClassId] = useUrlQueryState("classId");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const filters = useMemo<UserFilters>(
+    () => ({
+      ...(mode ? { userType: mode } : {}),
+      ...(debouncedSearchTerm.trim().length > 2 ? { search: debouncedSearchTerm.trim() } : {}),
+      ...(facultyId ? { facultyId } : {}),
+      ...(majorId ? { majorId } : {}),
+      ...(classId ? { classId } : {}),
+    }),
+    [classId, debouncedSearchTerm, facultyId, majorId, mode],
+  );
   const fetchUsers = useCallback(
     (page: number, limit: number) =>
       scoped
@@ -39,7 +53,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const rolesQuery = useQuery({
     queryKey: [...queryKeys.roles.all, "options"],
     queryFn: () => adminService.listRoles(1, 100),
-    enabled: !scoped,
+    enabled: !scoped || access.can("user.assign-role") || access.can("role.read"),
     staleTime: 10 * 60 * 1000,
   });
   const academicQuery = useQuery({
@@ -67,14 +81,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       ),
     queryKeys: [queryKeys.users.all, queryKeys.auth.me],
   });
-  const roles: Role[] = scoped
-    ? ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].map((code) => ({
-        id: code,
-        code,
-        rolePermissions: [],
-        _count: { userRoles: 0 },
-      }))
-    : (rolesQuery.data?.data ?? []);
+  const roles: Role[] = rolesQuery.data?.data ?? [];
   const faculties: Faculty[] = academicQuery.data?.data ?? [];
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
@@ -82,13 +89,6 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionFieldErrors, setActionFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
-  useEffect(() => {
-    const search = debouncedSearchTerm.trim() || undefined;
-    list.setPage(1);
-    setFilters((current) => (current.search === search ? current : { ...current, search }));
-    // setPage is a stable React state setter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchTerm]);
   const openCreate = () => {
     setEditing(null);
     setActionError(null);
@@ -153,6 +153,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
               : adminService.createUser(payload));
         if (editing) updateCachedEntity(queryClient, queryKeys.users.all, response.data);
         else prependCachedEntity(queryClient, queryKeys.users.all, response.data);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
         setModalOpen(false);
         setEditing(null);
         showToast(
@@ -208,32 +209,39 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       setDeleting(null);
       return;
     }
-    try {
-      const result = await (scoped
-        ? adminService.deleteFacultyUser(deleting)
-        : adminService.deleteUser(deleting.id));
-      if (scoped && !deleting.student && result && "data" in result)
-        updateCachedEntity(queryClient, queryKeys.users.all, result.data);
-      else removeCachedEntity(queryClient, queryKeys.users.all, deleting.id);
-      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
-        list.setPage(list.page - 1);
-      setDeleting(null);
-      showToast(t.userDeleted);
-    } catch (error) {
-      const message =
-        error instanceof HttpError && error.code === "STUDENT_HAS_STAFF_ROLE"
-          ? t.studentHasStaffRole
-          : extractServerErrorMessage(error, t.userDeleteError);
-      setActionError(message);
-      showToast(message, "error");
-    }
-  }, [access.profile?.id, deleting, list, queryClient, scoped, showToast, t]);
+    await execute<void | { ok: true; data: AdminUser }>(
+      () =>
+        scoped ? adminService.deleteFacultyUser(deleting) : adminService.deleteUser(deleting.id),
+      {
+        successMessage: t.userDeleted,
+        onSuccess: (result) => {
+          if (scoped && !deleting.student && result && "data" in result)
+            updateCachedEntity(queryClient, queryKeys.users.all, result.data);
+          else removeCachedEntity(queryClient, queryKeys.users.all, deleting.id);
+          if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
+            list.setPage(list.page - 1);
+          setDeleting(null);
+        },
+        onError: (message, error) => {
+          const resolved =
+            error instanceof HttpError && error.code === "STUDENT_HAS_STAFF_ROLE"
+              ? t.studentHasStaffRole
+              : message;
+          setActionError(resolved);
+        },
+      },
+    );
+  }, [access.profile?.id, deleting, execute, list, queryClient, scoped, showToast, t]);
   const applyFilters = (next: UserFilters) => {
     list.setPage(1);
-    setFilters(next);
+    setFacultyId(next.facultyId ?? "");
+    setMajorId(next.majorId ?? "");
+    setClassId(next.classId ?? "");
   };
   return {
     ...list,
+    scoped,
+    effectiveFacultyId: access.profile?.effectiveFaculty?.id ?? "",
     actionError,
     actionFieldErrors,
     applyFilters,
@@ -254,7 +262,10 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     bulkDeleteStudents,
     bulkActivateStaff,
     bulkDisableStaff,
-    canCreateStaff: access.can("user.create"),
+    canCreateStaff:
+      mode === "STUDENT"
+        ? access.can("user.create") || access.can("faculty-staff.create-student")
+        : access.can("user.create") || access.can("faculty-staff.create"),
     openCreate,
     openEdit,
     roles,

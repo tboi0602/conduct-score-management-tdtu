@@ -16,14 +16,15 @@ import { parsePagination } from "@utils/pagination";
 const actor = (res: Response) => (res.locals.auth as AuthContext).sub;
 function input(req: Request): service.FacultyUserInput {
   const body = objectInput(req.body);
-  const roleName = body.roleName;
-  if (roleName !== "STUDENT" && roleName !== "EVENT_ORGANIZER" && roleName !== "STUDENT_AFFAIRS")
-    throw new ApiError(400, "Only STUDENT, EVENT_ORGANIZER, or STUDENT_AFFAIRS can be managed");
+  const rawRoleIds = Array.isArray(body.roleIds) ? body.roleIds : [];
+  if (rawRoleIds.some((id) => typeof id !== "string")) {
+    throw new ApiError(400, "roleIds must be an array of strings");
+  }
   return {
     email: textInput(body.email, "email", 150),
     name: textInput(body.name, "name", 100),
     password: typeof body.password === "string" && body.password ? body.password : undefined,
-    roleName,
+    roleIds: rawRoleIds as string[],
     studentCode: typeof body.studentCode === "string" ? body.studentCode : null,
     classId: typeof body.classId === "string" ? uuidInput(body.classId, "classId") : null,
   };

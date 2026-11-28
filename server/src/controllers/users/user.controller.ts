@@ -36,16 +36,21 @@ function parseInput(req: Request): userService.UserInput {
 export async function listUsers(req: Request, res: Response): Promise<void> {
   const stringQuery = (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : undefined;
-  const result = await userService.listUsers(parsePagination(req.query), {
-    search: stringQuery(req.query.search),
-    facultyId: stringQuery(req.query.facultyId),
-    majorId: stringQuery(req.query.majorId),
-    classId: stringQuery(req.query.classId),
-    roleId: stringQuery(req.query.roleId),
-    userType: optionalQuery(req.query.userType, (value) =>
-      enumInput(value, ["STUDENT", "STAFF"] as const, "userType"),
-    ),
-  });
+  const auth = res.locals.auth as AuthContext;
+  const result = await userService.listUsers(
+    parsePagination(req.query),
+    {
+      search: stringQuery(req.query.search),
+      facultyId: stringQuery(req.query.facultyId),
+      majorId: stringQuery(req.query.majorId),
+      classId: stringQuery(req.query.classId),
+      roleId: stringQuery(req.query.roleId),
+      userType: optionalQuery(req.query.userType, (value) =>
+        enumInput(value, ["STUDENT", "STAFF"] as const, "userType"),
+      ),
+    },
+    auth.sub,
+  );
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }
 
@@ -54,13 +59,15 @@ export async function getUser(req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  res.status(201).json({ ok: true, data: await userService.createUser(parseInput(req)) });
+  const auth = res.locals.auth as AuthContext;
+  res.status(201).json({ ok: true, data: await userService.createUser(auth.sub, parseInput(req)) });
 }
 
 export async function updateUser(req: Request, res: Response): Promise<void> {
+  const auth = res.locals.auth as AuthContext;
   res.json({
     ok: true,
-    data: await userService.updateUser(req.params.id, parseInput(req)),
+    data: await userService.updateUser(auth.sub, req.params.id, parseInput(req)),
   });
 }
 

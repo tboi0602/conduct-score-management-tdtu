@@ -18,7 +18,7 @@ export function Modal({
   title: string;
   description?: string;
   children: ReactNode;
-  size?: "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl";
 }) {
   const { t } = useAdminTranslations();
   useEffect(() => {
@@ -35,10 +35,10 @@ export function Modal({
     };
   }, [onClose, open]);
   if (!open) return null;
-  const width = { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[size];
+  const width = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[size];
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-[#0b1f3a]/45 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-[#0b1f3a]/30 p-4 backdrop-blur-[1px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -47,10 +47,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`my-6 w-full ${width} animate-[modal-in_.25s_cubic-bezier(.16,1,.3,1)] overflow-hidden rounded-[26px] border border-white/80 bg-white shadow-[0_34px_80px_-28px_rgba(11,31,58,.55)]`}
+        className={`my-6 w-full ${width} animate-[modal-in_.2s_cubic-bezier(.16,1,.3,1)] overflow-hidden rounded-xl border border-[#e3eaf2] bg-white shadow-xl`}
       >
-        <div className="h-1 bg-[#154a9b]" />
-        <header className="relative z-20 flex items-start justify-between gap-4 border-b border-[#e3eaf2] bg-[#f9fbfd] px-6 py-5">
+        <header className="relative z-20 flex items-start justify-between gap-4 border-b border-[#e3eaf2] bg-[#f9fbfd] px-5 py-3.5">
           <div>
             <h2 id="modal-title" className="text-xl font-bold tracking-tight text-[#102a50]">
               {title}
