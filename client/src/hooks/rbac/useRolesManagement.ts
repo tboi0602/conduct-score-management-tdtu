@@ -12,15 +12,18 @@ import {
   updateCachedEntity,
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
-import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
+import { useDebounce } from "@/hooks/shared/useDebounce";
+import { useApi } from "@/hooks/api/useApi";
 
-const fetchRoles = (page: number, limit: number) => adminService.listRoles(page, limit);
-
-export function useRolesManagement() {
-  const { locale } = useLanguage();
-  const { showToast } = useToast();
-  const list = usePaginatedData(queryKeys.roles.all, fetchRoles);
+export function useRolesManagement(search = "") {
+  const { t } = useAdminTranslations();
+  const { execute, isLoading: isSaving, error: actionError, clearError } = useApi();
+  const debouncedSearch = useDebounce(search, 500);
+  const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
+  const list = usePaginatedData([...queryKeys.roles.all, effectiveSearch], (page, limit) =>
+    adminService.listRoles(page, limit, effectiveSearch),
+  );
   const queryClient = useQueryClient();
   const permissionsQuery = useQuery({
     queryKey: [...queryKeys.permissions.all, "options"],
@@ -32,68 +35,61 @@ export function useRolesManagement() {
   const [viewing, setViewing] = useState<Role | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleting, setDeleting] = useState<Role | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const submit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      setActionError(null);
-      setIsSaving(true);
       const form = new FormData(event.currentTarget);
       const payload = {
-        name: String(form.get("name") ?? ""),
+        name: String(form.get("code") ?? ""),
+        displayName: String(form.get("displayName") ?? "").trim() || null,
         permissionIds: form.getAll("permissionIds").map(String),
       };
-      try {
-        const response = editing
-          ? await adminService.updateRole(editing.id, payload)
-          : await adminService.createRole(payload);
-        if (editing) updateCachedEntity(queryClient, queryKeys.roles.all, response.data);
-        else prependCachedEntity(queryClient, queryKeys.roles.all, response.data);
-        setModalOpen(false);
-        setEditing(null);
-        showToast(locale === "vi" ? "Lưu vai trò thành công." : "Role saved successfully.");
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : "Không thể lưu vai trò");
-        showToast(locale === "vi" ? "Không thể lưu vai trò." : "Unable to save role.", "error");
-      } finally {
-        setIsSaving(false);
-      }
+      await execute(
+        () =>
+          editing ? adminService.updateRole(editing.id, payload) : adminService.createRole(payload),
+        {
+          successMessage: t.roleSaved,
+          onSuccess: (response) => {
+            if (editing) updateCachedEntity(queryClient, queryKeys.roles.all, response.data);
+            else prependCachedEntity(queryClient, queryKeys.roles.all, response.data);
+            setModalOpen(false);
+            setEditing(null);
+          },
+        },
+      );
     },
-    [editing, locale, queryClient, showToast],
+    [editing, execute, queryClient, t.roleSaved],
   );
 
   const confirmDelete = useCallback(async () => {
     if (!deleting) return;
-    try {
-      await adminService.deleteRole(deleting.id);
-      removeCachedEntity(queryClient, queryKeys.roles.all, deleting.id);
-      if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
-        list.setPage(list.page - 1);
-      setDeleting(null);
-      showToast(locale === "vi" ? "Xóa vai trò thành công." : "Role deleted successfully.");
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Không thể xóa vai trò");
-      showToast(locale === "vi" ? "Không thể xóa vai trò." : "Unable to delete role.", "error");
-    }
-  }, [deleting, list, locale, queryClient, showToast]);
+    await execute(() => adminService.deleteRole(deleting.id), {
+      successMessage: t.roleDeleted,
+      onSuccess: () => {
+        removeCachedEntity(queryClient, queryKeys.roles.all, deleting.id);
+        if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
+          list.setPage(list.page - 1);
+        setDeleting(null);
+      },
+    });
+  }, [deleting, execute, list, queryClient, t.roleDeleted]);
 
   const openCreate = () => {
     setEditing(null);
-    setActionError(null);
+    clearError();
     setModalOpen(true);
   };
   const openEdit = (role: Role) => {
     setEditing(role);
-    setActionError(null);
+    clearError();
     setModalOpen(true);
   };
   const closeModal = () => {
     if (!isSaving) {
       setModalOpen(false);
       setEditing(null);
-      setActionError(null);
+      clearError();
     }
   };
   return {

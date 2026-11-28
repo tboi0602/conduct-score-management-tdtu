@@ -3,8 +3,12 @@ import * as rbac from "@services/rbac/rbac.service";
 import { ApiError } from "@utils/ApiError";
 import { parsePagination } from "@utils/pagination";
 
-function roleInput(req: Request): { name: string; permissionIds: string[] } {
-  const { name, permissionIds = [] } = req.body ?? {};
+function roleInput(req: Request): {
+  name: string;
+  displayName?: string | null;
+  permissionIds: string[];
+} {
+  const { name, displayName, permissionIds = [] } = req.body ?? {};
   if (
     typeof name !== "string" ||
     !Array.isArray(permissionIds) ||
@@ -12,49 +16,46 @@ function roleInput(req: Request): { name: string; permissionIds: string[] } {
   ) {
     throw new ApiError(400, "name and permissionIds are invalid");
   }
-  return { name, permissionIds };
+  if (displayName !== undefined && displayName !== null && typeof displayName !== "string") {
+    throw new ApiError(400, "displayName must be a string or null");
+  }
+  return { name, displayName, permissionIds };
 }
 
-function permissionInput(req: Request): { permission: string; description?: string | null } {
-  const { permission, description } = req.body ?? {};
-  if (typeof permission !== "string") {
-    throw new ApiError(400, "Permission name is required");
-  }
+function permissionDescriptionInput(req: Request): string | null | undefined {
+  const { description } = req.body ?? {};
   if (description !== undefined && description !== null && typeof description !== "string") {
     throw new ApiError(400, "Permission description must be a string or null");
   }
-  return { permission, description };
+  return description;
 }
 
 export async function listPermissions(req: Request, res: Response) {
-  const result = await rbac.listPermissions(parsePagination(req.query));
+  const search = typeof req.query.search === "string" ? req.query.search : undefined;
+  const result = await rbac.listPermissions(parsePagination(req.query), search);
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }
-export async function createPermission(req: Request, res: Response) {
-  const input = permissionInput(req);
-  res.status(201).json({ ok: true, data: await rbac.createPermission(input) });
-}
 export async function updatePermission(req: Request, res: Response) {
-  const input = permissionInput(req);
-  res.json({ ok: true, data: await rbac.updatePermission(req.params.id, input) });
-}
-export async function deletePermission(req: Request, res: Response) {
-  await rbac.deletePermission(req.params.id);
-  res.status(204).end();
+  const description = permissionDescriptionInput(req);
+  res.json({ ok: true, data: await rbac.updatePermission(req.params.id, description) });
 }
 export async function listRoles(req: Request, res: Response) {
-  const result = await rbac.listRoles(parsePagination(req.query));
+  const search = typeof req.query.search === "string" ? req.query.search : undefined;
+  const result = await rbac.listRoles(parsePagination(req.query), search);
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }
 export async function createRole(req: Request, res: Response) {
   const input = roleInput(req);
-  res.status(201).json({ ok: true, data: await rbac.createRole(input.name, input.permissionIds) });
+  res.status(201).json({
+    ok: true,
+    data: await rbac.createRole(input.name, input.permissionIds, input.displayName),
+  });
 }
 export async function updateRole(req: Request, res: Response) {
   const input = roleInput(req);
   res.json({
     ok: true,
-    data: await rbac.updateRole(req.params.id, input.name, input.permissionIds),
+    data: await rbac.updateRole(req.params.id, input.name, input.permissionIds, input.displayName),
   });
 }
 export async function deleteRole(req: Request, res: Response) {

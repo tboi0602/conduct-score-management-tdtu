@@ -23,11 +23,11 @@ export async function loginAdmin(email: string, password: string) {
   return response.data;
 }
 
-export async function loginWithGoogle(credential: string, mode: LoginMode) {
-  const response = await http<ApiResponse<AuthSession>>("/api/v1/auth/google", {
+export async function loginStudent(studentCode: string, password: string) {
+  const response = await http<ApiResponse<AuthSession>>("/api/v1/auth/student/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential, mode }),
+    body: JSON.stringify({ studentCode, password }),
   });
 
   return response.data;

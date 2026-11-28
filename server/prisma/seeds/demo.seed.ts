@@ -26,7 +26,7 @@ const rankingFor = (score: number): Ranking => {
 
 export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   const [studentRole, semester, classes, events, criteria] = await Promise.all([
-    prisma.role.findUniqueOrThrow({ where: { name: "STUDENT" } }),
+    prisma.role.findUniqueOrThrow({ where: { code: "STUDENT" } }),
     prisma.semester.findUniqueOrThrow({ where: { year_type: { year: 2026, type: "HK1" } } }),
     prisma.class.findMany({ take: 12, orderBy: { code: "asc" }, select: { id: true } }),
     prisma.event.findMany({

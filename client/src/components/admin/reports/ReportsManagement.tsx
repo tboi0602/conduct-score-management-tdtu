@@ -24,7 +24,7 @@ export function ReportsManagement() {
   const vi = locale === "vi";
   const t = reportMessages[locale];
   const access = useAdminAccess();
-  const isAdmin = access.profile?.roles.some((role) => role.name === "ADMIN");
+  const isAdmin = access.can("*");
   const [filters, setFilters] = useState<StudentReportFilter>({});
   const [page, setPage] = useState(1);
   const [printRows, setPrintRows] = useState<StudentReport["items"] | null>(null);

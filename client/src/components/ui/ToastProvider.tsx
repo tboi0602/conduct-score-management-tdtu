@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { adminMessages } from "@/i18n/admin-messages";
 
 type Toast = { id: number; message: string; tone: "success" | "error" };
 type ToastContextValue = { showToast: (message: string, tone?: Toast["tone"]) => void };
@@ -33,23 +34,23 @@ function ToastItem({
   return (
     <div
       role={success ? "status" : "alert"}
-      className={`pointer-events-auto relative flex w-[min(380px,calc(100vw-2rem))] items-start gap-3 overflow-hidden rounded-2xl border bg-white p-4 shadow-[0_22px_55px_-24px_rgba(16,42,80,.55)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${success ? "border-[#b8dfcb] before:bg-[#1f7a4d]" : "border-[#f0bdc4] before:bg-[#bd3343]"}`}
+      className={`pointer-events-auto relative flex max-w-[340px] animate-[toastSlideDown_200ms_ease-out] items-center gap-2 rounded-lg border bg-white px-3 py-2 shadow-md ${success ? "border-[#b8dfcb]" : "border-[#f0bdc4]"}`}
     >
       {success ? (
-        <CheckCircle2 size={19} className="mt-0.5 shrink-0 text-[#1f7a4d]" />
+        <CheckCircle2 size={15} className="shrink-0 text-[#1f7a4d]" />
       ) : (
-        <CircleAlert size={19} className="mt-0.5 shrink-0 text-[#bd3343]" />
+        <CircleAlert size={15} className="shrink-0 text-[#bd3343]" />
       )}
-      <p className="min-w-0 flex-1 text-sm font-semibold leading-5 text-[#263b58]">
+      <p className="min-w-0 flex-1 text-xs font-semibold leading-4 text-[#263b58]">
         {toast.message}
       </p>
       <button
         type="button"
         onClick={close}
         aria-label={closeLabel}
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[#718096] transition hover:bg-[#eef3f8] hover:text-[#102a50]"
+        className="grid h-5 w-5 shrink-0 place-items-center rounded text-[#718096] transition hover:bg-[#eef3f8] hover:text-[#102a50]"
       >
-        <X size={15} />
+        <X size={13} />
       </button>
     </div>
   );
@@ -66,12 +67,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-3">
+      <div className="pointer-events-none fixed left-1/2 top-3 z-[100] flex -translate-x-1/2 flex-col items-center gap-2">
         {toasts.map((toast) => (
           <ToastItem
             key={toast.id}
             toast={toast}
-            closeLabel={locale === "vi" ? "Đóng thông báo" : "Close notification"}
+            closeLabel={adminMessages[locale].closeNotification}
             close={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
           />
         ))}

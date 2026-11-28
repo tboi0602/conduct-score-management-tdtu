@@ -27,7 +27,7 @@ const select = {
   updatedAt: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, name: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true } } } },
   student: {
     select: {
       id: true,
@@ -67,10 +67,10 @@ const scopedWhere = (facultyId: string, userType?: "STUDENT" | "STAFF"): Prisma.
     AND: [
       {
         userRoles: {
-          some: { role: { name: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } },
+          some: { role: { code: { in: ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } } },
         },
       },
-      { NOT: { userRoles: { some: { role: { name: "ADMIN" } } } } },
+      { NOT: { userRoles: { some: { role: { code: "ADMIN" } } } } },
       {
         OR: [
           studentScope,
@@ -151,7 +151,7 @@ async function validateInput(actorId: string, input: FacultyUserInput) {
 
 export async function createFacultyUser(actorId: string, input: FacultyUserInput) {
   const facultyId = await validateInput(actorId, input);
-  const role = await prisma.role.findUniqueOrThrow({ where: { name: input.roleName } });
+  const role = await prisma.role.findUniqueOrThrow({ where: { code: input.roleName } });
   const password = input.password ? await bcrypt.hash(input.password, 12) : null;
   const userId = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -182,10 +182,10 @@ export async function updateFacultyUser(actorId: string, id: string, input: Facu
   if (current.student && input.roleName === "STUDENT_AFFAIRS") {
     throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
   }
-  const role = await prisma.role.findUniqueOrThrow({ where: { name: input.roleName } });
+  const role = await prisma.role.findUniqueOrThrow({ where: { code: input.roleName } });
   const isStudentOrganizer = Boolean(current.student && input.roleName === "EVENT_ORGANIZER");
   const studentRole = isStudentOrganizer
-    ? await prisma.role.findUniqueOrThrow({ where: { name: "STUDENT" } })
+    ? await prisma.role.findUniqueOrThrow({ where: { code: "STUDENT" } })
     : null;
   const password = input.password ? await bcrypt.hash(input.password, 12) : undefined;
   await prisma.$transaction(async (tx) => {

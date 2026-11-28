@@ -45,7 +45,7 @@ export function StudentShell({ children }: { children: ReactNode }) {
     }
     setIsAuthorized(true);
   }, [router]);
-  const workspace = useWorkspaceSwitch(profile?.roles.map((role) => role.name) ?? []);
+  const workspace = useWorkspaceSwitch(profile?.isStudent);
   const has = (permission: string) =>
     profile?.permissions.some(
       (item) => item.permission === "*" || item.permission === permission,

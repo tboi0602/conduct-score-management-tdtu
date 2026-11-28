@@ -30,21 +30,12 @@ export async function list(req: Request, res: Response): Promise<void> {
 
 export async function update(req: Request, res: Response): Promise<void> {
   const body = objectInput(req.body);
-  if (
-    !Array.isArray(body.roleIds) ||
-    body.roleIds.some((roleId) => typeof roleId !== "string") ||
-    (body.primaryFacultyId !== undefined &&
-      body.primaryFacultyId !== null &&
-      typeof body.primaryFacultyId !== "string")
-  ) {
+  if (!Array.isArray(body.roleIds) || body.roleIds.some((roleId) => typeof roleId !== "string")) {
     throw new ApiError(400, "Invalid role assignment");
   }
   const auth = res.locals.auth as AuthContext;
   const data = await updateRoleAssignment(auth.sub, req.params.id, {
     roleIds: body.roleIds as string[],
-    ...(body.primaryFacultyId !== undefined
-      ? { primaryFacultyId: body.primaryFacultyId as string | null }
-      : {}),
   });
   res.json({ ok: true, data });
 }

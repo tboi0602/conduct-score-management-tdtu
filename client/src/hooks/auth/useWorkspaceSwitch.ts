@@ -3,17 +3,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import { clearAuthSession, saveAuthSession } from "@/lib/auth-storage";
 import { logoutSession, switchAccessMode, type LoginMode } from "@/services/auth";
 
-const MANAGEMENT_ROLES = new Set(["ADMIN", "STUDENT_AFFAIRS", "EVENT_ORGANIZER"]);
-
-export function useWorkspaceSwitch(roleNames: string[]) {
+export function useWorkspaceSwitch(isStudent?: boolean) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { locale } = useLanguage();
+  const { t } = useAdminTranslations();
   const { showToast } = useToast();
 
   const mutation = useMutation({
@@ -21,30 +20,17 @@ export function useWorkspaceSwitch(roleNames: string[]) {
     onSuccess: (session, mode) => {
       saveAuthSession(session);
       queryClient.clear();
-      showToast(
-        mode === "STUDENT"
-          ? locale === "vi"
-            ? "Đã chuyển sang khu vực sinh viên."
-            : "Switched to the student workspace."
-          : locale === "vi"
-            ? "Đã chuyển sang khu vực quản lý."
-            : "Switched to the management workspace.",
-      );
+      showToast(mode === "STUDENT" ? t.switchedToStudent : t.switchedToManagement);
       router.replace(mode === "STUDENT" ? "/dashboard" : "/admin/dashboard");
     },
-    onError: () => {
-      showToast(
-        locale === "vi"
-          ? "Không thể chuyển khu vực. Vui lòng thử lại."
-          : "Unable to switch workspace. Please try again.",
-        "error",
-      );
+    onError: (error) => {
+      showToast(extractServerErrorMessage(error, t.switchWorkspaceError), "error");
     },
   });
 
   return {
-    canUseStudentWorkspace: roleNames.includes("STUDENT"),
-    canUseManagementWorkspace: roleNames.some((role) => MANAGEMENT_ROLES.has(role)),
+    canUseStudentWorkspace: isStudent === true,
+    canUseManagementWorkspace: isStudent === false,
     isSwitching: mutation.isPending,
     switchWorkspace: mutation.mutate,
     logout: async () => {

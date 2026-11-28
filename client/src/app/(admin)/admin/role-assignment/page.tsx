@@ -3,10 +3,7 @@ import { UserRoleAssignments } from "@/components/admin/users/UserRoleAssignment
 
 export default function RoleAssignmentPage() {
   return (
-    <AdminResourceAccess
-      permission="faculty-staff.assign-event-organizer"
-      allowedRoles={["ADMIN", "STUDENT_AFFAIRS"]}
-    >
+    <AdminResourceAccess permission="faculty-staff.assign-event-organizer">
       <UserRoleAssignments />
     </AdminResourceAccess>
   );

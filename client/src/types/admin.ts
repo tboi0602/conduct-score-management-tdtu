@@ -90,7 +90,8 @@ export type StudentReport = {
 
 export type Role = {
   id: string;
-  name: AppRole | string;
+  code: AppRole | string;
+  displayName?: string | null;
   rolePermissions: Array<{ permission: Permission }>;
   _count: { userRoles: number };
 };
@@ -104,7 +105,7 @@ export type AdminUser = {
   updatedAt: string;
   primaryFacultyId: string | null;
   primaryFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
-  userRoles: Array<{ role: { id: string; name: string } }>;
+  userRoles: Array<{ role: { id: string; code: string; displayName?: string | null } }>;
   student: {
     id: string;
     studentCode: string;
@@ -119,7 +120,8 @@ export type CurrentUserProfile = {
   id: string;
   email: string;
   name: string;
-  roles: Array<{ id: string; name: string }>;
+  isStudent?: boolean;
+  roles: Array<{ id: string; code: string; displayName?: string | null }>;
   permissions: Permission[];
   effectiveFaculty: Pick<Faculty, "id" | "code" | "name"> | null;
   student: {

@@ -12,9 +12,7 @@ const permissionDescriptions = {
   "role.update": "Cập nhật tên và quyền của vai trò",
   "role.delete": "Xóa vai trò khỏi hệ thống",
   "permission.read": "Xem danh sách quyền trong hệ thống",
-  "permission.create": "Tạo quyền mới",
   "permission.update": "Cập nhật tên và mô tả quyền",
-  "permission.delete": "Xóa quyền khỏi hệ thống",
   "auth.login": "Đăng nhập vào hệ thống",
   "event.read": "Xem danh sách và thông tin sự kiện",
   "event.create": "Tạo sự kiện mới",
@@ -66,7 +64,7 @@ const conductScorePermissionDescriptions = {
   "faculty-staff.create": "Tạo nhân sự Ban tổ chức trong khoa",
   "faculty-staff.update": "Cập nhật nhân sự Ban tổ chức trong khoa",
   "faculty-staff.disable": "Khóa hoặc mở khóa nhân sự Ban tổ chức trong khoa",
-  "faculty-staff.assign-event-organizer": "Gán vai trò Ban tổ chức trong khoa",
+  "user.assign-role": "Gán vai trò Ban tổ chức trong khoa",
   "conduct-score.read": "Xem điểm rèn luyện trong phạm vi",
   "conduct-score.manage": "Điều chỉnh điểm rèn luyện trong phạm vi",
   "conduct-score.finalize": "Chốt điểm rèn luyện trong phạm vi",
@@ -78,6 +76,13 @@ const allPermissionDescriptions = {
   ...permissionDescriptions,
   ...conductScorePermissionDescriptions,
 } as const;
+
+const roleDisplayNames: Record<string, string> = {
+  ADMIN: "Quản trị viên",
+  EVENT_ORGANIZER: "Tổ chức sự kiện",
+  STUDENT_AFFAIRS: "Công chức sinh viên",
+  STUDENT: "Sinh viên",
+};
 
 const permissionsByRole = {
   ADMIN: ["*"],
@@ -128,7 +133,7 @@ const permissionsByRole = {
     "faculty-staff.create",
     "faculty-staff.update",
     "faculty-staff.disable",
-    "faculty-staff.assign-event-organizer",
+    "user.assign-role",
     "conduct-score.read",
     "conduct-score.manage",
     "conduct-score.finalize",
@@ -163,10 +168,11 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
     });
   }
   for (const [roleName, permissionNames] of Object.entries(permissionsByRole)) {
+    const displayName = roleDisplayNames[roleName] ?? roleName;
     const role = await prisma.role.upsert({
-      where: { name: roleName },
-      update: {},
-      create: { name: roleName },
+      where: { code: roleName },
+      update: { displayName },
+      create: { code: roleName, displayName },
     });
 
     for (const permissionName of permissionNames) {
@@ -193,19 +199,30 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
 
   const supportedRoles = Object.keys(permissionsByRole);
   const obsoleteRoles = await prisma.role.findMany({
-    where: { name: { notIn: supportedRoles } },
-    select: { id: true, name: true, _count: { select: { userRoles: true } } },
+    where: { code: { notIn: supportedRoles } },
+    select: { id: true, code: true, _count: { select: { userRoles: true } } },
   });
   const assignedObsolete = obsoleteRoles.filter(({ _count }) => _count.userRoles > 0);
   if (assignedObsolete.length) {
     throw new Error(
-      `Unsupported assigned roles: ${assignedObsolete.map(({ name }) => name).join(", ")}`,
+      `Unsupported assigned roles: ${assignedObsolete.map(({ code }) => code).join(", ")}`,
     );
   }
   await prisma.role.deleteMany({ where: { id: { in: obsoleteRoles.map(({ id }) => id) } } });
-  await prisma.permission.deleteMany({ where: { permission: "training-point.read" } });
+  await prisma.permission.deleteMany({
+    where: {
+      permission: {
+        in: [
+          "training-point.read",
+          "permission.create",
+          "permission.delete",
+          "faculty-staff.assign-event-organizer",
+        ],
+      },
+    },
+  });
 
-  const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "ADMIN" } });
+  const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
   const password = await bcrypt.hash("admin", 12);
   const admin = await prisma.user.upsert({
     where: { email: "admin@tdtu.edu.vn" },

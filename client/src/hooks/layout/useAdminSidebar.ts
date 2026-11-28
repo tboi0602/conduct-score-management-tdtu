@@ -20,7 +20,9 @@ export function useAdminSidebar() {
   useEffect(() => {
     const session = getAuthSession();
     if (!session) return router.replace("/admin");
-    if (session.user.role === "STUDENT") return router.replace("/dashboard");
+    if (session.user.isStudent) {
+      return router.replace("/dashboard");
+    }
     setUser(session.user);
     setCollapsed(window.localStorage.getItem("admin.sidebar.collapsed") === "true");
   }, [router]);

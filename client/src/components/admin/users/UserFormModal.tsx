@@ -50,7 +50,7 @@ function UserForm({
   const isStudentOrganizer = Boolean(
     mode === "STAFF" &&
     user?.student &&
-    user.userRoles.some(({ role }) => role.name === "EVENT_ORGANIZER"),
+    user.userRoles.some(({ role }) => role.code === "EVENT_ORGANIZER"),
   );
   const [facultyId, setFacultyId] = useState(initialClass?.major.faculty.id ?? "");
   const [majorId, setMajorId] = useState(initialClass?.major.id ?? "");
@@ -58,7 +58,7 @@ function UserForm({
   const [primaryFacultyId, setPrimaryFacultyId] = useState(user?.primaryFacultyId ?? "");
   const majors = faculties.find((item) => item.id === facultyId)?.majors ?? [];
   const classes = majors.find((item) => item.id === majorId)?.classes ?? [];
-  const selectedRoles = new Set(user?.userRoles.flatMap(({ role }) => [role.id, role.name]) ?? []);
+  const selectedRoles = new Set(user?.userRoles.flatMap(({ role }) => [role.id, role.code]) ?? []);
   const displayedError = (field: UserFormField) => fieldErrors[field] ?? apiFieldErrors[field];
 
   const validateStaffForm = (form: FormData): UserFormErrors => {
@@ -229,7 +229,7 @@ function UserForm({
                   defaultChecked={selectedRoles.has(role.id)}
                   className="accent-[#154a9b]"
                 />
-                {role.name}
+                {role.displayName || role.code}
               </label>
             ))}
           </div>
@@ -241,8 +241,8 @@ function UserForm({
             {roles
               .filter((role) =>
                 isStudentOrganizer
-                  ? role.name === "EVENT_ORGANIZER"
-                  : role.name === "EVENT_ORGANIZER" || role.name === "STUDENT_AFFAIRS",
+                  ? role.code === "EVENT_ORGANIZER"
+                  : role.code === "EVENT_ORGANIZER" || role.code === "STUDENT_AFFAIRS",
               )
               .map((role) => (
                 <label
@@ -256,7 +256,7 @@ function UserForm({
                     defaultChecked={selectedRoles.has(role.id)}
                     className="accent-[#154a9b]"
                   />
-                  {role.name === "EVENT_ORGANIZER" ? t.eventOrganizerRole : t.studentAffairsRole}
+                  {role.code === "EVENT_ORGANIZER" ? t.eventOrganizerRole : t.studentAffairsRole}
                 </label>
               ))}
           </div>
@@ -303,7 +303,7 @@ function UserForm({
                     : "The faculty is derived from the student's class and cannot be changed here."
                   : t.staffFacultyHelp
                 : locale === "vi"
-                  ? "Sinh viên sử dụng khoa suy ra từ lớp; giá trị này áp dụng cho tài khoản cán bộ và giảng viên."
+                  ? "Sinh viên sử dụng khoa suy ra từ lớp; giá trị này áp dụng cho tài khoản cán bộ và công chức."
                   : "A student's faculty is derived from their class; this value applies to staff and lecturer accounts."}
             </p>
           )}

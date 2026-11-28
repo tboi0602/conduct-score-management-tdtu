@@ -1,13 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useApi } from "@/hooks/api/useApi";
+import { saveAuthSession } from "@/lib/auth-storage";
+import { loginStudent } from "@/services/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
   const { message } = useLanguage();
+  const { execute, isLoading, error } = useApi();
+  const [studentCode, setStudentCode] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await execute(() => loginStudent(studentCode, password), {
+      onSuccess: (session) => {
+        saveAuthSession(session);
+        router.replace("/dashboard");
+      },
+    });
+  };
 
   return (
     <AuthSplitShell
@@ -15,12 +35,30 @@ export default function LoginPage() {
       title={message.login.title}
       description={message.login.description}
     >
-      <GoogleSignInButton mode="STUDENT" />
-
-      <p className="mt-5 text-center text-xs leading-5 text-[#7a8799]">
-        {message.login.emailPrefix} <strong>@student.tdtu.edu.vn</strong>{" "}
-        {message.login.emailConnector} <strong>@tdtu.edu.vn</strong>.
-      </p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label={message.login.studentCode}
+          value={studentCode}
+          onChange={(e) => setStudentCode(e.target.value)}
+          placeholder={message.login.studentCodePlaceholder}
+          required
+          autoComplete="username"
+        />
+        <Input
+          label={message.login.password}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+        {error ? (
+          <p className="rounded-lg bg-[#fff1f2] px-3 py-2 text-xs text-[#b72e3f]">{error}</p>
+        ) : null}
+        <Button type="submit" loading={isLoading} className="w-full">
+          {message.login.submit}
+        </Button>
+      </form>
 
       <div className="mt-10 border-t border-[#e1e8f2] pt-6 text-center">
         <Link href="/admin" className="text-sm font-medium text-[#154a9b] hover:underline">

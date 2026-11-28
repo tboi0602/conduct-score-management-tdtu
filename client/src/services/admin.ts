@@ -26,16 +26,16 @@ export const adminService = {
     return authHttp<PaginatedResponse<AdminUser>>(`/api/v1/users?${query}`);
   },
   listRoleAssignmentUsers: (page: number, search?: string, roleId?: string) => {
-    const query = new URLSearchParams({ page: String(page), limit: "20" });
+    const query = new URLSearchParams({ page: String(page), limit: "50" });
     if (search && search.length >= 3) query.set("search", search);
     if (roleId) query.set("roleId", roleId);
     return authHttp<{
       ok: true;
       data: {
         items: AdminUser[];
-        roles: Array<{ id: string; name: string }>;
-        filterRoles: Array<{ id: string; name: string }>;
-        faculties: Array<{ id: string; name: string }>;
+        roles: Array<{ id: string; code: string }>;
+        filterRoles: Array<{ id: string; code: string }>;
+        faculties: Array<{ id: string; code: string }>;
         pagination: PaginatedResponse<AdminUser>["pagination"];
       };
     }>(`/api/v1/users/role-assignment?${query}`);
@@ -114,8 +114,12 @@ export const adminService = {
       body: JSON.stringify({ ids, status }),
     }),
 
-  listPermissions: (page: number, limit = 20) =>
-    authHttp<PaginatedResponse<Permission>>(`/api/v1/rbac/permissions?page=${page}&limit=${limit}`),
+  listPermissions: (page: number, limit = 50, search = "") => {
+    const query = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
+    return authHttp<PaginatedResponse<Permission>>(
+      `/api/v1/rbac/permissions?page=${page}&limit=${limit}${query}`,
+    );
+  },
   createPermission: (payload: { permission: string; description?: string | null }) =>
     authHttp<{ data: Permission }>("/api/v1/rbac/permissions", {
       method: "POST",
@@ -131,8 +135,12 @@ export const adminService = {
   deletePermission: (id: string) =>
     authHttp<void>(`/api/v1/rbac/permissions/${id}`, { method: "DELETE" }),
 
-  listRoles: (page: number, limit = 20) =>
-    authHttp<PaginatedResponse<Role>>(`/api/v1/rbac/roles?page=${page}&limit=${limit}`),
+  listRoles: (page: number, limit = 50, search = "") => {
+    const query = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
+    return authHttp<PaginatedResponse<Role>>(
+      `/api/v1/rbac/roles?page=${page}&limit=${limit}${query}`,
+    );
+  },
   createRole: (payload: { name: string; permissionIds: string[] }) =>
     authHttp<{ data: Role }>("/api/v1/rbac/roles", {
       method: "POST",

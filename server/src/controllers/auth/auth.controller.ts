@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import {
   getCurrentUser,
   loginAdmin,
-  loginWithGoogle,
+  loginStudent,
   refreshAccessToken,
   revokeRefreshToken,
   switchAccessMode,
@@ -40,7 +40,7 @@ function sendSession(
     accessToken: string;
     refreshToken: string;
     sessionId: string;
-    user: { id: string; email: string; name: string; role: string | string[] };
+    user: { id: string; email: string; name: string; isStudent: boolean; role: string | string[] };
   },
 ): void {
   res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions);
@@ -48,18 +48,12 @@ function sendSession(
   res.status(200).json({ ok: true, data: publicSession });
 }
 
-export async function googleLogin(req: Request, res: Response): Promise<void> {
-  const idToken = req.body?.idToken ?? req.body?.credential;
-  if (typeof idToken !== "string" || idToken.trim().length === 0) {
-    throw new ApiError(400, "Google ID token is required");
+export async function studentLogin(req: Request, res: Response): Promise<void> {
+  const { studentCode, password } = req.body ?? {};
+  if (typeof studentCode !== "string" || typeof password !== "string") {
+    throw new ApiError(400, "Student code and password are required");
   }
-
-  const mode = req.body?.mode ?? "STUDENT";
-  if (mode !== "STUDENT" && mode !== "ADMIN") {
-    throw new ApiError(400, "mode must be STUDENT or ADMIN");
-  }
-
-  const result = await loginWithGoogle(idToken, mode);
+  const result = await loginStudent(studentCode, password);
   sendSession(res, result);
 }
 

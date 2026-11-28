@@ -19,20 +19,8 @@ export async function getStudentReport(
   },
   pagination: PaginationParams,
 ) {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId },
-    select: { userRoles: { select: { role: { select: { name: true } } } } },
-  });
-  if (!actor) throw new ApiError(401, "User not found");
-  const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
   const access = await getEventAccess(actorId);
-  const canReport =
-    isAdmin ||
-    access.manageAnyUnit ||
-    actor.userRoles.some(({ role }) => ["STUDENT_AFFAIRS", "EVENT_ORGANIZER"].includes(role.name));
-  if (!canReport) throw new ApiError(403, "Student report access denied");
-
-  const canManageAllFaculties = isAdmin || access.manageAnyUnit;
+  const canManageAllFaculties = access.manageAnyUnit;
   if (!canManageAllFaculties && !access.facultyId) {
     throw new ApiError(409, "A primary faculty must be assigned");
   }

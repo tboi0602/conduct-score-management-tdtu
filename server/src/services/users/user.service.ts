@@ -27,20 +27,19 @@ export type UserFilters = {
   userType?: "STUDENT" | "STAFF";
 };
 
-const STAFF_ROLE_NAME_LIST = ["EVENT_ORGANIZER", "STUDENT_AFFAIRS"] as const;
-const STAFF_ROLE_NAMES = new Set<string>(STAFF_ROLE_NAME_LIST);
 const STAFF_EMAIL_PATTERN = /^[^@\s]+@tdtu\.edu\.vn$/i;
 
 const publicUserSelect = {
   id: true,
   email: true,
   name: true,
+  isStudent: true,
   status: true,
   createdAt: true,
   updatedAt: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, name: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true } } } },
   student: {
     select: {
       id: true,
@@ -83,15 +82,9 @@ export async function listUsers(params: PaginationParams, filters: UserFilters =
       : {}),
     ...(filters.roleId ? { userRoles: { some: { roleId: filters.roleId } } } : {}),
     ...(filters.userType === "STUDENT"
-      ? {
-          student: { isNot: null },
-          userRoles: { some: { role: { name: "STUDENT" } } },
-        }
+      ? { isStudent: true }
       : filters.userType === "STAFF"
-        ? {
-            userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-            NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
-          }
+        ? { isStudent: false }
         : {}),
     ...(filters.classId
       ? { student: { is: { classId: filters.classId } } }
@@ -157,21 +150,11 @@ function normalizeInput(input: UserInput) {
 function validateStaffInput(
   input: UserInput,
   email: string,
-  roles: Array<{ name: string }>,
+  isStudent: boolean,
   requirePassword: boolean,
 ) {
-  const isStudent = roles.some((role) => role.name === "STUDENT");
-  const staffRoles = roles.filter((role) => STAFF_ROLE_NAMES.has(role.name));
-  if (isStudent || staffRoles.length === 0) return;
+  if (isStudent) return;
 
-  if (roles.length !== 1 || staffRoles.length !== 1) {
-    throw new ApiError(
-      400,
-      "Staff accounts must have exactly one supported staff role",
-      "STAFF_ROLE_INVALID",
-      { roleIds: ["Select either EVENT_ORGANIZER or STUDENT_AFFAIRS"] },
-    );
-  }
   if (!STAFF_EMAIL_PATTERN.test(email)) {
     throw new ApiError(400, "Staff email must use the @tdtu.edu.vn domain", "STAFF_EMAIL_INVALID", {
       email: ["Staff email must use the @tdtu.edu.vn domain"],
@@ -195,8 +178,8 @@ function validateStaffInput(
 export async function createUser(input: UserInput) {
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
-  const isStudent = roles.some((role) => role.name === "STUDENT");
-  validateStaffInput(input, email, roles, true);
+  const isStudent = Boolean(input.studentCode?.trim());
+  validateStaffInput(input, email, isStudent, true);
   const studentCode = input.studentCode?.trim();
   if (isStudent && !studentCode)
     throw new ApiError(400, "studentCode is required for STUDENT role");
@@ -252,22 +235,11 @@ export async function updateUser(id: string, input: UserInput) {
   if (!current) throw new ApiError(404, "User not found");
 
   const { email, name } = normalizeInput(input);
-  let roles = await getRoles(input.roleIds);
-  const keepsStudentOrganizerRole =
-    Boolean(current.student) && roles.some((role) => role.name === "EVENT_ORGANIZER");
-  if (keepsStudentOrganizerRole && !roles.some((role) => role.name === "STUDENT")) {
-    const studentRole = await prisma.role.findUnique({ where: { name: "STUDENT" } });
-    if (!studentRole) throw new ApiError(500, "STUDENT role does not exist");
-    roles = [...roles, studentRole];
-  }
-  if (current.student && roles.some((role) => role.name === "STUDENT_AFFAIRS")) {
-    throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
-  }
-  const isStudent = roles.some((role) => role.name === "STUDENT");
-  validateStaffInput(input, email, roles, false);
-  const isAdmin = roles.some((role) => role.name === "ADMIN");
-  if (current.email === "admin" && (email !== "admin" || !isAdmin)) {
-    throw new ApiError(400, "The default admin account must keep its email and ADMIN role");
+  const roles = await getRoles(input.roleIds);
+  const isStudent = current.isStudent;
+  validateStaffInput(input, email, isStudent, false);
+  if (current.email === "admin" && (email !== "admin" || roles.length === 0)) {
+    throw new ApiError(400, "The default admin account must keep its email and at least one role");
   }
 
   const studentCode = input.studentCode?.trim() || current.student?.studentCode;
@@ -292,11 +264,7 @@ export async function updateUser(id: string, input: UserInput) {
         data: {
           email,
           name,
-          primaryFacultyId: isStudent
-            ? keepsStudentOrganizerRole
-              ? current.primaryFacultyId
-              : null
-            : (input.primaryFacultyId ?? null),
+          primaryFacultyId: isStudent ? null : (input.primaryFacultyId ?? null),
           ...(password ? { password } : {}),
         },
       });
@@ -359,8 +327,12 @@ export async function setStaffStatus(
   const staff = await prisma.user.findFirst({
     where: {
       id,
-      userRoles: { some: { role: { name: { in: [...STAFF_ROLE_NAME_LIST] } } } },
-      NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
+      isStudent: false,
+      NOT: {
+        userRoles: {
+          some: { role: { rolePermissions: { some: { permission: { permission: "*" } } } } },
+        },
+      },
     },
     select: { id: true },
   });

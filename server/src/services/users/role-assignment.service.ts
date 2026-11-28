@@ -12,7 +12,7 @@ const targetSelect = {
   email: true,
   primaryFacultyId: true,
   primaryFaculty: { select: { id: true, code: true, name: true } },
-  userRoles: { select: { role: { select: { id: true, name: true } } } },
+  userRoles: { select: { role: { select: { id: true, code: true, displayName: true } } } },
   student: {
     select: {
       studentCode: true,
@@ -53,17 +53,36 @@ export async function listRoleAssignmentUsers(
   const access = await getEventAccess(actorId);
   const actor = await prisma.user.findUnique({
     where: { id: actorId },
-    select: { userRoles: { select: { role: { select: { name: true } } } } },
+    select: {
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              rolePermissions: { select: { permission: { select: { permission: true } } } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!actor) throw new ApiError(401, "User not found");
-  const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
-  const isStudentAffairs = actor.userRoles.some(({ role }) => role.name === "STUDENT_AFFAIRS");
-  if (!isAdmin && !isStudentAffairs) {
-    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
-  }
+  const actorPermissions = new Set(
+    actor.userRoles.flatMap(({ role }) =>
+      role.rolePermissions.map(({ permission }) => permission.permission),
+    ),
+  );
+  const actorHasWildcard = actorPermissions.has("*");
   const where: Prisma.UserWhereInput = {
     id: { not: actorId },
-    NOT: { userRoles: { some: { role: { name: "ADMIN" } } } },
+    ...(actorHasWildcard
+      ? {}
+      : {
+          NOT: {
+            userRoles: {
+              some: { role: { rolePermissions: { some: { permission: { permission: "*" } } } } },
+            },
+          },
+        }),
     ...(access.manageAnyUnit
       ? {}
       : access.facultyId
@@ -94,16 +113,23 @@ export async function listRoleAssignmentUsers(
       take: pagination.limit,
     }),
     prisma.role.findMany({
-      where: isAdmin
-        ? { name: { not: "ADMIN" } }
-        : { name: { in: ["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"] } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
+      where: actorHasWildcard
+        ? undefined
+        : {
+            rolePermissions: {
+              every: {
+                permission: {
+                  permission: { in: [...actorPermissions] },
+                },
+              },
+            },
+          },
+      select: { id: true, code: true, displayName: true },
+      orderBy: { code: "asc" },
     }),
     prisma.role.findMany({
-      where: { name: { not: "ADMIN" } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
+      select: { id: true, code: true, displayName: true },
+      orderBy: { code: "asc" },
     }),
   ]);
   const faculties = access.manageAnyUnit
@@ -133,7 +159,17 @@ export async function updateRoleAssignment(
   const [actor, target, roles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: actorId },
-      select: { userRoles: { select: { role: { select: { name: true } } } } },
+      select: {
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                rolePermissions: { select: { permission: { select: { permission: true } } } },
+              },
+            },
+          },
+        },
+      },
     }),
     prisma.user.findUnique({
       where: { id: targetId },
@@ -143,83 +179,61 @@ export async function updateRoleAssignment(
           select: { id: true, class: { select: { major: { select: { facultyId: true } } } } },
         },
         primaryFacultyId: true,
-        userRoles: { select: { role: { select: { name: true } } } },
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                code: true,
+                displayName: true,
+                rolePermissions: { select: { permission: { select: { permission: true } } } },
+              },
+            },
+          },
+        },
       },
     }),
-    prisma.role.findMany({ where: { id: { in: [...new Set(input.roleIds)] } } }),
+    prisma.role.findMany({
+      where: { id: { in: [...new Set(input.roleIds)] } },
+      include: {
+        rolePermissions: { select: { permission: { select: { permission: true } } } },
+      },
+    }),
   ]);
   if (!actor || !target) throw new ApiError(404, "User not found");
-  if (target.userRoles.some(({ role }) => role.name === "ADMIN"))
-    throw new ApiError(403, "Administrator accounts cannot be managed here");
-  const isAdmin = actor.userRoles.some(({ role }) => role.name === "ADMIN");
-  const isStudentAffairs = actor.userRoles.some(({ role }) => role.name === "STUDENT_AFFAIRS");
-  if (!isAdmin && !isStudentAffairs) {
-    throw new ApiError(403, "Only administrators and student affairs staff can assign roles");
+  const actorPermissions = new Set(
+    actor.userRoles.flatMap(({ role }) =>
+      role.rolePermissions.map(({ permission }) => permission.permission),
+    ),
+  );
+  const actorHasWildcard = actorPermissions.has("*");
+  const targetHasWildcard = target.userRoles.some(({ role }) =>
+    role.rolePermissions.some(({ permission }) => permission.permission === "*"),
+  );
+  if (targetHasWildcard && !actorHasWildcard) {
+    throw new ApiError(403, "Accounts with full system access cannot be managed here");
   }
   const targetFacultyId = target.student?.class?.major.facultyId ?? target.primaryFacultyId;
   if (!access.manageAnyUnit && (!access.facultyId || targetFacultyId !== access.facultyId))
     throw new ApiError(403, "User is outside your faculty scope");
-  if (roles.length !== new Set(input.roleIds).size || roles.some((role) => role.name === "ADMIN"))
-    throw new ApiError(403, "The selected role assignment is not allowed");
-  if (
-    !isAdmin &&
-    roles.some((role) => !["STUDENT", "EVENT_ORGANIZER", "STUDENT_AFFAIRS"].includes(role.name))
-  )
-    throw new ApiError(403, "You cannot assign the selected role");
-  if (target.student && !roles.some((role) => role.name === "STUDENT"))
-    throw new ApiError(400, "Student accounts must retain the STUDENT role");
-  if (!target.student && roles.some((role) => role.name === "STUDENT"))
-    throw new ApiError(400, "The STUDENT role can only be assigned to student accounts");
-  if (target.student && roles.some((role) => role.name === "STUDENT_AFFAIRS"))
-    throw new ApiError(400, "Student accounts cannot be assigned the STUDENT_AFFAIRS role");
-  if (
-    roles.some((role) => role.name === "STUDENT") &&
-    roles.some((role) => role.name === "STUDENT_AFFAIRS")
-  )
-    throw new ApiError(400, "STUDENT and STUDENT_AFFAIRS roles cannot be combined");
-  if (
-    roles.some((role) => role.name === "STUDENT_AFFAIRS") &&
-    roles.some((role) => role.name === "EVENT_ORGANIZER")
-  )
-    throw new ApiError(400, "STUDENT_AFFAIRS and EVENT_ORGANIZER roles cannot be combined");
-  if (
-    target.student &&
-    !roles.some((role) => role.name === "EVENT_ORGANIZER") &&
-    input.primaryFacultyId !== undefined
-  )
-    throw new ApiError(400, "Student academic faculty cannot be changed on this page");
-  if (input.primaryFacultyId !== undefined && !isAdmin && !access.manageAnyUnit) {
-    if (input.primaryFacultyId !== null && input.primaryFacultyId !== access.facultyId) {
-      throw new ApiError(403, "You can only assign users to your own faculty");
+  if (roles.length !== new Set(input.roleIds).size) {
+    throw new ApiError(400, "One or more selected roles do not exist");
+  }
+  if (!actorHasWildcard) {
+    const hasEscalatedRole = roles.some((role) =>
+      role.rolePermissions.some(
+        ({ permission }) =>
+          permission.permission === "*" || !actorPermissions.has(permission.permission),
+      ),
+    );
+    if (hasEscalatedRole) {
+      throw new ApiError(403, "You cannot assign roles with permissions you do not hold");
     }
   }
-  if (input.primaryFacultyId) {
-    const faculty = await prisma.faculty.findUnique({
-      where: { id: input.primaryFacultyId },
-      select: { id: true },
-    });
-    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
-  }
-
-  const resolvedPrimaryFacultyId =
-    target.student && roles.some((role) => role.name === "EVENT_ORGANIZER")
-      ? (input.primaryFacultyId ??
-        target.primaryFacultyId ??
-        target.student.class?.major.facultyId ??
-        null)
-      : input.primaryFacultyId;
-
   await prisma.$transaction(async (transaction) => {
     await transaction.userRole.deleteMany({ where: { userId: targetId } });
     if (roles.length) {
       await transaction.userRole.createMany({
         data: roles.map((role) => ({ userId: targetId, roleId: role.id })),
-      });
-    }
-    if (resolvedPrimaryFacultyId !== undefined) {
-      await transaction.user.update({
-        where: { id: targetId },
-        data: { primaryFacultyId: resolvedPrimaryFacultyId },
       });
     }
   });

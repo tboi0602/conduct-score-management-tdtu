@@ -11,20 +11,10 @@ router.get(
   requirePermission("permission.read"),
   asyncHandler(controller.listPermissions),
 );
-router.post(
-  "/permissions",
-  requirePermission("permission.create"),
-  asyncHandler(controller.createPermission),
-);
 router.put(
   "/permissions/:id",
   requirePermission("permission.update"),
   asyncHandler(controller.updatePermission),
-);
-router.delete(
-  "/permissions/:id",
-  requirePermission("permission.delete"),
-  asyncHandler(controller.deletePermission),
 );
 
 router.get("/roles", requirePermission("role.read"), asyncHandler(controller.listRoles));
