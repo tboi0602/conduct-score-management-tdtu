@@ -29,29 +29,29 @@ export function ConfirmDialog({
 }) {
   const { t } = useAdminTranslations();
   return (
-    <Modal open={open} onClose={pending ? () => {} : onClose} title={title} size="md">
-      <div className="rounded-2xl border border-[#f1d4d8] bg-[#fff8f8] p-4 sm:p-5">
-        <div className="flex gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#ffe9ec] text-[#bd3343]">
-            <AlertTriangle size={22} />
+    <Modal open={open} onClose={pending ? () => {} : onClose} title={title} size="sm">
+      <div className="rounded-lg border border-[#f1d4d8] bg-[#fff8f8] p-3">
+        <div className="flex items-start gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#ffe9ec] text-[#bd3343]">
+            <AlertTriangle size={18} />
           </div>
-          <div>
-            {subject ? <p className="font-bold text-[#102a50]">{subject}</p> : null}
-            <p className="mt-1.5 text-sm leading-6 text-[#66758a]">{description ?? t.cannotUndo}</p>
+          <div className="min-w-0">
+            {subject ? <p className="text-sm font-bold text-[#102a50]">{subject}</p> : null}
+            <p className="mt-1 text-xs leading-5 text-[#66758a]">{description ?? t.cannotUndo}</p>
           </div>
         </div>
       </div>
       {error ? (
-        <p role="alert" className="mt-4 rounded-xl bg-[#fff1f2] p-3 text-sm text-[#b72e3f]">
+        <p role="alert" className="mt-3 rounded-lg bg-[#fff1f2] p-2.5 text-xs text-[#b72e3f]">
           {error}
         </p>
       ) : null}
-      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="rounded-xl border border-[#d4deeb] px-4 py-2.5 text-sm font-semibold text-[#52647d] transition hover:bg-[#f4f7fa] active:scale-[.98]"
+          className="rounded-lg border border-[#d4deeb] px-3.5 py-2 text-xs font-semibold text-[#52647d] transition hover:bg-[#f4f7fa] active:scale-[.98]"
         >
           {cancelLabel ?? t.cancel}
         </button>
@@ -59,7 +59,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="rounded-xl bg-[#bd3343] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-16px_rgba(189,51,67,.8)] transition hover:bg-[#a72a38] active:scale-[.98] disabled:opacity-50"
+          className="rounded-lg bg-[#bd3343] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#a72a38] active:scale-[.98] disabled:opacity-50"
         >
           {pending ? t.deleting : (confirmLabel ?? t.confirm)}
         </button>

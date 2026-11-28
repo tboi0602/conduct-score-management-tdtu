@@ -24,16 +24,39 @@ These instructions extend the repository root `AGENTS.md` for all files under `s
 ## Authentication and RBAC
 
 - Access tokens expire after 15 minutes; refresh sessions are stored in Redis.
-- Google login accepts verified TDTU identities by intended business rule:
-  - `@student.tdtu.edu.vn` -> `STUDENT`.
-  - Staff `@tdtu.edu.vn` accounts must be provisioned as `EVENT_ORGANIZER` or `STUDENT_AFFAIRS` before login.
-  - Other domains are rejected.
-- Keep staff self-registration disabled; only pre-provisioned staff accounts may use Google login.
-- A first student Google login creates the user and assigns `STUDENT`; staff roles are assigned beforehand.
-- Admin uses the separate credential login and only accesses `/admin` client routes.
+- Students sign in with student code + password (`loginStudent`); staff and administrators sign in
+  with email + password (`loginAdmin`). Accounts are provisioned by staff; there is no
+  self-registration.
+- `User.isStudent` is the only way to distinguish a student account from a staff account. Never
+  infer it from a role, an email domain, or the presence of a role named `STUDENT`.
+- Access to the management workspace is decided by permissions (`hasManagementAccess`), not roles.
+- Refresh validates the session and that the user is `ACTIVE`; it must not validate a role code.
 - Permissions use lowercase `resource.action`; `*` is the protected administrator wildcard.
 - Protect endpoints with the narrowest existing permission, for example `user.read` or `user.delete`.
 - New protected behavior requires seed permission descriptions and route middleware assignment.
+
+### Permission-only RBAC (strict)
+
+Follows the root `AGENTS.md` Authorization model. On the server specifically:
+
+- Services must not contain `role.code ===`, `role: { code: ... }` filters, raw SQL on
+  `roles.code`, or role-code constant lists. Business scope comes from permissions (for example
+  `event.manage-any-unit`, `faculty-staff.*`), faculty scope (`getEventAccess`), and `isStudent`.
+- If a service needs "is this actor an administrator", check for the `*` permission, not `ADMIN`.
+- If a rule needs to protect a record (default admin, system role), store or compute a flag
+  (`isSystem`, `isProtected`) and return it to the client.
+- Role create/update/delete validates: code matches `^[A-Z][A-Z0-9_]*$`; system roles cannot be
+  renamed or deleted; the last role with `*` keeps `*`; permission ids exist.
+- Role assignment enforces: target permissions ⊆ actor permissions; `*` only by a `*` holder;
+  actor cannot change their own roles; faculty scope is respected.
+- Endpoints take `roleIds` (UUIDs). Do not accept role codes or `roleName` from the client.
+- Role codes may appear only in `prisma/seeds/`, migrations, and tests.
+
+### Error responses
+
+- Throw `ApiError(status, message, code?)` with an English `message` that is safe to show to the
+  user and a stable machine `code` (for example `STAFF_EMAIL_INVALID`) when the client must react
+  to it. The client displays `message` for 4xx, so write it as a complete, specific sentence.
 
 ## Database rules
 

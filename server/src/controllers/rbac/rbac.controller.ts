@@ -41,7 +41,8 @@ export async function updatePermission(req: Request, res: Response) {
 }
 export async function listRoles(req: Request, res: Response) {
   const search = typeof req.query.search === "string" ? req.query.search : undefined;
-  const result = await rbac.listRoles(parsePagination(req.query), search);
+  const auth = res.locals.auth as { sub?: string } | undefined;
+  const result = await rbac.listRoles(parsePagination(req.query), search, auth?.sub);
   res.json({ ok: true, data: result.items, pagination: result.pagination });
 }
 export async function createRole(req: Request, res: Response) {

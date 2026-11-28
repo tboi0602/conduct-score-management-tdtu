@@ -93,7 +93,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { can, profile } = useAdminAccess();
   const canAssignUserRoles = can("user.assign-role");
   const pendingAppealsCount = usePendingAppealsCount(can("appeal.read"));
-  const workspace = useWorkspaceSwitch(profile?.isStudent);
+  const workspace = useWorkspaceSwitch(profile?.isStudent, profile?.permissions);
   if (!user) return <PageLoadingSkeleton />;
   const canManageAcademicCatalog =
     can("academic.create") || can("academic.update") || can("academic.delete");
@@ -413,9 +413,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   setAuthorizationOpen(true);
                 }}
                 className={linkClass(
-                  pathname.startsWith("/admin/roles") ||
-                    pathname.startsWith("/admin/permissions") ||
-                    pathname === "/admin/role-assignment",
+                  pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions"),
                 )}
               >
                 <ShieldCheck size={18} />
@@ -427,7 +425,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setAuthorizationOpen((value) => !value)}
                 aria-expanded={authorizationOpen}
-                className={`${groupParentClass(pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions") || pathname === "/admin/role-assignment")} w-full justify-between`}
+                className={`${groupParentClass(pathname.startsWith("/admin/roles") || pathname.startsWith("/admin/permissions"))} w-full justify-between`}
               >
                 <span className="flex items-center gap-3">
                   <ShieldCheck size={18} />
@@ -442,15 +440,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ${authorizationOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
               >
                 <div className="ml-5 min-h-0 space-y-1 border-l border-white/25 pl-2.5 pt-1">
-                  {canAssignUserRoles ? (
-                    <Link
-                      href="/admin/role-assignment"
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${pathname === "/admin/role-assignment" ? "bg-white text-[#154273]" : "text-white/75 hover:bg-white/15 hover:text-white"}`}
-                    >
-                      <Users size={16} />
-                      {t.roleAssignment}
-                    </Link>
-                  ) : null}
                   {can("role.read") ? (
                     <Link
                       href="/admin/roles"
@@ -499,7 +488,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                     disabled={workspace.isSwitching}
                     onClick={() => workspace.switchWorkspace("STUDENT")}
                     aria-label={t.studentWorkspace}
-                    className="mt-2 grid h-9 w-full place-items-center rounded-lg text-[#154a9b] transition hover:bg-[#e3edf9] disabled:cursor-wait disabled:opacity-60"
+                    className="mt-2 grid h-9 w-full place-items-center rounded-lg text-[#f5f5f6] transition hover:text-blue-900 hover:bg-[#e3edf9] disabled:cursor-wait disabled:opacity-60"
                   >
                     <ArrowLeftRight size={17} />
                   </button>

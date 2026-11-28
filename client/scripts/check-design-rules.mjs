@@ -71,6 +71,10 @@ const RULES = {
     severity: "error",
     doc: "API calls belong in src/services; data fetching uses TanStack Query in hooks.",
   },
+  "role-hardcode": {
+    severity: "error",
+    doc: "Authorization is permission-only: use access.can(...) / isStudent, never compare role codes.",
+  },
   "debounce-delay": {
     severity: "warn",
     doc: "Search inputs use useDebounce with the standard 500 ms delay.",
@@ -331,6 +335,19 @@ function checkFile(abs) {
     while ((m = fetchRe.exec(src))) report("fetch-in-component", m.index);
   }
 
+  const ROLE_CODES = "ADMIN|STUDENT_AFFAIRS|EVENT_ORGANIZER|STUDENT|LECTURER";
+  const roleRes = [
+    // role.code === "ADMIN", user.role !== "STUDENT", r.name === "..."
+    new RegExp(`\\b(?:role|roles|r|user\\.role|session\\.user\\.role)(?:\\.(?:code|name))?\\s*[!=]==?\\s*["'](?:${ROLE_CODES})["']`, "g"),
+    new RegExp(`["'](?:${ROLE_CODES})["']\\s*[!=]==?\\s*(?:[\\w.]*\\.)?(?:code|role)\\b`, "g"),
+    // roleNames.includes("STUDENT"), new Set(["ADMIN", ...]), ["STUDENT", "EVENT_ORGANIZER"].map(...)
+    new RegExp(`\\b\\w*[Rr]oles?\\w*\\.(?:includes|has)\\(\\s*["'](?:${ROLE_CODES})["']`, "g"),
+    new RegExp(`\\[\\s*["'](?:${ROLE_CODES})["']\\s*,\\s*["'](?:${ROLE_CODES})["']`, "g"),
+    // allowedRoles={[...]}
+    /\ballowedRoles\s*=/g,
+  ];
+  for (const re of roleRes) while ((m = re.exec(src))) report("role-hardcode", m.index);
+
   const deb = /\buseDebounce\s*\(/g;
   while ((m = deb.exec(src))) {
     const argText = callArgs(src, src.indexOf("(", m.index));
@@ -343,7 +360,7 @@ function checkFile(abs) {
     while ((m = toast.exec(src))) {
       const argText = callArgs(src, src.indexOf("(", m.index));
       if (!/,\s*["']error["']\s*,?\s*$/.test(argText)) continue;
-      if (/extractServerErrorMessage|\bmessage\b|error\.message|err\.message|getErrorMessage/.test(argText)) continue;
+      if (/message|getErrorMessage/i.test(argText)) continue;
       report("generic-error-toast", m.index);
     }
   }

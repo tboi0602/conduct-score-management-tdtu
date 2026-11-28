@@ -1,22 +1,11 @@
 import { Router } from "express";
 
 import * as controller from "@controllers/users/user.controller";
-import * as roleAssignment from "@controllers/users/role-assignment.controller";
 import { authenticate, requirePermission } from "@middleware";
 import { asyncHandler } from "@utils/asyncHandler";
 
 const router = Router();
 router.use(authenticate);
-router.get(
-  "/role-assignment",
-  requirePermission("user.assign-role"),
-  asyncHandler(roleAssignment.list),
-);
-router.patch(
-  "/:id/role-assignment",
-  requirePermission("user.assign-role"),
-  asyncHandler(roleAssignment.update),
-);
 router.get("/", requirePermission("user.read"), asyncHandler(controller.listUsers));
 router.delete(
   "/students/bulk",

@@ -9,7 +9,20 @@ import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import { clearAuthSession, saveAuthSession } from "@/lib/auth-storage";
 import { logoutSession, switchAccessMode, type LoginMode } from "@/services/auth";
 
-export function useWorkspaceSwitch(isStudent?: boolean) {
+const STUDENT_ONLY_PERMISSIONS = new Set([
+  "event.read-own",
+  "conduct-score.read-own",
+  "appeal.read-own",
+  "appeal.create",
+  "notification.read-own",
+  "attendance.scan",
+  "profile.update-own",
+]);
+
+export function useWorkspaceSwitch(
+  isStudent?: boolean,
+  permissions: Array<{ permission: string }> = [],
+) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t } = useAdminTranslations();
@@ -28,9 +41,13 @@ export function useWorkspaceSwitch(isStudent?: boolean) {
     },
   });
 
+  const hasManagementAccess = permissions.some(
+    ({ permission }) => permission === "*" || !STUDENT_ONLY_PERMISSIONS.has(permission),
+  );
+
   return {
     canUseStudentWorkspace: isStudent === true,
-    canUseManagementWorkspace: isStudent === false,
+    canUseManagementWorkspace: isStudent === false || hasManagementAccess,
     isSwitching: mutation.isPending,
     switchWorkspace: mutation.mutate,
     logout: async () => {

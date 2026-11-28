@@ -154,7 +154,7 @@ export function SheetTable<T>({
                 <tr
                   key={rowKey(row)}
                   onDoubleClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className="even:bg-[#f8fafc] transition-colors hover:bg-[#edf4fc]/70"
+                  className="border-b border-[#e2e8f0] even:bg-[#f8fafc] transition-colors hover:bg-[#edf4fc]/70"
                 >
                   {columns.map((col, colIndex) => {
                     const isCellActive =

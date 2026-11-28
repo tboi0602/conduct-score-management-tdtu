@@ -62,6 +62,7 @@ const conductScorePermissionDescriptions = {
   "student.delete": "Xóa sinh viên trong khoa được gán",
   "faculty-staff.read": "Xem nhân sự Ban tổ chức trong khoa",
   "faculty-staff.create": "Tạo nhân sự Ban tổ chức trong khoa",
+  "faculty-staff.create-student": "Tạo sinh viên trong khoa",
   "faculty-staff.update": "Cập nhật nhân sự Ban tổ chức trong khoa",
   "faculty-staff.disable": "Khóa hoặc mở khóa nhân sự Ban tổ chức trong khoa",
   "user.assign-role": "Gán vai trò Ban tổ chức trong khoa",

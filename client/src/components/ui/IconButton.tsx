@@ -11,15 +11,17 @@ export function IconButton({
   label,
   children,
   tone = "neutral",
+  tooltipSide = "top",
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
   children: ReactNode;
   tone?: keyof typeof tones;
+  tooltipSide?: "top" | "right" | "left";
 }) {
   return (
-    <Tooltip label={label}>
+    <Tooltip label={label} side={tooltipSide}>
       <button
         type="button"
         aria-label={label}

@@ -25,30 +25,6 @@ export const adminService = {
     });
     return authHttp<PaginatedResponse<AdminUser>>(`/api/v1/users?${query}`);
   },
-  listRoleAssignmentUsers: (page: number, search?: string, roleId?: string) => {
-    const query = new URLSearchParams({ page: String(page), limit: "50" });
-    if (search && search.length >= 3) query.set("search", search);
-    if (roleId) query.set("roleId", roleId);
-    return authHttp<{
-      ok: true;
-      data: {
-        items: AdminUser[];
-        roles: Array<{ id: string; code: string }>;
-        filterRoles: Array<{ id: string; code: string }>;
-        faculties: Array<{ id: string; code: string }>;
-        pagination: PaginatedResponse<AdminUser>["pagination"];
-      };
-    }>(`/api/v1/users/role-assignment?${query}`);
-  },
-  updateRoleAssignment: (
-    id: string,
-    payload: { roleIds: string[]; primaryFacultyId?: string | null },
-  ) =>
-    authHttp<{ ok: true; data: AdminUser }>(`/api/v1/users/${id}/role-assignment`, {
-      method: "PATCH",
-      headers: jsonHeaders,
-      body: JSON.stringify(payload),
-    }),
   createUser: (payload: UserPayload) =>
     authHttp<{ ok: true; data: AdminUser }>("/api/v1/users", {
       method: "POST",
@@ -85,13 +61,13 @@ export const adminService = {
     authHttp<{ ok: true; data: AdminUser }>("/api/v1/faculty-users", {
       method: "POST",
       headers: jsonHeaders,
-      body: JSON.stringify({ ...payload, roleName: payload.roleIds[0] }),
+      body: JSON.stringify(payload),
     }),
   updateFacultyUser: (id: string, payload: UserPayload) =>
     authHttp<{ ok: true; data: AdminUser }>(`/api/v1/faculty-users/${id}`, {
       method: "PUT",
       headers: jsonHeaders,
-      body: JSON.stringify({ ...payload, roleName: payload.roleIds[0] }),
+      body: JSON.stringify(payload),
     }),
   deleteFacultyUser: (user: AdminUser) =>
     user.student

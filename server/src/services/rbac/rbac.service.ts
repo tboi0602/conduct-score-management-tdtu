@@ -55,16 +55,34 @@ export async function updatePermission(id: string, rawDescription?: string | nul
     .catch(mapNotFoundOrConflict);
 }
 
-export async function listRoles(params: PaginationParams, search?: string) {
+export async function listRoles(params: PaginationParams, search?: string, actorId?: string) {
   const keyword = search?.trim();
-  const where = keyword
-    ? {
-        OR: [
-          { code: { contains: keyword, mode: "insensitive" as const } },
-          { displayName: { contains: keyword, mode: "insensitive" as const } },
-        ],
-      }
-    : undefined;
+  const hasWildcard = actorId
+    ? Boolean(
+        await prisma.userRole.findFirst({
+          where: {
+            userId: actorId,
+            user: { status: "ACTIVE" },
+            role: { rolePermissions: { some: { permission: { permission: "*" } } } },
+          },
+          select: { userId: true },
+        }),
+      )
+    : false;
+  const conditions = [
+    ...(keyword
+      ? [
+          {
+            OR: [
+              { code: { contains: keyword, mode: "insensitive" as const } },
+              { displayName: { contains: keyword, mode: "insensitive" as const } },
+            ],
+          },
+        ]
+      : []),
+    ...(!hasWildcard ? [{ rolePermissions: { none: { permission: { permission: "*" } } } }] : []),
+  ];
+  const where = conditions.length > 0 ? { AND: conditions } : undefined;
   const [total, items] = await prisma.$transaction([
     prisma.role.count({ where }),
     prisma.role.findMany({

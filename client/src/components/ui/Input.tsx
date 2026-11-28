@@ -20,7 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       <input
         ref={ref}
         readOnly={readOnly}
-        className={`h-9 w-full rounded-lg border border-[#cdd9e7] px-3 text-sm text-[#102a50] outline-none transition focus:border-[#154a9b] focus:ring-2 focus:ring-[#154a9b]/15 ${
+        className={`h-9 w-full rounded-lg border border-[#cdd9e7] px-3 text-sm text-[#102a50] outline-none transition focus:border-[#154a9b] focus-visible:outline-none ${
           prefixIcon ? "pl-9" : ""
         } ${readOnly ? "cursor-not-allowed bg-[#f4f7fb] text-[#68788d]" : "bg-white"} ${
           error ? "border-[#b72e3f]" : ""

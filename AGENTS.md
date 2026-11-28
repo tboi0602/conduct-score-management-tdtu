@@ -30,10 +30,14 @@ Read it before making changes. When working under `client/` or `server/`, also r
 
 - TypeScript strict mode is required. Avoid `any`; use explicit domain types.
 - Use English for identifiers, filenames, API fields, permission codes, and database names.
-- User-facing text must come from the i18n layer when the screen supports language switching.
-- Never hardcode user-facing UI text (Vietnamese or English) directly in components or hooks; always define keys in the i18n layer (`client/src/i18n/`).
+- Never hardcode user-facing UI text (Vietnamese or English) in components, hooks, or client
+  services. Every label, placeholder, toast, aria-label, empty state, and fallback error goes
+  through a key in `client/src/i18n/`. Branching on locale for text
+  (`locale === "vi" ? "..." : "..."`) is forbidden; choosing a date/number locale such as
+  `vi-VN` is allowed.
 - Permission names use lowercase `resource.action`, for example `user.create` and `event.update`.
-- Roles use uppercase names such as `ADMIN`, `LECTURER`, and `STUDENT`.
+- Role codes use uppercase `A-Z0-9_` (for example `EVENT_ORGANIZER`); a role also has an optional
+  human `displayName`. Role codes are data, not program constants (see Authorization model).
 - Prefer small focused files over controllers, services, hooks, or components with mixed concerns.
 - Format changed frontend code with Prettier.
 
@@ -47,6 +51,53 @@ Read it before making changes. When working under `client/` or `server/`, also r
 - Authorization is enforced by the shared `authenticate` and `requirePermission` middleware.
 - Never trust a role or permission sent by the client.
 - Any schema change requires a Prisma migration and compatible seed updates.
+
+## Authorization model (permission-only)
+
+A role is only a named group of permissions. The system decides what a user may do from the
+union of permissions of all their roles, never from which role they hold.
+
+- Forbidden in application code (server and client): comparing or filtering by a role code, for
+  example `role.code === "ADMIN"`, `roles.some((r) => r.code === "STUDENT")`,
+  `{ role: { code: { in: [...] } } }`, `r."code" IN (...)`, or constant lists such as
+  `STAFF_ROLE_NAMES` / `MANAGEMENT_ROLES`.
+- Use instead:
+  - a permission: `requirePermission("x.y")` on the server, `access.can("x.y")` on the client;
+  - `User.isStudent` to tell student accounts from staff accounts;
+  - a server-computed flag (for example `isProtected`/`isSystem`) for records the UI must not
+    edit or delete.
+- `*` is the administrator wildcard. Only an actor holding `*` may assign a role containing `*`.
+  An actor may only assign roles whose permissions are a subset of the actor's own permissions.
+- The last role holding `*` cannot lose `*` or be deleted, so administration cannot be locked out.
+- Seeded system roles are protected on the server (no rename/delete); the client reads that from
+  the API instead of keeping its own list.
+- APIs that assign roles take `roleIds`, never role codes or names.
+- The role stored in a session/JWT is informational only and must never gate access.
+- Allowed exceptions: seeds, migrations, and tests may reference role codes; login mode values
+  (`"STUDENT" | "ADMIN"`) and screen modes (`"STUDENT" | "STAFF"`) are not roles.
+
+## Error messages
+
+- The server owns error text. API errors return `{ ok: false, error: { code, message } }`.
+- The client shows the server `error.message` for 4xx responses (use `useApi` or
+  `extractServerErrorMessage(error, t.<fallbackKey>)`). A client-written sentence is only the
+  fallback for network errors and 5xx.
+- Mapping a known `error.code` to a field-level i18n message is allowed; unknown codes must still
+  show the server message, not a generic sentence.
+
+## Pull request checklist
+
+A change is not ready for review until all of these hold for the files it touches:
+
+1. No role-code checks outside seeds, migrations, and tests (Authorization model).
+2. No hardcoded user-facing text and no locale ternaries outside `client/src/i18n/`.
+3. Shared UI primitives, hooks, services, and query keys are reused (see `client/AGENTS.md`).
+4. Error toasts show the server message.
+5. `npm.cmd run lint:design -- --changed main` in `client/` reports no errors for changed files.
+6. Format, typecheck, and build checks below pass.
+
+Removing an endpoint requires removing every client call and UI control that used it in the same
+change.
 
 ## Safety and data rules
 
@@ -62,6 +113,7 @@ From `client/`:
 
 ```powershell
 npm.cmd run format:check
+npm.cmd run lint:design -- --changed main
 npx.cmd tsc --noEmit
 npm.cmd run build
 ```

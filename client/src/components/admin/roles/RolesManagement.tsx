@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { OpsDetailDrawer } from "@/components/ui/OpsDetailDrawer";
 import { SheetTable } from "@/components/ui/SheetTable";
 import { SheetToolbar } from "@/components/ui/SheetToolbar";
+import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useRolesManagement } from "@/hooks/rbac/useRolesManagement";
 import { useUrlQueryState } from "@/hooks/shared/useUrlQueryState";
@@ -19,7 +20,11 @@ import type { Role } from "@/types/admin";
 export function RolesManagement() {
   const [search, setSearch] = useUrlQueryState("search");
   const state = useRolesManagement(search);
+  const { can } = useAdminAccess();
   const { t, locale } = useAdminTranslations();
+  const canCreate = can("role.create");
+  const canUpdate = can("role.update");
+  const canDelete = can("role.delete");
 
   const selected = new Set(
     state.editing?.rolePermissions.map(({ permission }) => permission.id) ?? [],
@@ -103,41 +108,47 @@ export function RolesManagement() {
           </span>
         ),
       },
-      {
-        key: "actions",
-        title: t.actions,
-        width: 108,
-        align: "center",
-        sticky: "right",
-        render: (role) => (
-          <div className="flex justify-center gap-1">
-            <IconButton
-              label={t.edit}
-              tone="brand"
-              className="!h-7 !w-7 !rounded-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditDrawer(role);
-              }}
-            >
-              <Pencil size={13} />
-            </IconButton>
-            {role.code !== "ADMIN" ? (
-              <IconButton
-                label={t.delete}
-                tone="danger"
-                className="!h-7 !w-7 !rounded-lg"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  state.setDeleting(role);
-                }}
-              >
-                <Trash2 size={13} />
-              </IconButton>
-            ) : null}
-          </div>
-        ),
-      },
+      ...(canUpdate || canDelete
+        ? [
+            {
+              key: "actions",
+              title: t.actions,
+              width: 108,
+              align: "center" as const,
+              sticky: "right" as const,
+              render: (role: Role) => (
+                <div className="flex justify-center gap-1">
+                  {canUpdate ? (
+                    <IconButton
+                      label={t.edit}
+                      tone="brand"
+                      className="!h-7 !w-7 !rounded-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditDrawer(role);
+                      }}
+                    >
+                      <Pencil size={13} />
+                    </IconButton>
+                  ) : null}
+                  {canDelete && role.code !== "ADMIN" ? (
+                    <IconButton
+                      label={t.delete}
+                      tone="danger"
+                      className="!h-7 !w-7 !rounded-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        state.setDeleting(role);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </IconButton>
+                  ) : null}
+                </div>
+              ),
+            },
+          ]
+        : []),
     ],
     [state, t],
   );
@@ -168,10 +179,12 @@ export function RolesManagement() {
               hiddenColumnKeys={hiddenKeys}
               onToggleColumn={toggleColumn}
               actions={
-                <Button size="sm" onClick={openCreateDrawer}>
-                  <Plus size={14} />
-                  {t.addRole}
-                </Button>
+                canCreate ? (
+                  <Button size="sm" onClick={openCreateDrawer}>
+                    <Plus size={14} />
+                    {t.addRole}
+                  </Button>
+                ) : undefined
               }
             />
           }
