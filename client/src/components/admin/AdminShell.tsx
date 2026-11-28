@@ -66,9 +66,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           majors: "Danh mục Ngành",
           classes: "Danh mục Lớp",
           organizers: "Danh mục Tổ chức",
-          STUDENT_AFFAIRS: "Công tác sinh viên",
-          EVENT_ORGANIZER: "Tổ chức sự kiện",
-          ADMIN: "Quản trị viên",
         }
       : {
           group: "Academic units",
@@ -76,9 +73,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           majors: "Major catalog",
           classes: "Class catalog",
           organizers: "Organization catalog",
-          STUDENT_AFFAIRS: "Student affairs",
-          EVENT_ORGANIZER: "Event organizer",
-          ADMIN: "Administrator",
         };
   const eventLabels =
     locale === "vi"
@@ -491,7 +485,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-white">{user.name}</p>
                 <p className="mt-0.5 text-[11px] font-semibold tracking-wide text-white/75">
-                  {academicLabels[user.role as keyof typeof academicLabels] ?? user.role}
+                  {profile?.roles[0]?.displayName || profile?.roles[0]?.code || user.role}
                 </p>
               </div>
             ) : null}

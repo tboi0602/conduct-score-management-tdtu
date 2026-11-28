@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import type { BulkActionResponse } from "@/types/admin";
 
 export function useBulkAction({
@@ -37,13 +38,12 @@ export function useBulkAction({
         );
       }
     },
-    onError: () => {
-      showToast(
+    onError: (error) => {
+      const fallback =
         locale === "vi"
           ? "Không thể thực hiện thao tác hàng loạt. Vui lòng thử lại."
-          : "Unable to complete the bulk action. Please try again.",
-        "error",
-      );
+          : "Unable to complete the bulk action. Please try again.";
+      showToast(extractServerErrorMessage(error, fallback), "error");
     },
   });
 }

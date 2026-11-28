@@ -5,6 +5,7 @@ import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { removeCachedEntity, updateCachedEntity } from "@/lib/admin-query-cache";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 
 export function useCrudManagement<T extends { id: string }, P>({
   service,
@@ -62,12 +63,11 @@ export function useCrudManagement<T extends { id: string }, P>({
       showToast(locale === "vi" ? "Lưu dữ liệu thành công." : "Data saved successfully.");
     } catch (error) {
       setActionError(error);
-      showToast(
+      const fallback =
         locale === "vi"
           ? "Không thể lưu dữ liệu. Vui lòng thử lại."
-          : "Unable to save data. Please try again.",
-        "error",
-      );
+          : "Unable to save data. Please try again.";
+      showToast(extractServerErrorMessage(error, fallback), "error");
       return;
     } finally {
       busy.current = false;
@@ -90,12 +90,11 @@ export function useCrudManagement<T extends { id: string }, P>({
       showToast(locale === "vi" ? "Xóa dữ liệu thành công." : "Data deleted successfully.");
     } catch (error) {
       setActionError(error);
-      showToast(
+      const fallback =
         locale === "vi"
           ? "Không thể xóa dữ liệu. Vui lòng thử lại."
-          : "Unable to delete data. Please try again.",
-        "error",
-      );
+          : "Unable to delete data. Please try again.";
+      showToast(extractServerErrorMessage(error, fallback), "error");
       return;
     } finally {
       busy.current = false;

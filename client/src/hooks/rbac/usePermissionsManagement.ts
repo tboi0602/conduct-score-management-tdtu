@@ -12,12 +12,12 @@ import {
   updateCachedEntity,
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
-import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { useApi } from "@/hooks/api/useApi";
 
 export function usePermissionsManagement(search = "") {
-  const { locale } = useLanguage();
+  const { t } = useAdminTranslations();
   const { execute, isLoading: isSaving, error: actionError, clearError } = useApi();
   const debouncedSearch = useDebounce(search, 500);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
@@ -39,8 +39,7 @@ export function usePermissionsManagement(search = "") {
         description: String(form.get("description") ?? "") || null,
       };
       await execute(() => adminService.updatePermission(editing.id, payload), {
-        successMessage:
-          locale === "vi" ? "Lưu quyền thành công." : "Permission saved successfully.",
+        successMessage: t.permissionSaved,
         onSuccess: (response) => {
           updateCachedEntity(queryClient, queryKeys.permissions.all, response.data);
           setModalOpen(false);
@@ -48,7 +47,7 @@ export function usePermissionsManagement(search = "") {
         },
       });
     },
-    [editing, execute, locale, queryClient],
+    [editing, execute, queryClient, t.permissionSaved],
   );
 
   const confirmDelete = useCallback(async () => {

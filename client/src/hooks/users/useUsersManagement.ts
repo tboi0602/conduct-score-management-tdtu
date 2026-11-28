@@ -15,6 +15,7 @@ import { adminService } from "@/services/admin";
 import { HttpError } from "@/services/http";
 import type { AdminUser, Faculty, Role, UserFilters, UserPayload } from "@/types/admin";
 import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 
@@ -159,15 +160,15 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
             ? editing
               ? t.staffUpdateSuccess
               : t.staffCreateSuccess
-            : locale === "vi"
-              ? editing
-                ? "Cập nhật người dùng thành công."
-                : "Thêm người dùng thành công."
-              : editing
-                ? "User updated successfully."
-                : "User added successfully.",
+            : editing
+              ? t.userUpdated
+              : t.userCreated,
         );
       } catch (error) {
+        let toastMessage = extractServerErrorMessage(
+          error,
+          mode === "STAFF" ? t.staffSaveError : t.userSaveError,
+        );
         if (mode === "STAFF" && error instanceof HttpError) {
           const fieldByCode: Record<string, { field: string; message: string }> = {
             STAFF_EMAIL_INVALID: { field: "email", message: t.staffEmailInvalid },
@@ -184,34 +185,26 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
             USER_ALREADY_EXISTS: { field: "email", message: t.emailAlreadyExists },
           };
           const fieldError = fieldByCode[error.code];
-          if (fieldError) setActionFieldErrors({ [fieldError.field]: fieldError.message });
-          else setActionError(t.staffSaveError);
+          if (fieldError) {
+            setActionFieldErrors({ [fieldError.field]: fieldError.message });
+            toastMessage = fieldError.message;
+          } else {
+            setActionError(toastMessage);
+          }
         } else {
-          setActionError(error instanceof Error ? error.message : "Unable to save user");
+          setActionError(toastMessage);
         }
-        showToast(
-          mode === "STAFF"
-            ? t.staffSaveError
-            : locale === "vi"
-              ? "Không thể lưu người dùng."
-              : "Unable to save user.",
-          "error",
-        );
+        showToast(toastMessage, "error");
       } finally {
         setIsSaving(false);
       }
     },
-    [editing, locale, mode, queryClient, scoped, showToast, t],
+    [editing, mode, queryClient, scoped, showToast, t],
   );
   const confirmDelete = useCallback(async () => {
     if (!deleting) return;
     if (deleting.id === access.profile?.id) {
-      showToast(
-        locale === "vi"
-          ? "Bạn không thể tự xóa tài khoản của mình."
-          : "You cannot delete your own account.",
-        "error",
-      );
+      showToast(t.cannotDeleteSelf, "error");
       setDeleting(null);
       return;
     }
@@ -225,18 +218,16 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
       if (list.items.length === 1 && !list.pagination.hasNextPage && list.page > 1)
         list.setPage(list.page - 1);
       setDeleting(null);
-      showToast(locale === "vi" ? "Xóa người dùng thành công." : "User deleted successfully.");
+      showToast(t.userDeleted);
     } catch (error) {
       const message =
         error instanceof HttpError && error.code === "STUDENT_HAS_STAFF_ROLE"
           ? t.studentHasStaffRole
-          : locale === "vi"
-            ? "Không thể xóa người dùng."
-            : "Unable to delete user.";
+          : extractServerErrorMessage(error, t.userDeleteError);
       setActionError(message);
       showToast(message, "error");
     }
-  }, [access.profile?.id, deleting, list, locale, queryClient, scoped, showToast, t]);
+  }, [access.profile?.id, deleting, list, queryClient, scoped, showToast, t]);
   const applyFilters = (next: UserFilters) => {
     list.setPage(1);
     setFilters(next);

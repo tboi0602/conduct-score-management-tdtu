@@ -8,6 +8,8 @@ import { OpsDetailDrawer } from "@/components/ui/OpsDetailDrawer";
 import { SheetTable } from "@/components/ui/SheetTable";
 import { SheetToolbar } from "@/components/ui/SheetToolbar";
 import { useAdminAccess } from "@/hooks/auth/useAdminAccess";
+import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useDebounce } from "@/hooks/shared/useDebounce";
 import { useUrlQueryState } from "@/hooks/shared/useUrlQueryState";
@@ -20,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export function UserRoleAssignments() {
   const { t, locale } = useAdminTranslations();
   const vi = locale === "vi";
+  const { showToast } = useToast();
   const access = useAdminAccess();
   const queryClient = useQueryClient();
   const [search, setSearch] = useUrlQueryState("search");
@@ -46,12 +49,27 @@ export function UserRoleAssignments() {
       }),
     onSuccess: async () => {
       setEditing(null);
+      showToast(t.roleAssignmentSaved);
       await queryClient.invalidateQueries({ queryKey: ["admin", "role-assignment"] });
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+    onError: (err) => {
+      showToast(extractServerErrorMessage(err, t.loadError), "error");
     },
   });
 
   const current = query.data?.data;
+  const activeRole = (current?.filterRoles ?? []).find((role) => role.id === roleId);
+  const activeRoleLabel = activeRole
+    ? (activeRole as { displayName?: string | null }).displayName || activeRole.code
+    : null;
+  const hasFilters = Boolean(search.trim() || roleId);
+
+  const clearFilters = () => {
+    setSearch("");
+    setRoleId("");
+    setPage(1);
+  };
 
   const openEdit = (user: AdminUser) => {
     setEditing(user);
@@ -181,6 +199,8 @@ export function UserRoleAssignments() {
               columns={allColumns}
               hiddenColumnKeys={hiddenKeys}
               onToggleColumn={toggleColumn}
+              activeFilters={activeRoleLabel ? [{ key: "role", label: activeRoleLabel }] : []}
+              onClearFilters={clearFilters}
               filters={
                 <div className="w-48">
                   <CustomSelect
@@ -189,13 +209,10 @@ export function UserRoleAssignments() {
                       setRoleId(val);
                       setPage(1);
                     }}
-                    options={[
-                      { value: "", label: t.allRoles },
-                      ...(current?.filterRoles ?? []).map((role) => ({
-                        value: role.id,
-                        label: (role as { displayName?: string | null }).displayName || role.code,
-                      })),
-                    ]}
+                    options={(current?.filterRoles ?? []).map((role) => ({
+                      value: role.id,
+                      label: (role as { displayName?: string | null }).displayName || role.code,
+                    }))}
                     placeholder={t.allRoles}
                   />
                 </div>
@@ -209,7 +226,11 @@ export function UserRoleAssignments() {
         open={Boolean(editing)}
         onClose={() => setEditing(null)}
         title={t.roleAssignment}
-        subtitle={editing ? `${editing.name} (${editing.email})` : undefined}
+        subtitle={
+          editing
+            ? `${editing.student?.studentCode ? `${editing.student.studentCode} · ` : ""}${editing.name}`
+            : undefined
+        }
         storageKey="ops.drawer.width.role-assignment"
         footer={
           <>
@@ -223,6 +244,19 @@ export function UserRoleAssignments() {
         }
       >
         <form id="role-assignment-form" onSubmit={submit} className="space-y-4">
+          {editing ? (
+            <div className="rounded-xl border border-[#bfd0e8] bg-[#f0f6fd] p-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-bold text-[#102a50]">{editing.name}</span>
+                {editing.student?.studentCode ? (
+                  <span className="rounded-md bg-[#154a9b] px-2 py-0.5 font-mono text-xs font-semibold text-white">
+                    {editing.student.studentCode}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-[#52647d]">{editing.email}</p>
+            </div>
+          ) : null}
           <div>
             <p className="mb-2 text-sm font-semibold text-[#263b58]">{t.roles}</p>
             <div className="grid gap-2 sm:grid-cols-2">

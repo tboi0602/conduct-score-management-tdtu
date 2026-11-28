@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import { clearAuthSession, saveAuthSession } from "@/lib/auth-storage";
 import { logoutSession, switchAccessMode, type LoginMode } from "@/services/auth";
 
@@ -30,13 +31,12 @@ export function useWorkspaceSwitch(isStudent?: boolean) {
       );
       router.replace(mode === "STUDENT" ? "/dashboard" : "/admin/dashboard");
     },
-    onError: () => {
-      showToast(
+    onError: (error) => {
+      const fallback =
         locale === "vi"
           ? "Không thể chuyển khu vực. Vui lòng thử lại."
-          : "Unable to switch workspace. Please try again.",
-        "error",
-      );
+          : "Unable to switch workspace. Please try again.";
+      showToast(extractServerErrorMessage(error, fallback), "error");
     },
   });
 

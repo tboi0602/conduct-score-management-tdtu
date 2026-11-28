@@ -112,17 +112,6 @@ export function RolesManagement() {
         render: (role) => (
           <div className="flex justify-center gap-1">
             <IconButton
-              label={t.view}
-              tone="neutral"
-              className="!h-7 !w-7 !rounded-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                openView(role);
-              }}
-            >
-              <Eye size={13} />
-            </IconButton>
-            <IconButton
               label={t.edit}
               tone="brand"
               className="!h-7 !w-7 !rounded-lg"

@@ -55,7 +55,7 @@ export function CustomSelect({
           }
         }}
         onClick={() => setOpen((current) => !current)}
-        className={`flex h-9 w-full items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-left text-xs outline-none transition ${
+        className={`flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-2.5 text-left text-xs outline-none transition ${
           open
             ? "border-[#154a9b] ring-4 ring-[#154a9b]/10"
             : "border-[#cdd9e7] hover:border-[#9eb3cd]"
@@ -72,7 +72,7 @@ export function CustomSelect({
       {open ? (
         <div
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-[#d8e1ec] bg-white p-1 shadow-[0_18px_42px_-18px_rgba(16,42,80,.35)]"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-[#d8e1ec] bg-white p-1 shadow-[0_18px_42px_-18px_rgba(16,42,80,.35)]"
         >
           <button
             type="button"
@@ -82,7 +82,7 @@ export function CustomSelect({
               onChange("");
               setOpen(false);
             }}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-[#738298] transition hover:bg-[#f1f5fa]"
+            className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm text-[#738298] transition hover:bg-[#f1f5fa]"
           >
             <span>{placeholder}</span>
             {!value ? <Check size={15} className="text-[#154a9b]" /> : null}
@@ -97,7 +97,7 @@ export function CustomSelect({
                 onChange(option.value);
                 setOpen(false);
               }}
-              className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+              className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left text-sm transition ${
                 option.value === value
                   ? "bg-[#eaf2fb] font-semibold text-[#154a9b]"
                   : "text-[#40546f] hover:bg-[#f3f6fa]"
