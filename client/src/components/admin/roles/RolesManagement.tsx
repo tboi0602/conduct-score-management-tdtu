@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { OpsDetailDrawer } from "@/components/ui/OpsDetailDrawer";
@@ -110,40 +111,40 @@ export function RolesManagement() {
         sticky: "right",
         render: (role) => (
           <div className="flex justify-center gap-1">
-            <button
-              type="button"
-              aria-label={t.view}
+            <IconButton
+              label={t.view}
+              tone="neutral"
+              className="!h-7 !w-7 !rounded-lg"
               onClick={(e) => {
                 e.stopPropagation();
                 openView(role);
               }}
-              className="grid h-6 w-6 place-items-center rounded text-[#52647d] transition hover:bg-[#eef3f9]"
             >
               <Eye size={13} />
-            </button>
-            <button
-              type="button"
-              aria-label={t.edit}
+            </IconButton>
+            <IconButton
+              label={t.edit}
+              tone="brand"
+              className="!h-7 !w-7 !rounded-lg"
               onClick={(e) => {
                 e.stopPropagation();
                 openEditDrawer(role);
               }}
-              className="grid h-6 w-6 place-items-center rounded text-[#154a9b] transition hover:bg-[#edf4fc]"
             >
               <Pencil size={13} />
-            </button>
+            </IconButton>
             {role.code !== "ADMIN" ? (
-              <button
-                type="button"
-                aria-label={t.delete}
+              <IconButton
+                label={t.delete}
+                tone="danger"
+                className="!h-7 !w-7 !rounded-lg"
                 onClick={(e) => {
                   e.stopPropagation();
                   state.setDeleting(role);
                 }}
-                className="grid h-6 w-6 place-items-center rounded text-[#b72e3f] transition hover:bg-[#fff1f2]"
               >
                 <Trash2 size={13} />
-              </button>
+              </IconButton>
             ) : null}
           </div>
         ),

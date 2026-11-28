@@ -19,7 +19,7 @@ import { useDebounce } from "@/hooks/shared/useDebounce";
 export function useRolesManagement(search = "") {
   const { locale } = useLanguage();
   const { showToast } = useToast();
-  const debouncedSearch = useDebounce(search, 350);
+  const debouncedSearch = useDebounce(search, 500);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
   const list = usePaginatedData([...queryKeys.roles.all, effectiveSearch], (page, limit) =>
     adminService.listRoles(page, limit, effectiveSearch),

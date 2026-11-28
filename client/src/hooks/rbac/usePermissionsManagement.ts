@@ -19,7 +19,7 @@ import { useApi } from "@/hooks/api/useApi";
 export function usePermissionsManagement(search = "") {
   const { locale } = useLanguage();
   const { execute, isLoading: isSaving, error: actionError, clearError } = useApi();
-  const debouncedSearch = useDebounce(search, 350);
+  const debouncedSearch = useDebounce(search, 500);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
   const list = usePaginatedData([...queryKeys.permissions.all, effectiveSearch], (page, limit) =>
     adminService.listPermissions(page, limit, effectiveSearch),
