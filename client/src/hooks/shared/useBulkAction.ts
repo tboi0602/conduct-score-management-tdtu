@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useToast } from "@/components/ui/ToastProvider";
 import { extractServerErrorMessage } from "@/hooks/api/useApi";
 import type { BulkActionResponse } from "@/types/admin";
@@ -14,7 +14,7 @@ export function useBulkAction({
   queryKeys: QueryKey[];
 }) {
   const client = useQueryClient();
-  const { locale } = useLanguage();
+  const { t } = useAdminTranslations();
   const { showToast } = useToast();
 
   return useMutation({
@@ -24,26 +24,18 @@ export function useBulkAction({
       const succeeded = data.succeededIds.length;
       const failed = data.failed.length;
       if (failed === 0) {
-        showToast(
-          locale === "vi"
-            ? `Đã xử lý thành công ${succeeded} mục.`
-            : `${succeeded} item(s) processed successfully.`,
-        );
+        showToast(t.bulkSuccess.replace("{succeeded}", String(succeeded)));
       } else {
         showToast(
-          locale === "vi"
-            ? `Đã xử lý ${succeeded} mục; ${failed} mục không thể xử lý.`
-            : `${succeeded} item(s) processed; ${failed} item(s) could not be processed.`,
+          t.bulkPartialError
+            .replace("{succeeded}", String(succeeded))
+            .replace("{failed}", String(failed)),
           "error",
         );
       }
     },
     onError: (error) => {
-      const fallback =
-        locale === "vi"
-          ? "Không thể thực hiện thao tác hàng loạt. Vui lòng thử lại."
-          : "Unable to complete the bulk action. Please try again.";
-      showToast(extractServerErrorMessage(error, fallback), "error");
+      showToast(extractServerErrorMessage(error, t.bulkActionError), "error");
     },
   });
 }

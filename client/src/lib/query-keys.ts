@@ -9,6 +9,11 @@ import type {
 } from "@/types/events";
 
 export const queryKeys = {
+  roleAssignments: {
+    all: ["admin", "role-assignment"] as const,
+    list: (page: number, search: string, roleId: string) =>
+      ["admin", "role-assignment", page, search, roleId] as const,
+  },
   events: {
     all: ["admin", "events"] as const,
     list: (filters: EventFilters) => ["admin", "events", "list", filters] as const,

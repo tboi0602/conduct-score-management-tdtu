@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { removeCachedEntity, updateCachedEntity } from "@/lib/admin-query-cache";
-import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { useAdminTranslations } from "@/hooks/layout/useAdminTranslations";
 import { useToast } from "@/components/ui/ToastProvider";
 import { extractServerErrorMessage } from "@/hooks/api/useApi";
 
@@ -25,7 +25,7 @@ export function useCrudManagement<T extends { id: string }, P>({
   onChanged?: (action: "create" | "update" | "delete") => void;
 }) {
   const client = useQueryClient();
-  const { locale } = useLanguage();
+  const { t } = useAdminTranslations();
   const { showToast } = useToast();
   const busy = useRef(false);
   const [editing, setEditing] = useState<T | null>(null);
@@ -60,14 +60,10 @@ export function useCrudManagement<T extends { id: string }, P>({
       setModalOpen(false);
       setEditing(null);
       setNotice("saved");
-      showToast(locale === "vi" ? "Lưu dữ liệu thành công." : "Data saved successfully.");
+      showToast(t.crudSaved);
     } catch (error) {
       setActionError(error);
-      const fallback =
-        locale === "vi"
-          ? "Không thể lưu dữ liệu. Vui lòng thử lại."
-          : "Unable to save data. Please try again.";
-      showToast(extractServerErrorMessage(error, fallback), "error");
+      showToast(extractServerErrorMessage(error, t.crudSaveError), "error");
       return;
     } finally {
       busy.current = false;
@@ -87,14 +83,10 @@ export function useCrudManagement<T extends { id: string }, P>({
       onChanged?.("delete");
       setDeleting(null);
       setNotice("deleted");
-      showToast(locale === "vi" ? "Xóa dữ liệu thành công." : "Data deleted successfully.");
+      showToast(t.crudDeleted);
     } catch (error) {
       setActionError(error);
-      const fallback =
-        locale === "vi"
-          ? "Không thể xóa dữ liệu. Vui lòng thử lại."
-          : "Unable to delete data. Please try again.";
-      showToast(extractServerErrorMessage(error, fallback), "error");
+      showToast(extractServerErrorMessage(error, t.crudDeleteError), "error");
       return;
     } finally {
       busy.current = false;

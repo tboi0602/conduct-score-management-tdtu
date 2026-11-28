@@ -37,7 +37,7 @@ export function UserRoleAssignments() {
   const effectiveSearch = debouncedSearch.length > 2 ? debouncedSearch : "";
 
   const query = useQuery({
-    queryKey: ["admin", "role-assignment", page, effectiveSearch, roleId],
+    queryKey: queryKeys.roleAssignments.list(page, effectiveSearch, roleId),
     queryFn: () => adminService.listRoleAssignmentUsers(page, effectiveSearch, roleId),
     enabled: !access.isLoading && access.can("faculty-staff.assign-event-organizer"),
   });
@@ -50,7 +50,7 @@ export function UserRoleAssignments() {
     onSuccess: async () => {
       setEditing(null);
       showToast(t.roleAssignmentSaved);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "role-assignment"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.roleAssignments.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
     onError: (err) => {
@@ -105,7 +105,7 @@ export function UserRoleAssignments() {
       },
       {
         key: "user",
-        title: vi ? "Người dùng" : "User",
+        title: t.user,
         width: 240,
         render: (user) => (
           <div>
@@ -193,9 +193,7 @@ export function UserRoleAssignments() {
                 setSearch(val);
                 setPage(1);
               }}
-              searchPlaceholder={
-                vi ? "Tìm MSSV, họ tên hoặc email..." : "Search student code, name..."
-              }
+              searchPlaceholder={t.searchPlaceholder}
               columns={allColumns}
               hiddenColumnKeys={hiddenKeys}
               onToggleColumn={toggleColumn}

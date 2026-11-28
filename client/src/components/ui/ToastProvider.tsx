@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { adminMessages } from "@/i18n/admin-messages";
 
 type Toast = { id: number; message: string; tone: "success" | "error" };
 type ToastContextValue = { showToast: (message: string, tone?: Toast["tone"]) => void };
@@ -71,7 +72,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <ToastItem
             key={toast.id}
             toast={toast}
-            closeLabel={locale === "vi" ? "Đóng thông báo" : "Close notification"}
+            closeLabel={adminMessages[locale].closeNotification}
             close={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
           />
         ))}
