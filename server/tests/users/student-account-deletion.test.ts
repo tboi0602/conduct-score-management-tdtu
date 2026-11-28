@@ -50,7 +50,7 @@ describe("student account deletion", () => {
 
   it("decrements every active registration and performs post-commit cleanup", async () => {
     mocks.queryRaw
-      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn" }])
+      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn", isStudent: true }])
       .mockResolvedValueOnce([{ id: "student-1", facultyId: "faculty-student" }])
       .mockResolvedValueOnce([
         { eventId: "event-1", facultyId: "faculty-event" },
@@ -69,7 +69,7 @@ describe("student account deletion", () => {
 
   it("rejects a student account that still has a staff role", async () => {
     mocks.queryRaw
-      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn" }])
+      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn", isStudent: false }])
       .mockResolvedValueOnce([{ id: "student-1", facultyId: "faculty-1" }]);
     mocks.findStaffRole.mockResolvedValue({ role: { name: "EVENT_ORGANIZER" } });
 
@@ -86,7 +86,7 @@ describe("student account deletion", () => {
 
   it("enforces the faculty scope before deleting data", async () => {
     mocks.queryRaw
-      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn" }])
+      .mockResolvedValueOnce([{ id: "user-1", email: "student@student.tdtu.edu.vn", isStudent: true }])
       .mockResolvedValueOnce([{ id: "student-1", facultyId: "faculty-2" }]);
 
     const action = deleteStudentAccount({
