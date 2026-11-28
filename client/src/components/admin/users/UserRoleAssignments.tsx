@@ -30,8 +30,7 @@ export function UserRoleAssignments() {
 
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
-  const [primaryFacultyId, setPrimaryFacultyId] = useState("");
-  const debouncedSearch = useDebounce(search.trim(), 350);
+  const debouncedSearch = useDebounce(search.trim(), 500);
   const effectiveSearch = debouncedSearch.length > 2 ? debouncedSearch : "";
 
   const query = useQuery({
@@ -41,12 +40,9 @@ export function UserRoleAssignments() {
   });
 
   const mutation = useMutation({
-    mutationFn: (input: { id: string; roleIds: string[]; primaryFacultyId?: string | null }) =>
+    mutationFn: (input: { id: string; roleIds: string[] }) =>
       adminService.updateRoleAssignment(input.id, {
         roleIds: input.roleIds,
-        ...(input.primaryFacultyId !== undefined
-          ? { primaryFacultyId: input.primaryFacultyId }
-          : {}),
       }),
     onSuccess: async () => {
       setEditing(null);
@@ -60,7 +56,6 @@ export function UserRoleAssignments() {
   const openEdit = (user: AdminUser) => {
     setEditing(user);
     setSelectedRoleIds(user.userRoles.map(({ role }) => role.id));
-    setPrimaryFacultyId(user.primaryFacultyId ?? "");
   };
 
   const toggleRole = (id: string) => {
@@ -75,7 +70,6 @@ export function UserRoleAssignments() {
     mutation.mutate({
       id: editing.id,
       roleIds: selectedRoleIds,
-      ...(primaryFacultyId ? { primaryFacultyId } : {}),
     });
   };
 
@@ -251,21 +245,6 @@ export function UserRoleAssignments() {
               })}
             </div>
           </div>
-
-          {current?.faculties && current.faculties.length > 0 ? (
-            <div>
-              <p className="mb-1.5 text-sm font-semibold text-[#263b58]">{t.faculty}</p>
-              <CustomSelect
-                value={primaryFacultyId}
-                onChange={setPrimaryFacultyId}
-                options={current.faculties.map((faculty) => ({
-                  value: faculty.id,
-                  label: (faculty as { name?: string }).name ?? faculty.id,
-                }))}
-                placeholder={t.faculty}
-              />
-            </div>
-          ) : null}
 
           {mutation.error ? (
             <p className="rounded-lg bg-[#fff1f2] px-3 py-2 text-xs text-[#b72e3f]">

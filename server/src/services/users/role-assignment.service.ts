@@ -229,38 +229,11 @@ export async function updateRoleAssignment(
       throw new ApiError(403, "You cannot assign roles with permissions you do not hold");
     }
   }
-  if (input.primaryFacultyId !== undefined && !access.manageAnyUnit) {
-    if (input.primaryFacultyId !== null && input.primaryFacultyId !== access.facultyId) {
-      throw new ApiError(403, "You can only assign users to your own faculty");
-    }
-  }
-  if (input.primaryFacultyId) {
-    const faculty = await prisma.faculty.findUnique({
-      where: { id: input.primaryFacultyId },
-      select: { id: true },
-    });
-    if (!faculty) throw new ApiError(400, "Primary faculty does not exist");
-  }
-
-  const resolvedPrimaryFacultyId =
-    target.student && roles.some((role) => role.code === "EVENT_ORGANIZER")
-      ? (input.primaryFacultyId ??
-        target.primaryFacultyId ??
-        target.student.class?.major.facultyId ??
-        null)
-      : input.primaryFacultyId;
-
   await prisma.$transaction(async (transaction) => {
     await transaction.userRole.deleteMany({ where: { userId: targetId } });
     if (roles.length) {
       await transaction.userRole.createMany({
         data: roles.map((role) => ({ userId: targetId, roleId: role.id })),
-      });
-    }
-    if (resolvedPrimaryFacultyId !== undefined) {
-      await transaction.user.update({
-        where: { id: targetId },
-        data: { primaryFacultyId: resolvedPrimaryFacultyId },
       });
     }
   });
