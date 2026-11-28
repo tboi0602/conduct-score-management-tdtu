@@ -9,12 +9,12 @@ const router = Router();
 router.use(authenticate);
 router.get(
   "/role-assignment",
-  requirePermission("faculty-staff.assign-event-organizer"),
+  requirePermission("user.assign-role"),
   asyncHandler(roleAssignment.list),
 );
 router.patch(
   "/:id/role-assignment",
-  requirePermission("faculty-staff.assign-event-organizer"),
+  requirePermission("user.assign-role"),
   asyncHandler(roleAssignment.update),
 );
 router.get("/", requirePermission("user.read"), asyncHandler(controller.listUsers));

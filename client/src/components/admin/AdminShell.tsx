@@ -91,7 +91,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           attendance: "Attendance",
         };
   const { can, profile } = useAdminAccess();
-  const canAssignUserRoles = can("faculty-staff.assign-event-organizer");
+  const canAssignUserRoles = can("user.assign-role");
   const pendingAppealsCount = usePendingAppealsCount(can("appeal.read"));
   const workspace = useWorkspaceSwitch(profile?.isStudent);
   if (!user) return <PageLoadingSkeleton />;

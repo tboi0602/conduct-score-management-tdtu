@@ -12,9 +12,7 @@ const permissionDescriptions = {
   "role.update": "Cập nhật tên và quyền của vai trò",
   "role.delete": "Xóa vai trò khỏi hệ thống",
   "permission.read": "Xem danh sách quyền trong hệ thống",
-  "permission.create": "Tạo quyền mới",
   "permission.update": "Cập nhật tên và mô tả quyền",
-  "permission.delete": "Xóa quyền khỏi hệ thống",
   "auth.login": "Đăng nhập vào hệ thống",
   "event.read": "Xem danh sách và thông tin sự kiện",
   "event.create": "Tạo sự kiện mới",
@@ -66,7 +64,7 @@ const conductScorePermissionDescriptions = {
   "faculty-staff.create": "Tạo nhân sự Ban tổ chức trong khoa",
   "faculty-staff.update": "Cập nhật nhân sự Ban tổ chức trong khoa",
   "faculty-staff.disable": "Khóa hoặc mở khóa nhân sự Ban tổ chức trong khoa",
-  "faculty-staff.assign-event-organizer": "Gán vai trò Ban tổ chức trong khoa",
+  "user.assign-role": "Gán vai trò Ban tổ chức trong khoa",
   "conduct-score.read": "Xem điểm rèn luyện trong phạm vi",
   "conduct-score.manage": "Điều chỉnh điểm rèn luyện trong phạm vi",
   "conduct-score.finalize": "Chốt điểm rèn luyện trong phạm vi",
@@ -135,7 +133,7 @@ const permissionsByRole = {
     "faculty-staff.create",
     "faculty-staff.update",
     "faculty-staff.disable",
-    "faculty-staff.assign-event-organizer",
+    "user.assign-role",
     "conduct-score.read",
     "conduct-score.manage",
     "conduct-score.finalize",
@@ -211,7 +209,18 @@ export async function seedAuthData(prisma: PrismaClient): Promise<void> {
     );
   }
   await prisma.role.deleteMany({ where: { id: { in: obsoleteRoles.map(({ id }) => id) } } });
-  await prisma.permission.deleteMany({ where: { permission: "training-point.read" } });
+  await prisma.permission.deleteMany({
+    where: {
+      permission: {
+        in: [
+          "training-point.read",
+          "permission.create",
+          "permission.delete",
+          "faculty-staff.assign-event-organizer",
+        ],
+      },
+    },
+  });
 
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
   const password = await bcrypt.hash("admin", 12);

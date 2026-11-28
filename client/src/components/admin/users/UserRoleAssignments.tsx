@@ -40,7 +40,7 @@ export function UserRoleAssignments() {
   const query = useQuery({
     queryKey: queryKeys.roleAssignments.list(page, effectiveSearch, roleId),
     queryFn: () => adminService.listRoleAssignmentUsers(page, effectiveSearch, roleId),
-    enabled: !access.isLoading && access.can("faculty-staff.assign-event-organizer"),
+    enabled: !access.isLoading && access.can("user.assign-role"),
   });
 
   const mutation = useMutation({

@@ -178,8 +178,7 @@ function validateStaffInput(
 export async function createUser(input: UserInput) {
   const { email, name } = normalizeInput(input);
   const roles = await getRoles(input.roleIds);
-  const isStudent =
-    Boolean(input.studentCode?.trim()) || roles.some((role) => role.code === "STUDENT");
+  const isStudent = Boolean(input.studentCode?.trim());
   validateStaffInput(input, email, isStudent, true);
   const studentCode = input.studentCode?.trim();
   if (isStudent && !studentCode)
