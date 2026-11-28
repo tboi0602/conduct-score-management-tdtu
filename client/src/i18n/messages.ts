@@ -35,7 +35,11 @@ export const messages = {
     login: {
       eyebrow: "Cổng dành cho sinh viên và Công chức",
       title: "Chào mừng bạn trở lại",
-      description: "Sử dụng tài khoản email TDTU để tiếp tục vào hệ thống.",
+      description: "Sử dụng mã số sinh viên và mật khẩu để tiếp tục vào hệ thống.",
+      studentCode: "Mã số sinh viên",
+      studentCodePlaceholder: "52200001",
+      password: "Mật khẩu",
+      submit: "Đăng nhập",
       google: "Đăng nhập bằng Google",
       googleLoading: "Đang đăng nhập bằng Google",
       googleConfigError: "Google Client ID chưa được cấu hình cho client.",
@@ -104,6 +108,10 @@ export const messages = {
       tdtuEmailOnly: "Only TDTU email accounts are accepted.",
       emailPrefix: "Only emails ending in",
       emailConnector: "or",
+      studentCode: "Student code",
+      studentCodePlaceholder: "52200001",
+      password: "Password",
+      submit: "Sign in",
       adminLink: "Log in to the management system.",
     },
     admin: {

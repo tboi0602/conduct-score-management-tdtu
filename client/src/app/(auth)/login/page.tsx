@@ -14,7 +14,7 @@ import { loginStudent } from "@/services/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { locale, message } = useLanguage();
+  const { message } = useLanguage();
   const { execute, isLoading, error } = useApi();
   const [studentCode, setStudentCode] = useState("");
   const [password, setPassword] = useState("");
@@ -37,15 +37,15 @@ export default function LoginPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label={locale === "vi" ? "Mã số sinh viên" : "Student code"}
+          label={message.login.studentCode}
           value={studentCode}
           onChange={(e) => setStudentCode(e.target.value)}
-          placeholder="52200001"
+          placeholder={message.login.studentCodePlaceholder}
           required
           autoComplete="username"
         />
         <Input
-          label={locale === "vi" ? "Mật khẩu" : "Password"}
+          label={message.login.password}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -56,7 +56,7 @@ export default function LoginPage() {
           <p className="rounded-lg bg-[#fff1f2] px-3 py-2 text-xs text-[#b72e3f]">{error}</p>
         ) : null}
         <Button type="submit" loading={isLoading} className="w-full">
-          {locale === "vi" ? "Đăng nhập" : "Sign in"}
+          {message.login.submit}
         </Button>
       </form>
 
