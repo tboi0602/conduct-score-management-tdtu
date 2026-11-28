@@ -254,9 +254,7 @@ export function useUsersManagement(mode?: "STUDENT" | "STAFF") {
     bulkDeleteStudents,
     bulkActivateStaff,
     bulkDisableStaff,
-    canCreateStaff:
-      Boolean(access.profile?.roles.some((role) => role.code === "ADMIN")) &&
-      access.can("user.create"),
+    canCreateStaff: access.can("user.create"),
     openCreate,
     openEdit,
     roles,

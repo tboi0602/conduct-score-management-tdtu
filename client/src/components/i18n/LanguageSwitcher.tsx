@@ -2,6 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
+import { adminMessages } from "@/i18n/admin-messages";
 import type { Locale } from "@/i18n";
 
 function VietnamFlag() {
@@ -39,35 +42,36 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
     const current = options.find((option) => option.value === locale) ?? options[0];
     const next = locale === "vi" ? "en" : "vi";
     return (
-      <button
-        type="button"
+      <IconButton
+        label={adminMessages[locale].switchLanguage}
         onClick={() => setLocale(next)}
-        aria-label={locale === "vi" ? "Switch to English" : "Chuyển sang tiếng Việt"}
-        className="grid h-9 w-9 place-items-center rounded-xl border border-[#cad5e5] bg-white transition hover:border-[#9fb7d5] hover:bg-[#eef4fc] active:scale-[.96]"
+        className="!border-[#cad5e5] !bg-white hover:!border-[#9fb7d5] hover:!bg-[#eef4fc]"
       >
         <span className="overflow-hidden rounded-[3px] border border-black/10 shadow-sm">
           {current.flag}
         </span>
-      </button>
+      </IconButton>
     );
   }
 
   return (
     <div className="flex rounded-lg bg-white/10 p-0.5" aria-label="Language">
       {options.map((option) => (
-        <button
+        <Button
           key={option.value}
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setLocale(option.value)}
           aria-pressed={locale === option.value}
-          className={`flex h-6 items-center justify-center rounded-md px-1.5 text-xs font-semibold transition-all active:scale-[.97] ${
-            locale === option.value ? "bg-white text-[#154273]" : "hover:bg-white/15"
+          className={`!h-6 !rounded-md !px-1.5 text-xs font-semibold ${
+            locale === option.value ? "!bg-white !text-[#154273]" : "hover:!bg-white/15"
           }`}
         >
           <span className="overflow-hidden rounded-[3px] border border-black/10 shadow-sm">
             {option.flag}
           </span>
-        </button>
+        </Button>
       ))}
     </div>
   );

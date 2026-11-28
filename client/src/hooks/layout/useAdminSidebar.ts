@@ -20,7 +20,7 @@ export function useAdminSidebar() {
   useEffect(() => {
     const session = getAuthSession();
     if (!session) return router.replace("/admin");
-    if (session.user.role === "STUDENT") {
+    if (session.user.isStudent) {
       return router.replace("/dashboard");
     }
     setUser(session.user);

@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { OpsDetailDrawer } from "@/components/ui/OpsDetailDrawer";
 import { SheetTable } from "@/components/ui/SheetTable";
@@ -151,17 +152,17 @@ export function UserRoleAssignments() {
         sticky: "right",
         render: (user) => (
           <div className="flex justify-center">
-            <button
-              type="button"
-              aria-label={t.edit}
+            <IconButton
+              label={t.edit}
+              tone="brand"
+              className="!h-7 !w-7 !rounded-lg"
               onClick={(e) => {
                 e.stopPropagation();
                 openEdit(user);
               }}
-              className="grid h-6 w-6 place-items-center rounded text-[#154a9b] transition hover:bg-[#edf4fc]"
             >
               <Pencil size={13} />
-            </button>
+            </IconButton>
           </div>
         ),
       },

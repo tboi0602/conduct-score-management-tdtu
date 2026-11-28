@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useAdminLogin } from "@/hooks/auth/useAdminLogin";
 
 export default function AdminLoginPage() {
@@ -18,50 +19,42 @@ export default function AdminLoginPage() {
       description={message.admin.description}
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-[#263b58]">
-            {message.admin.username}
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="text"
-            autoComplete="username"
-            required
-            placeholder={message.admin.usernamePlaceholder}
-            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-[#fbfcfe] px-4 text-sm text-[#102a50] outline-none transition placeholder:text-[#98a4b5] hover:border-[#afc1d7] focus:border-[#154a9b] focus:bg-white focus:ring-4 focus:ring-[#154a9b]/10"
-          />
-        </div>
+        <Input
+          id="email"
+          name="email"
+          type="text"
+          autoComplete="username"
+          required
+          label={message.admin.username}
+          placeholder={message.admin.usernamePlaceholder}
+          className="min-h-12 rounded-xl bg-[#fbfcfe] px-4"
+        />
 
         <div>
-          <div className="mb-2 flex items-center justify-between gap-4">
+          <div className="mb-1.5 flex items-center justify-between gap-4">
             <label htmlFor="password" className="text-sm font-medium text-[#263b58]">
               {message.admin.password}
             </label>
             <span className="text-xs text-[#7a8799]">{message.admin.passwordHint}</span>
           </div>
-          <input
+          <Input
             id="password"
             name="password"
             type="password"
             autoComplete="current-password"
             required
             placeholder={message.admin.passwordPlaceholder}
-            className="min-h-12 w-full rounded-xl border border-[#cad5e5] bg-[#fbfcfe] px-4 text-sm text-[#102a50] outline-none transition placeholder:text-[#98a4b5] hover:border-[#afc1d7] focus:border-[#154a9b] focus:bg-white focus:ring-4 focus:ring-[#154a9b]/10"
+            className="min-h-12 rounded-xl bg-[#fbfcfe] px-4"
           />
         </div>
 
-        <button
+        <Button
           type="submit"
-          disabled={isSubmitting}
-          className="min-h-12 w-full rounded-xl bg-[#154a9b] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_-18px_rgba(21,74,155,.85)] transition hover:-translate-y-0.5 hover:bg-[#103f85] focus-visible:ring-4 focus-visible:ring-[#154a9b]/20 active:translate-y-0 active:scale-[.99] disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-65"
+          loading={isSubmitting}
+          className="min-h-12 w-full rounded-xl text-sm font-bold"
         >
-          {isSubmitting ? (
-            <LoadingSpinner label={message.admin.submitting} />
-          ) : (
-            message.admin.submit
-          )}
-        </button>
+          {isSubmitting ? message.admin.submitting : message.admin.submit}
+        </Button>
 
         {error ? (
           <p role="alert" className="text-sm leading-5 text-red-600">
