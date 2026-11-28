@@ -1,16 +1,11 @@
-import { OAuth2Client } from "google-auth-library";
 import bcrypt from "bcryptjs";
 import { createHash, randomUUID, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
-import { Prisma } from "@prisma/client";
 
 import { signAccessToken, signRefreshToken, verifyRefreshToken, type AppRole } from "@config/auth";
 import { prisma } from "@config/prisma";
 import { redisClient } from "@redis";
 import { ApiError } from "@utils/ApiError";
-import { env } from "@config/env";
-
-const googleClient = new OAuth2Client();
 
 export type LoginMode = "STUDENT" | "ADMIN";
 
@@ -21,6 +16,7 @@ export async function getCurrentUser(userId: string) {
       id: true,
       email: true,
       name: true,
+      isStudent: true,
       status: true,
       primaryFaculty: { select: { id: true, code: true, name: true } },
       student: {
@@ -82,6 +78,7 @@ export async function getCurrentUser(userId: string) {
     id: user.id,
     email: user.email,
     name: user.name,
+    isStudent: user.isStudent,
     roles: user.userRoles.map(({ role }) => ({
       id: role.id,
       code: role.code,
@@ -116,15 +113,6 @@ export async function updateCurrentStudentProfile(
     }),
   ]);
   return getCurrentUser(userId);
-}
-
-function roleForEmail(email: string): Exclude<AppRole, "ADMIN"> | null {
-  const domain = email.toLowerCase().split("@")[1];
-  return domain === "student.tdtu.edu.vn" ? "STUDENT" : null;
-}
-
-function studentCodeFromEmail(email: string): string {
-  return email.slice(0, email.indexOf("@")).slice(0, 20).toUpperCase();
 }
 
 function hashRefreshToken(token: string): string {
@@ -202,98 +190,48 @@ export async function loginAdmin(email: string, password: string) {
     throw new ApiError(401, "Invalid email or password");
   }
   if (user.status === "DISABLED") throw new ApiError(403, "Account is disabled");
-  const assignedRoles = user.userRoles.map(({ role }) => role.code);
-  const managementRole = resolveLoginRole(assignedRoles, "ADMIN");
-  if (!managementRole) throw new ApiError(403, "This login is only for administrators");
+  if (user.isStudent) throw new ApiError(403, "This login is only for staff");
+  const sessionRole = user.userRoles[0]?.role.code ?? "STAFF";
 
   return {
-    ...(await issueTokenPair(user.id, managementRole)),
+    ...(await issueTokenPair(user.id, sessionRole)),
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: managementRole,
+      isStudent: user.isStudent,
+      role: sessionRole,
     },
   };
 }
 
-function resolveLoginRole(assignedRoles: string[], mode: LoginMode): AppRole | null {
-  if (mode === "STUDENT") {
-    return assignedRoles.includes("STUDENT") ? "STUDENT" : (assignedRoles[0] ?? null);
-  }
-
-  return assignedRoles.find((candidate) => candidate !== "STUDENT") ?? null;
-}
-
-export async function loginWithGoogle(idToken: string, mode: LoginMode) {
-  const clientId = env.googleClientId;
-  if (!clientId) throw new ApiError(500, "GOOGLE_CLIENT_ID is not configured");
-
-  let payload;
-  try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: clientId,
-    });
-    payload = ticket.getPayload();
-  } catch {
-    throw new ApiError(401, "Invalid Google ID token");
-  }
-
-  if (!payload) throw new ApiError(401, "Invalid Google ID token payload");
-
-  const email = payload.email?.trim().toLowerCase();
-  const googleSubject = payload.sub;
-  if (!email || !googleSubject || payload.email_verified !== true) {
-    throw new ApiError(401, "Google account email must be verified");
-  }
-
-  const existingAccount = await prisma.user.findUnique({
-    where: { email },
-    select: { status: true, userRoles: { select: { role: { select: { code: true } } } } },
+export async function loginStudent(studentCode: string, password: string) {
+  const normalizedCode = studentCode.trim().toUpperCase();
+  const student = await prisma.student.findUnique({
+    where: { studentCode: normalizedCode },
+    include: {
+      user: {
+        include: { userRoles: { include: { role: true } } },
+      },
+    },
   });
-  if (existingAccount?.status === "DISABLED") throw new ApiError(403, "Account is disabled");
-  const assignedRoles =
-    existingAccount?.userRoles.map(({ role: assignedRole }) => assignedRole.code) ?? [];
-  const appRole = existingAccount
-    ? (resolveLoginRole(assignedRoles, mode) ?? (mode === "STUDENT" ? "USER" : null))
-    : mode === "STUDENT"
-      ? "USER"
-      : null;
-  if (!appRole) {
-    throw new ApiError(403, "Account does not have a management role");
+  const user = student?.user;
+  if (!user?.password || !(await bcrypt.compare(password, user.password))) {
+    throw new ApiError(401, "Invalid student code or password");
   }
-
-  const name = (payload.name?.trim() || email).slice(0, 100);
-  const user = await prisma.$transaction(async (tx) => {
-    const existing = await tx.user.findUnique({ where: { email } });
-    if (existing?.googleSubject && existing.googleSubject !== googleSubject) {
-      throw new ApiError(401, "Google account does not match this user");
-    }
-
-    const saved = existing
-      ? await tx.user.update({
-          where: { id: existing.id },
-          data: { googleSubject, name },
-        })
-      : await tx.user.create({ data: { email, googleSubject, name } });
-
-    const shouldEnsureStudentProfile =
-      mode === "STUDENT" &&
-      (appRole === "STUDENT" || (appRole === "USER" && email.endsWith("@student.tdtu.edu.vn")));
-    if (shouldEnsureStudentProfile) {
-      await tx.student.upsert({
-        where: { userId: saved.id },
-        update: {},
-        create: { userId: saved.id, studentCode: studentCodeFromEmail(email) },
-      });
-    }
-    return saved;
-  });
+  if (user.status === "DISABLED") throw new ApiError(403, "Account is disabled");
+  if (!user.isStudent) throw new ApiError(403, "This login is only for students");
+  const sessionRole = user.userRoles[0]?.role.code ?? "STUDENT";
 
   return {
-    ...(await issueTokenPair(user.id, appRole)),
-    user: { id: user.id, email: user.email, name: user.name, role: appRole },
+    ...(await issueTokenPair(user.id, sessionRole)),
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isStudent: user.isStudent,
+      role: sessionRole,
+    },
   };
 }
 
@@ -304,6 +242,7 @@ export async function switchAccessMode(userId: string, mode: LoginMode) {
       id: true,
       email: true,
       name: true,
+      isStudent: true,
       status: true,
       userRoles: { select: { role: { select: { code: true } } } },
     },
@@ -312,21 +251,16 @@ export async function switchAccessMode(userId: string, mode: LoginMode) {
     throw new ApiError(403, "Account is disabled or unavailable");
   }
 
-  const role = resolveLoginRole(
-    user.userRoles.map(({ role: assignedRole }) => assignedRole.code),
-    mode,
-  );
-  if (!role) {
-    throw new ApiError(
-      403,
-      mode === "ADMIN"
-        ? "Account does not have a management role"
-        : "Account does not have the student role",
-    );
+  if (mode === "ADMIN" && user.isStudent) {
+    throw new ApiError(403, "Account does not have staff access");
   }
+  if (mode === "STUDENT" && !user.isStudent) {
+    throw new ApiError(403, "Account is not a student account");
+  }
+  const role = user.userRoles[0]?.role.code ?? (user.isStudent ? "STUDENT" : "STAFF");
 
   return {
     ...(await issueTokenPair(user.id, role)),
-    user: { id: user.id, email: user.email, name: user.name, role },
+    user: { id: user.id, email: user.email, name: user.name, isStudent: user.isStudent, role },
   };
 }

@@ -60,6 +60,7 @@ model User {
   googleSubject    String?    @unique @db.VarChar(255)
   name             String     @db.VarChar(100)
   password         String?    @db.VarChar(255)
+  isStudent        Boolean    @default(false)
   status           UserStatus @default(ACTIVE)
   userRoles        UserRole[]
   primaryFacultyId String?    @db.Uuid

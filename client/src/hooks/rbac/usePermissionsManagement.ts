@@ -13,12 +13,12 @@ import {
 } from "@/lib/admin-query-cache";
 import { queryKeys } from "@/lib/query-keys";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { useToast } from "@/components/ui/ToastProvider";
 import { useDebounce } from "@/hooks/shared/useDebounce";
+import { useApi } from "@/hooks/api/useApi";
 
 export function usePermissionsManagement(search = "") {
   const { locale } = useLanguage();
-  const { showToast } = useToast();
+  const { execute, isLoading: isSaving, error: actionError, clearError } = useApi();
   const debouncedSearch = useDebounce(search, 350);
   const effectiveSearch = debouncedSearch.trim().length > 2 ? debouncedSearch.trim() : "";
   const list = usePaginatedData([...queryKeys.permissions.all, effectiveSearch], (page, limit) =>
@@ -28,34 +28,27 @@ export function usePermissionsManagement(search = "") {
   const [editing, setEditing] = useState<Permission | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleting, setDeleting] = useState<Permission | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const submit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      setActionError(null);
-      setIsSaving(true);
-      const form = new FormData(event.currentTarget);
       if (!editing) return;
+      const form = new FormData(event.currentTarget);
       const payload = {
         permission: String(form.get("permission") ?? ""),
         description: String(form.get("description") ?? "") || null,
       };
-      try {
-        const response = await adminService.updatePermission(editing.id, payload);
-        updateCachedEntity(queryClient, queryKeys.permissions.all, response.data);
-        setModalOpen(false);
-        setEditing(null);
-        showToast(locale === "vi" ? "Lưu quyền thành công." : "Permission saved successfully.");
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : "Không thể lưu quyền");
-        showToast(locale === "vi" ? "Không thể lưu quyền." : "Unable to save permission.", "error");
-      } finally {
-        setIsSaving(false);
-      }
+      await execute(() => adminService.updatePermission(editing.id, payload), {
+        successMessage:
+          locale === "vi" ? "Lưu quyền thành công." : "Permission saved successfully.",
+        onSuccess: (response) => {
+          updateCachedEntity(queryClient, queryKeys.permissions.all, response.data);
+          setModalOpen(false);
+          setEditing(null);
+        },
+      });
     },
-    [editing, locale, queryClient, showToast],
+    [editing, execute, locale, queryClient],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -64,19 +57,19 @@ export function usePermissionsManagement(search = "") {
 
   const openCreate = () => {
     setEditing(null);
-    setActionError(null);
+    clearError();
     setModalOpen(true);
   };
   const openEdit = (item: Permission) => {
     setEditing(item);
-    setActionError(null);
+    clearError();
     setModalOpen(true);
   };
   const closeModal = () => {
     if (!isSaving) {
       setModalOpen(false);
       setEditing(null);
-      setActionError(null);
+      clearError();
     }
   };
   return {

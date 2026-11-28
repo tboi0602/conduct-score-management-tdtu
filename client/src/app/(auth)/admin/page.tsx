@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAdminLogin } from "@/hooks/auth/useAdminLogin";
@@ -70,16 +69,6 @@ export default function AdminLoginPage() {
           </p>
         ) : null}
       </form>
-
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <span className="h-px flex-1 bg-[#e1e8f2]" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#7a8799]">
-          {message.admin.orGoogle}
-        </span>
-        <span className="h-px flex-1 bg-[#e1e8f2]" />
-      </div>
-
-      <GoogleSignInButton mode="ADMIN" />
 
       <div className="mt-8 border-t border-[#e1e8f2] pt-6 text-center">
         <Link href="/login" className="text-sm font-medium text-[#154a9b] hover:underline">
